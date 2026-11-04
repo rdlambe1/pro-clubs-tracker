@@ -14,6 +14,7 @@
 <body class="p-4 md:p-8">
   <div class="max-w-6xl mx-auto space-y-6">
 
+    <!-- Header & Search Controls -->
     <header class="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-gray-800 pb-6">
       <div class="flex items-center gap-3">
         <i class="fa-solid fa-shield-halved text-emerald-400 text-3xl"></i>
@@ -27,7 +28,7 @@
           <option value="nx">Nintendo Switch</option>
         </select>
 
-        <input id="searchInput" type="text" placeholder="Club Name or ID (e.g. 28268)" value="28268" 
+        <input id="searchInput" type="text" placeholder="Club Name or ID (e.g. Doge Rovers)" value="Doge Rovers" 
                class="bg-gray-800 border border-gray-700 px-4 py-2 rounded text-sm text-white focus:outline-none focus:border-emerald-500 flex-1 md:w-72"
                onkeydown="if(event.key === 'Enter') handleSearch()">
 
@@ -37,9 +38,16 @@
       </div>
     </header>
 
+    <!-- Status Banner -->
     <div id="statusBanner" class="hidden text-sm px-4 py-3 rounded"></div>
 
-    <!-- Club Overview -->
+    <!-- Multi-Match Disambiguation List -->
+    <div id="matchesCard" class="hidden card p-4 space-y-3">
+      <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Multiple clubs found. Select yours:</h3>
+      <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    </div>
+
+    <!-- Active Club Card -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
         <div class="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center border-2 border-emerald-500 text-2xl font-black text-white" id="clubInitials">
@@ -66,7 +74,7 @@
       </div>
     </section>
 
-    <!-- Squad Member Stats -->
+    <!-- Squad Members Performance -->
     <section class="card p-6 space-y-4">
       <h3 class="text-lg font-bold text-white flex items-center gap-2">
         <i class="fa-solid fa-users text-emerald-400"></i> Squad Performance
@@ -86,7 +94,7 @@
             </tr>
           </thead>
           <tbody id="membersTable" class="divide-y border-gray-800">
-            <tr><td colspan="7" class="py-6 text-center text-gray-500">Search for a club to load squad.</td></tr>
+            <tr><td colspan="7" class="py-6 text-center text-gray-500">Search for a club above to load squad.</td></tr>
           </tbody>
         </table>
       </div>
@@ -113,49 +121,90 @@
     async function handleSearch() {
       const input = document.getElementById('searchInput').value.trim();
       const platform = document.getElementById('platformSelect').value;
+      const matchesCard = document.getElementById('matchesCard');
+      matchesCard.classList.add('hidden');
+
       if (!input) return;
 
-      let clubId = input;
-
-      // If the input is not purely digits, perform search lookup
-      if (!/^\d+$/.test(input)) {
-        setStatus(`Searching EA for "${input}"...`);
-        try {
-          const res = await fetch(`${API_BASE}/search?clubName=${encodeURIComponent(input)}&platform=${platform}`);
-          const data = await res.json();
-          
-          if (!res.ok || !data) {
-            setStatus(`Could not find club "${input}". Try searching directly with its numeric ID.`, true);
-            return;
-          }
-
-          // Handle array or key-value object responses
-          let firstMatch = null;
-          if (Array.isArray(data) && data.length > 0) {
-            firstMatch = data[0];
-          } else if (typeof data === 'object') {
-            const keys = Object.keys(data);
-            if (keys.length > 0) {
-              firstMatch = data[keys[0]];
-              if (!firstMatch.clubId && !firstMatch.id) {
-                firstMatch.clubId = keys[0];
-              }
-            }
-          }
-
-          clubId = firstMatch?.clubId || firstMatch?.id || firstMatch?.clubInfo?.clubId;
-
-          if (!clubId || clubId === '0' || clubId === 0) {
-            setStatus(`Club found, but missing numerical ID. Please search using Club ID directly.`, true);
-            return;
-          }
-        } catch (e) {
-          setStatus('Search lookup failed. Try using the numeric Club ID directly.', true);
-          return;
-        }
+      // 1. Direct Numeric ID Search
+      if (/^\d+$/.test(input)) {
+        loadClub(input, platform);
+        return;
       }
 
-      loadClub(clubId, platform);
+      // 2. Club Name Search
+      setStatus(`Searching EA for "${input}"...`);
+      try {
+        const res = await fetch(`${API_BASE}/search?clubName=${encodeURIComponent(input)}&platform=${platform}`);
+        const data = await res.json();
+
+        if (!res.ok || !data) {
+          setStatus(`No clubs found matching "${input}". Check spelling or platform.`, true);
+          return;
+        }
+
+        // Normalize data shape (handles array of clubs OR key-value dictionary)
+        const parsedClubs = [];
+
+        if (Array.isArray(data)) {
+          data.forEach(item => {
+            const id = item.clubId || item.id || item.clubInfo?.clubId;
+            const name = item.name || item.clubName || item.clubInfo?.name || input;
+            if (id) parsedClubs.push({ id: String(id), name });
+          });
+        } else if (typeof data === 'object') {
+          Object.entries(data).forEach(([key, val]) => {
+            // EA often uses the key itself as the Club ID (e.g. {"28268": {...}})
+            const id = val?.clubId || val?.id || val?.clubInfo?.clubId || (/^\d+$/.test(key) ? key : null);
+            const name = val?.name || val?.clubName || val?.clubInfo?.name || input;
+            if (id) parsedClubs.push({ id: String(id), name });
+          });
+        }
+
+        if (parsedClubs.length === 0) {
+          setStatus(`Could not resolve a Club ID for "${input}". Try searching by numeric ID directly.`, true);
+          return;
+        }
+
+        // If only 1 result, load it immediately
+        if (parsedClubs.length === 1) {
+          setStatus(`Found ${parsedClubs[0].name} (ID: ${parsedClubs[0].id}). Loading records...`);
+          loadClub(parsedClubs[0].id, platform);
+          return;
+        }
+
+        // If multiple clubs found, show options to select
+        setStatus(`Found ${parsedClubs.length} matching clubs. Choose yours:`);
+        renderMatches(parsedClubs, platform);
+
+      } catch (err) {
+        setStatus(`Search error: ${err.message}`, true);
+      }
+    }
+
+    function renderMatches(clubs, platform) {
+      const card = document.getElementById('matchesCard');
+      const list = document.getElementById('matchesList');
+      list.innerHTML = '';
+
+      clubs.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'p-3 rounded bg-gray-800/80 hover:bg-gray-800 border border-gray-700 cursor-pointer flex justify-between items-center transition';
+        div.innerHTML = `
+          <div>
+            <div class="font-bold text-white">${c.name}</div>
+            <div class="text-xs text-gray-400">ID: ${c.id}</div>
+          </div>
+          <button class="text-xs bg-emerald-500 hover:bg-emerald-600 text-black font-semibold px-2.5 py-1 rounded">Select</button>
+        `;
+        div.onclick = () => {
+          card.classList.add('hidden');
+          loadClub(c.id, platform);
+        };
+        list.appendChild(div);
+      });
+
+      card.classList.remove('hidden');
     }
 
     async function loadClub(clubId, platform) {
@@ -183,7 +232,6 @@
     }
 
     function renderClub(clubId, info, platform) {
-      // Safely access fields across SDK response formats
       const clubObj = info[clubId] || info;
       const name = clubObj.name || clubObj.clubName || 'Unknown Club';
       const wins = clubObj.wins ?? clubObj.record?.wins ?? 0;
