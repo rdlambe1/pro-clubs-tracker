@@ -1,80 +1,61 @@
-const express = require('express');
-const axios = require('axios');
-const cors = require('cors');
-const path = require('path');
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { ProClubsClient } from 'proclubs-sdk';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const EA_BASE_URL = 'https://proclubs.ea.com/api/fc';
+// Initialize SDK client with in-memory caching to stay within EA rate limits
+const proclubs = new ProClubsClient({ cache: true });
 
-const HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-  'Accept': 'application/json, text/plain, */*',
-  'Accept-Language': 'en-GB,en;q=0.9',
-  'Referer': 'https://www.ea.com/',
-  'Origin': 'https://www.ea.com'
-};
-
-// 1. Search Any Club by Name Across Platforms
+// 1. Search clubs by name
 app.get('/api/search', async (req, res) => {
   const { clubName, platform = 'common-gen5' } = req.query;
   if (!clubName) return res.status(400).json({ error: 'Club name required' });
 
-  const cleanName = clubName.trim();
-  
-  // Try direct search, lowercase search, and byName variations
-  const candidateUrls = [
-    `${EA_BASE_URL}/clubs/search?platform=${platform}&clubName=${encodeURIComponent(cleanName)}`,
-    `${EA_BASE_URL}/clubs/search?platform=${platform}&clubName=${encodeURIComponent(cleanName.toLowerCase())}`,
-    `${EA_BASE_URL}/clubs/byName?platform=${platform}&clubName=${encodeURIComponent(cleanName)}`
-  ];
-
-  for (const url of candidateUrls) {
-    try {
-      console.log(`[Search Attempt] Querying: ${url}`);
-      const response = await axios.get(url, { headers: HEADERS, timeout: 6000 });
-      
-      if (response.data && typeof response.data === 'object' && Object.keys(response.data).length > 0) {
-        console.log(`[Search Success] Matches found`);
-        return res.json(response.data);
-      }
-    } catch (e) {
-      console.log(`[Search Attempt Failed] ${url} - ${e.response?.status || e.message}`);
+  try {
+    const clubs = await proclubs.clubs.search({ name: clubName.trim(), platform });
+    if (!clubs || clubs.length === 0) {
+      return res.status(404).json({ error: `No clubs found named "${clubName}" on ${platform}.` });
     }
+    res.json(clubs);
+  } catch (error) {
+    console.error('[Search Error]:', error);
+    res.status(500).json({ error: error.message || 'Error searching clubs' });
   }
-
-  res.status(404).json({ error: `No clubs found matching "${cleanName}". Check spelling or search directly with the numeric Club ID.` });
 });
 
-// 2. Club Info by Numeric ID
+// 2. Club Info by numeric ID
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
+
   try {
-    const response = await axios.get(`${EA_BASE_URL}/clubs/info?clubIds=${clubId}&platform=${platform}`, {
-      headers: HEADERS,
-      timeout: 7000
-    });
-    res.json(response.data);
+    const info = await proclubs.clubs.get({ clubId: Number(clubId), platform });
+    res.json(info);
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.message });
+    console.error(`[Club Info Error ${clubId}]:`, error);
+    res.status(500).json({ error: error.message || 'Failed to fetch club info' });
   }
 });
 
-// 3. Squad & Player Performance Stats
+// 3. Squad and Member Statistics
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
+
   try {
-    const response = await axios.get(`${EA_BASE_URL}/members/stats?clubId=${clubId}&platform=${platform}`, {
-      headers: HEADERS,
-      timeout: 7000
-    });
-    res.json(response.data);
+    const members = await proclubs.members.stats({ clubId: Number(clubId), platform });
+    res.json({ members });
   } catch (error) {
-    res.status(error.response?.status || 500).json({ error: error.message });
+    console.error(`[Squad Error ${clubId}]:`, error);
+    res.status(500).json({ error: error.message || 'Failed to fetch squad stats' });
   }
 });
 
@@ -83,4 +64,4 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Clubs tracker running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Pro Clubs backend running on port ${PORT}`));
