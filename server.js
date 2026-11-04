@@ -13,7 +13,6 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const proclubs = new ProClubsClient({ cache: true });
 
-// Helper to recursively locate a valid numeric club ID in any EA data structure
 function extractClubId(obj, keyFallback = null) {
   if (!obj) return null;
   if (obj.clubId && Number(obj.clubId) > 0) return String(obj.clubId);
@@ -23,15 +22,13 @@ function extractClubId(obj, keyFallback = null) {
   return null;
 }
 
-// 1. Search clubs by name - Always returns a clean [{ id, name }] array
+// 1. Search clubs by name
 app.get('/api/search', async (req, res) => {
   const { clubName, platform = 'common-gen5' } = req.query;
   if (!clubName) return res.status(400).json({ error: 'Club name required' });
 
   try {
     const raw = await proclubs.clubs.search({ name: clubName.trim(), platform });
-    console.log('[Search Raw]:', JSON.stringify(raw));
-
     const results = [];
 
     if (Array.isArray(raw)) {
@@ -59,7 +56,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info & Comprehensive Overall Records
+// 2. Club Info & Seasonal Stats (Using verified SDK methods)
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -70,16 +67,20 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 
   try {
-    const [infoRes, statsRes] = await Promise.allSettled([
-      proclubs.clubs.get({ clubId: numericId, platform }),
-      proclubs.clubs.stats({ clubId: numericId, platform })
-    ]);
+    // 1. Always fetch base club info
+    const info = await proclubs.clubs.get({ clubId: numericId, platform });
 
-    const info = infoRes.status === 'fulfilled' ? infoRes.value : {};
-    const stats = statsRes.status === 'fulfilled' ? statsRes.value : {};
-
-    console.log(`[Info ${numericId}]:`, JSON.stringify(info));
-    console.log(`[Stats ${numericId}]:`, JSON.stringify(stats));
+    // 2. Safely attempt to fetch seasonal stats using valid methods
+    let stats = {};
+    try {
+      if (typeof proclubs.clubs.seasonalStats === 'function') {
+        stats = await proclubs.clubs.seasonalStats({ clubId: numericId, platform });
+      } else if (typeof proclubs.seasonalStats?.get === 'function') {
+        stats = await proclubs.seasonalStats.get({ clubId: numericId, platform });
+      }
+    } catch (e) {
+      console.log(`[Seasonal stats skipped]: ${e.message}`);
+    }
 
     res.json({ info, stats });
   } catch (error) {
