@@ -109,7 +109,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Match History (Verified working queries: leagueMatch & playoffMatch)
+// 4. Match History (Requests up to 15 matches from EA across league and playoff)
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -126,7 +126,8 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   ];
 
   for (const m of matchTypes) {
-    const url = `https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numericId}&platform=${platform}&matchType=${m.type}`;
+    // maxResultCount=15 ensures full 10-match depth
+    const url = `https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numericId}&platform=${platform}&matchType=${m.type}&maxResultCount=15`;
     try {
       const response = await fetch(url, { headers: EA_HEADERS });
       if (response.ok) {
