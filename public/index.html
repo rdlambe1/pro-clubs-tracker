@@ -19,20 +19,23 @@
         <h1 class="text-2xl font-bold text-white tracking-wide">CLUBS<span class="text-emerald-400">TRACKER</span></h1>
       </div>
       <div class="flex gap-2 w-full md:w-auto">
-        <input id="clubIdInput" type="text" placeholder="Club ID" value="28268" 
-               class="bg-gray-800 border border-gray-700 px-4 py-2 rounded text-sm text-white focus:outline-none focus:border-emerald-500 w-full md:w-64">
-        <button onclick="fetchClubData()" class="bg-emerald-500 hover:bg-emerald-600 text-black font-semibold px-4 py-2 rounded text-sm transition">
+        <input id="searchInput" type="text" placeholder="Club Name or ID (e.g. doge rovers)" value="doge rovers" 
+               class="bg-gray-800 border border-gray-700 px-4 py-2 rounded text-sm text-white focus:outline-none focus:border-emerald-500 w-full md:w-64"
+               onkeydown="if(event.key === 'Enter') executeSearch()">
+        <button onclick="executeSearch()" class="bg-emerald-500 hover:bg-emerald-600 text-black font-semibold px-4 py-2 rounded text-sm transition">
           Track
         </button>
       </div>
     </header>
 
+    <div id="statusMessage" class="hidden text-sm px-4 py-2 rounded bg-gray-800 border border-gray-700 text-gray-300"></div>
+
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
         <div class="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center border-2 border-emerald-500 text-2xl font-black text-white" id="clubInitials">FC</div>
         <div>
-          <h2 id="clubName" class="text-3xl font-extrabold text-white">Loading Club...</h2>
-          <p id="clubMeta" class="text-gray-400 text-sm mt-1">Platform: Common Gen5 | ID: 28268</p>
+          <h2 id="clubName" class="text-3xl font-extrabold text-white">Enter a club to begin</h2>
+          <p id="clubMeta" class="text-gray-400 text-sm mt-1">Platform: Cross-Play (Gen 5)</p>
         </div>
       </div>
       <div class="grid grid-cols-3 gap-6 text-center border-t md:border-t-0 md:border-l border-gray-800 pt-4 md:pt-0 md:pl-8">
@@ -69,7 +72,7 @@
             </tr>
           </thead>
           <tbody id="membersTable" class="divide-y border-gray-800">
-            <tr><td colspan="7" class="py-4 text-center text-gray-500">Loading squad...</td></tr>
+            <tr><td colspan="7" class="py-4 text-center text-gray-500">Search for a club above to load roster.</td></tr>
           </tbody>
         </table>
       </div>
@@ -79,10 +82,52 @@
   <script>
     const API_BASE = '/api';
 
-    async function fetchClubData() {
-      const clubId = document.getElementById('clubIdInput').value.trim();
-      if (!clubId) return;
+    function setStatus(text, isError = false) {
+      const el = document.getElementById('statusMessage');
+      if (!text) {
+        el.classList.add('hidden');
+        return;
+      }
+      el.classList.remove('hidden');
+      el.innerText = text;
+      el.className = isError 
+        ? 'text-sm px-4 py-2 rounded bg-red-950/60 border border-red-700 text-red-300' 
+        : 'text-sm px-4 py-2 rounded bg-gray-800 border border-gray-700 text-gray-300';
+    }
 
+    async function executeSearch() {
+      const query = document.getElementById('searchInput').value.trim();
+      if (!query) return;
+
+      setStatus(`Searching for "${query}"...`);
+
+      let targetClubId = query;
+
+      // If the user typed a name rather than an ID, search EA first
+      if (isNaN(query)) {
+        try {
+          const searchRes = await fetch(`${API_BASE}/search?clubName=${encodeURIComponent(query)}`);
+          const searchData = await searchRes.json();
+          
+          const clubs = Object.entries(searchData);
+          if (!clubs.length) {
+            setStatus(`No club found matching "${query}". Check spelling or platform.`, true);
+            return;
+          }
+
+          // Pick the first matched club ID
+          targetClubId = clubs[0][0];
+          setStatus(`Found club: ${clubs[0][1]?.clubInfo?.name || query} (ID: ${targetClubId}). Loading stats...`);
+        } catch (err) {
+          setStatus('Failed to connect to search service.', true);
+          return;
+        }
+      }
+
+      loadClubById(targetClubId);
+    }
+
+    async function loadClubById(clubId) {
       document.getElementById('clubName').innerText = 'Loading Club...';
       document.getElementById('membersTable').innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-500">Loading squad...</td></tr>';
 
@@ -97,15 +142,19 @@
 
         renderClubInfo(clubId, infoData);
         renderMembers(membersData);
+        setStatus('');
       } catch (err) {
         console.error('Fetch error:', err);
-        alert('Failed to retrieve live stats. EA servers may be throttling or the Club ID is invalid.');
+        setStatus('Error retrieving stats from EA servers.', true);
       }
     }
 
     function renderClubInfo(clubId, data) {
       const club = data[clubId] || Object.values(data)[0];
-      if (!club) return;
+      if (!club) {
+        document.getElementById('clubName').innerText = 'Club Not Found';
+        return;
+      }
 
       document.getElementById('clubName').innerText = club.name || 'Unknown Club';
       document.getElementById('clubInitials').innerText = (club.name || 'FC').substring(0, 2).toUpperCase();
@@ -119,8 +168,8 @@
       const tbody = document.getElementById('membersTable');
       tbody.innerHTML = '';
       
-      const members = data.members || Object.values(data);
-      if (!members.length) {
+      const members = data.members || (Array.isArray(data) ? data : Object.values(data));
+      if (!members || !members.length) {
         tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-500">No member data recorded.</td></tr>';
         return;
       }
@@ -141,7 +190,7 @@
       });
     }
 
-    window.onload = fetchClubData;
+    window.onload = executeSearch;
   </script>
 </body>
 </html>
