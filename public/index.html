@@ -80,7 +80,8 @@
           <option value="nx">Nintendo Switch</option>
         </select>
 
-        <input id="searchInput" type="text" placeholder="Club Name or ID (e.g. Doge Rovers)" value="Doge Rovers" 
+        <!-- Clean, empty input ready for user entry -->
+        <input id="searchInput" type="text" placeholder="Enter Club Name or Numeric ID..." value="" 
                class="bg-gray-800 border border-gray-700 px-4 py-2 rounded text-sm text-white focus:outline-none focus:border-emerald-500 flex-1 md:w-72"
                onkeydown="if(event.key === 'Enter') handleSearch()">
 
@@ -97,11 +98,11 @@
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
         <div class="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center border-2 border-emerald-500 text-2xl font-black text-white" id="clubInitials">
-          FC
+          --
         </div>
         <div>
           <h2 id="clubName" class="text-3xl font-extrabold text-white">No Club Loaded</h2>
-          <p id="clubMeta" class="text-gray-400 text-sm mt-1">Ready to search</p>
+          <p id="clubMeta" class="text-gray-400 text-sm mt-1">Enter a club name or ID above to get started</p>
         </div>
       </div>
       <div class="grid grid-cols-3 gap-6 text-center border-t md:border-t-0 md:border-l border-gray-800 pt-4 md:pt-0 md:pl-8">
@@ -215,7 +216,10 @@
     async function handleSearch() {
       const input = document.getElementById('searchInput').value.trim();
       const platform = document.getElementById('platformSelect').value;
-      if (!input) return;
+      if (!input) {
+        setStatus('Please enter a club name or numeric ID to search.', true);
+        return;
+      }
 
       let clubId = input;
 
@@ -288,9 +292,8 @@
     function renderClub(clubId, info, platform) {
       const c = info[clubId] || (info.clubs && info.clubs[clubId]) || info;
 
-      const name = c.name || c.clubName || 'Doge Rovers';
+      const name = c.name || c.clubName || 'Unknown Club';
       
-      // Pull stats safely across all known EA schema variations
       const wins = c.overallWins ?? c.wins ?? c.record?.wins ?? c.seasonalStats?.wins ?? 0;
       const ties = c.overallTies ?? c.ties ?? c.record?.ties ?? c.seasonalStats?.ties ?? 0;
       const losses = c.overallLosses ?? c.losses ?? c.record?.losses ?? c.seasonalStats?.losses ?? 0;
@@ -372,7 +375,6 @@
         return;
       }
 
-      // Sort by rating descending
       const sorted = [...members].filter(p => p && typeof p === 'object').sort((a, b) => {
         const rA = parseFloat(a.ratingAve || a.rating || 0);
         const rB = parseFloat(b.ratingAve || b.rating || 0);
@@ -403,9 +405,10 @@
       });
     }
 
-    // Initialize with default badges immediately, then trigger search
-    buildPitchXI([]);
-    window.onload = handleSearch;
+    // Set initial empty pitch diagram placeholders on load without firing any search
+    window.onload = () => {
+      buildPitchXI([]);
+    };
   </script>
 </body>
 </html>
