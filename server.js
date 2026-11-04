@@ -101,7 +101,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Recent Matches - Using SDK request transport with multi-endpoint fallback
+// 4. Match History (Queries both leagueMatch and playoffMatch)
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -111,46 +111,68 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
     return res.status(400).json({ error: `Invalid clubId: ${clubId}` });
   }
 
+  const allMatches = [];
   const matchTypes = ['leagueMatch', 'playoffMatch'];
-  const collectedMatches = [];
 
   for (const mType of matchTypes) {
     try {
       let data = null;
 
-      // 1. Direct method calls available on proclubs instance
-      if (typeof proclubs.getMatches === 'function') {
-        data = await proclubs.getMatches({ clubIds: numericId, platform, matchType: mType });
-      } else if (typeof proclubs.clubs?.matches === 'function') {
+      // Method 1: proclubs.clubs.matches
+      if (typeof proclubs.clubs?.matches === 'function') {
         data = await proclubs.clubs.matches({ clubId: numericId, platform, matchType: mType });
-      } else if (typeof proclubs.matches?.get === 'function') {
-        data = await proclubs.matches.get({ clubIds: numericId, platform, matchType: mType });
-      } else if (typeof proclubs.request === 'function') {
-        // Fallback directly to SDK's authenticated request pipeline
+      } 
+      // Method 2: proclubs.matches.get
+      else if (typeof proclubs.matches?.get === 'function') {
+        data = await proclubs.matches.get({ clubId: numericId, clubIds: numericId, platform, matchType: mType });
+      }
+      // Method 3: Direct internal request
+      else if (typeof proclubs.request === 'function') {
         data = await proclubs.request({
           endpoint: 'clubsMatches',
-          query: { clubIds: String(numericId), platform, matchType: mType }
+          query: { clubIds: numericId, platform, matchType: mType }
         });
       }
 
       if (data) {
-        const list = Array.isArray(data) ? data : Object.values(data);
-        list.forEach(item => {
-          if (item && typeof item === 'object') {
-            item._inferredType = mType;
-            collectedMatches.push(item);
+        const matchesList = Array.isArray(data) ? data : Object.values(data);
+        matchesList.forEach(m => {
+          if (m && typeof m === 'object') {
+            m._inferredType = mType;
+            allMatches.push(m);
           }
         });
       }
     } catch (err) {
-      console.log(`[Matches fetch skipped for ${mType}]:`, err.message);
+      console.log(`[Matches query failed for ${mType}]:`, err.message);
     }
   }
 
-  // Sort newest first
-  collectedMatches.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+  // Fallback: If no league/playoff matches returned, check overall match history without matchType filter
+  if (allMatches.length === 0) {
+    try {
+      if (typeof proclubs.clubs?.matches === 'function') {
+        const fallbackData = await proclubs.clubs.matches({ clubId: numericId, platform });
+        const list = Array.isArray(fallbackData) ? fallbackData : Object.values(fallbackData || {});
+        list.forEach(m => {
+          if (m && typeof m === 'object') allMatches.push(m);
+        });
+      }
+    } catch (e) {
+      console.log('[Matches generic fallback skipped]:', e.message);
+    }
+  }
 
-  res.json(collectedMatches.slice(0, 10));
+  console.log(`[Matches found for ID ${numericId}]: ${allMatches.length}`);
+
+  // Sort newest first
+  allMatches.sort((a, b) => {
+    const tA = Number(a.timestamp || a.timeAgo?.number || 0);
+    const tB = Number(b.timestamp || b.timeAgo?.number || 0);
+    return tB - tA;
+  });
+
+  res.json(allMatches.slice(0, 10));
 });
 
 app.get('*', (req, res) => {
