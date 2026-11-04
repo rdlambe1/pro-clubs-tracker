@@ -14,6 +14,21 @@ const HEADERS = {
   'Referer': 'https://www.ea.com/'
 };
 
+// 1. Search Club by Name
+app.get('/api/search', async (req, res) => {
+  const { clubName, platform = 'common-gen5' } = req.query;
+  try {
+    const response = await axios.get(`${EA_BASE_URL}/clubs/search`, {
+      params: { clubName, platform },
+      headers: HEADERS
+    });
+    res.json(response.data);
+  } catch (error) {
+    res.status(error.response?.status || 500).json({ error: error.message });
+  }
+});
+
+// 2. Club Overall Info
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -28,6 +43,7 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 });
 
+// 3. Member / Squad Stats
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
