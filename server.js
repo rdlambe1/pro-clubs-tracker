@@ -56,7 +56,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Overall W-D-L & Skill Rating
+// 2. Club Info + Overall Stats
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -67,7 +67,6 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 
   try {
-    // Call both SDK methods concurrently
     const [infoRes, statsRes] = await Promise.allSettled([
       proclubs.clubs.get({ clubId: numericId, platform }),
       proclubs.clubs.overallStats({ clubId: numericId, platform })
@@ -83,7 +82,7 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 });
 
-// 3. Squad and Member Statistics
+// 3. Member / Squad Stats
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -99,6 +98,31 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   } catch (error) {
     console.error(`[Squad Error ${clubId}]:`, error);
     res.status(500).json({ error: error.message || 'Failed to fetch squad stats' });
+  }
+});
+
+// 4. Recent Matches (League, Playoffs, Relegation/Promotion)
+app.get('/api/club/:clubId/matches', async (req, res) => {
+  const { clubId } = req.params;
+  const { platform = 'common-gen5', matchType = 'leagueMatch' } = req.query;
+
+  const numericId = parseInt(clubId, 10);
+  if (isNaN(numericId) || numericId <= 0) {
+    return res.status(400).json({ error: `Invalid clubId: ${clubId}` });
+  }
+
+  try {
+    // Attempt match fetch across SDK methods
+    let matches = [];
+    if (typeof proclubs.matches?.get === 'function') {
+      matches = await proclubs.matches.get({ clubId: numericId, platform, matchType });
+    } else if (typeof proclubs.clubs?.matches === 'function') {
+      matches = await proclubs.clubs.matches({ clubId: numericId, platform, matchType });
+    }
+    res.json(matches || []);
+  } catch (error) {
+    console.error(`[Matches Error ${clubId}]:`, error);
+    res.json([]); // Return empty list gracefully if no recent matches recorded
   }
 });
 
