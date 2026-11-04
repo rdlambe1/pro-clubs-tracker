@@ -11,15 +11,7 @@ const app = express();
 app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const proclubs = new ProClubsClient({ cache: true });
-
-const EA_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-  'Accept': 'application/json, text/plain, */*',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Referer': 'https://www.ea.com/',
-  'Origin': 'https://www.ea.com'
-};
+const proclubs = new ProClubsClient({ cache: false });
 
 function extractClubId(obj, keyFallback = null) {
   if (!obj) return null;
@@ -109,7 +101,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Match History (Direct HTTP fetch to EA endpoint with browser headers)
+// 4. Match History
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -119,39 +111,64 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
     return res.status(400).json({ error: `Invalid clubId: ${clubId}` });
   }
 
-  const matchTypes = ['gameType9', 'gameType13'];
-  const allMatches = [];
+  const matchesMap = new Map();
 
-  for (const mType of matchTypes) {
-    const url = `https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numericId}&platform=${platform}&matchType=${mType}`;
+  // Query both match types through the SDK's internal authenticated request transport
+  const matchTypes = [
+    { type: 'gameType9', label: 'League' },
+    { type: 'gameType13', label: 'Playoff' }
+  ];
+
+  for (const mObj of matchTypes) {
     try {
-      const response = await fetch(url, { headers: EA_HEADERS });
-      if (response.ok) {
-        const data = await response.json();
-        const list = Array.isArray(data) ? data : Object.values(data || {});
-        list.forEach(m => {
-          if (m && typeof m === 'object') {
-            m._inferredType = mType === 'gameType13' ? 'playoff' : 'league';
-            // Deduplicate by matchId
-            const id = m.matchId || m.timestamp;
-            if (!allMatches.some(x => (x.matchId || x.timestamp) === id)) {
-              allMatches.push(m);
-            }
+      let data = null;
+
+      // Use the internal SDK authenticated request engine to bypass Cloudflare
+      if (typeof proclubs.request === 'function') {
+        data = await proclubs.request({
+          endpoint: 'clubsMatches',
+          query: {
+            clubIds: String(numericId),
+            platform: platform,
+            matchType: mObj.type
           }
         });
-      } else {
-        console.log(`[EA match fetch HTTP ${response.status}] for ${mType}`);
+      } else if (typeof proclubs.clubs?.matches === 'function') {
+        data = await proclubs.clubs.matches({
+          clubId: numericId,
+          platform: platform,
+          matchType: mObj.type
+        });
       }
-    } catch (err) {
-      console.log(`[EA match fetch error ${mType}]:`, err.message);
+
+      if (data) {
+        const list = Array.isArray(data) ? data : Object.values(data);
+        for (const item of list) {
+          if (item && typeof item === 'object') {
+            const key = item.matchId || item.timestamp || JSON.stringify(item.clubs);
+            if (!matchesMap.has(key)) {
+              item._inferredCategory = mObj.label;
+              matchesMap.set(key, item);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.log(`[Matches fetch skipped for ${mObj.label}]:`, e.message);
     }
   }
 
-  // Sort newest first
-  allMatches.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+  const combined = Array.from(matchesMap.values());
 
-  console.log(`[Matches retrieved for ${numericId}]: ${allMatches.length}`);
-  res.json(allMatches.slice(0, 10));
+  // Sort by timestamp descending (newest first)
+  combined.sort((a, b) => {
+    const tA = Number(a.timestamp || a.timeAgo?.number || 0);
+    const tB = Number(b.timestamp || b.timeAgo?.number || 0);
+    return tB - tA;
+  });
+
+  console.log(`[Matches found for ID ${numericId}]: ${combined.length}`);
+  res.json(combined.slice(0, 10));
 });
 
 app.get('*', (req, res) => {
