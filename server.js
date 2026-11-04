@@ -22,23 +22,30 @@ app.get('/api/search', async (req, res) => {
   const { clubName, platform = 'common-gen5' } = req.query;
   if (!clubName) return res.status(400).json({ error: 'Club name required' });
 
-  const searchUrls = [
-    `${EA_BASE_URL}/clubs/search?clubName=${encodeURIComponent(clubName)}&platform=${platform}`,
-    `${EA_BASE_URL}/clubs/byName?clubName=${encodeURIComponent(clubName)}&platform=${platform}`
+  const cleanName = clubName.trim();
+  
+  // Try direct search, lowercase search, and byName variations
+  const candidateUrls = [
+    `${EA_BASE_URL}/clubs/search?platform=${platform}&clubName=${encodeURIComponent(cleanName)}`,
+    `${EA_BASE_URL}/clubs/search?platform=${platform}&clubName=${encodeURIComponent(cleanName.toLowerCase())}`,
+    `${EA_BASE_URL}/clubs/byName?platform=${platform}&clubName=${encodeURIComponent(cleanName)}`
   ];
 
-  for (const url of searchUrls) {
+  for (const url of candidateUrls) {
     try {
+      console.log(`[Search Attempt] Querying: ${url}`);
       const response = await axios.get(url, { headers: HEADERS, timeout: 6000 });
-      if (response.data && (Array.isArray(response.data) ? response.data.length > 0 : Object.keys(response.data).length > 0)) {
+      
+      if (response.data && typeof response.data === 'object' && Object.keys(response.data).length > 0) {
+        console.log(`[Search Success] Matches found`);
         return res.json(response.data);
       }
     } catch (e) {
-      // Continue to next endpoint attempt
+      console.log(`[Search Attempt Failed] ${url} - ${e.response?.status || e.message}`);
     }
   }
 
-  res.status(404).json({ error: 'No clubs found matching that name on this platform.' });
+  res.status(404).json({ error: `No clubs found matching "${cleanName}". Check spelling or search directly with the numeric Club ID.` });
 });
 
 // 2. Club Info by Numeric ID
