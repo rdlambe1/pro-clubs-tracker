@@ -12,7 +12,7 @@
     
     .pitch-bg {
       background: #143823;
-      background-image: repeating-linear-gradient(0deg, #164027, #164027 40px, #133621 40px, #133621 80px);
+      background-image: repeating-linear-gradient(0deg, #164027, #164027 45px, #133621 45px, #133621 90px);
       border: 2px solid rgba(255, 255, 255, 0.35);
       border-radius: 12px;
       position: relative;
@@ -23,8 +23,8 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 110px;
-      height: 110px;
+      width: 120px;
+      height: 120px;
       border: 2px solid rgba(255, 255, 255, 0.25);
       border-radius: 50%;
       pointer-events: none;
@@ -42,8 +42,8 @@
       top: 0;
       left: 50%;
       transform: translateX(-50%);
-      width: 190px;
-      height: 65px;
+      width: 200px;
+      height: 70px;
       border-bottom: 2px solid rgba(255, 255, 255, 0.25);
       border-left: 2px solid rgba(255, 255, 255, 0.25);
       border-right: 2px solid rgba(255, 255, 255, 0.25);
@@ -54,8 +54,8 @@
       bottom: 0;
       left: 50%;
       transform: translateX(-50%);
-      width: 190px;
-      height: 65px;
+      width: 200px;
+      height: 70px;
       border-top: 2px solid rgba(255, 255, 255, 0.25);
       border-left: 2px solid rgba(255, 255, 255, 0.25);
       border-right: 2px solid rgba(255, 255, 255, 0.25);
@@ -97,7 +97,7 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Card -->
+    <!-- Active Club Overview Card -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
         <div class="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center border-2 border-emerald-500 text-2xl font-black text-white" id="clubInitials">
@@ -124,50 +124,39 @@
       </div>
     </section>
 
-    <!-- Best XI Pitch Diagram -->
+    <!-- Dynamic Formation Tactical Pitch Diagram -->
     <section class="card p-6 space-y-4">
       <div class="flex justify-between items-center">
         <div>
           <h3 class="text-lg font-bold text-white flex items-center gap-2">
-            <i class="fa-solid fa-chess-board text-emerald-400"></i> Best XI & Suggested Lineup
+            <i class="fa-solid fa-chess-board text-emerald-400"></i> Most Used Formation & Tactic
           </h3>
-          <p class="text-xs text-gray-400 mt-0.5">Automated 4-3-3 based on highest rated active players</p>
+          <p id="formationSubtitle" class="text-xs text-gray-400 mt-0.5">Calculated dynamically from squad role history & ratings</p>
         </div>
-        <span class="text-xs font-semibold px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">4 - 3 - 3</span>
+        <span id="formationBadge" class="text-xs font-semibold px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">--</span>
       </div>
 
-      <div class="pitch-bg w-full h-[540px] p-6 flex flex-col justify-between relative shadow-inner">
+      <div class="pitch-bg w-full h-[560px] p-6 flex flex-col justify-between relative shadow-inner">
         <div class="pitch-penalty-top"></div>
         <div class="pitch-center-line"></div>
         <div class="pitch-center-circle"></div>
         <div class="pitch-penalty-bottom"></div>
 
-        <div class="flex justify-around items-center z-10" id="pitchAttack">
-          <div class="text-center" id="pos_LW"></div>
-          <div class="text-center" id="pos_ST"></div>
-          <div class="text-center" id="pos_RW"></div>
-        </div>
+        <!-- Attack Line -->
+        <div class="flex justify-around items-center z-10 w-full" id="rowAttack"></div>
 
-        <div class="flex justify-around items-center z-10 px-8" id="pitchMidfield">
-          <div class="text-center" id="pos_LCM"></div>
-          <div class="text-center" id="pos_CM"></div>
-          <div class="text-center" id="pos_RCM"></div>
-        </div>
+        <!-- Midfield Line -->
+        <div class="flex justify-around items-center z-10 w-full px-4" id="rowMidfield"></div>
 
-        <div class="flex justify-around items-center z-10" id="pitchDefense">
-          <div class="text-center" id="pos_LB"></div>
-          <div class="text-center" id="pos_LCB"></div>
-          <div class="text-center" id="pos_RCB"></div>
-          <div class="text-center" id="pos_RB"></div>
-        </div>
+        <!-- Defense Line -->
+        <div class="flex justify-around items-center z-10 w-full" id="rowDefense"></div>
 
-        <div class="flex justify-center items-center z-10" id="pitchGK">
-          <div class="text-center" id="pos_GK"></div>
-        </div>
+        <!-- Goalkeeper Line -->
+        <div class="flex justify-center items-center z-10 w-full" id="rowGK"></div>
       </div>
     </section>
 
-    <!-- Squad Performance Table -->
+    <!-- Full Squad Performance Table -->
     <section class="card p-6 space-y-4">
       <h3 class="text-lg font-bold text-white flex items-center gap-2">
         <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
@@ -178,6 +167,7 @@
           <thead class="border-b border-gray-800 text-gray-400 uppercase text-xs">
             <tr>
               <th class="py-3 px-2">Player</th>
+              <th class="py-3 px-2 text-center">Primary Pos</th>
               <th class="py-3 px-2 text-center">Matches</th>
               <th class="py-3 px-2 text-center">Goals</th>
               <th class="py-3 px-2 text-center">Assists</th>
@@ -187,7 +177,7 @@
             </tr>
           </thead>
           <tbody id="membersTable" class="divide-y border-gray-800">
-            <tr><td colspan="7" class="py-6 text-center text-gray-500">Search for a club above to load squad.</td></tr>
+            <tr><td colspan="8" class="py-6 text-center text-gray-500">Search for a club above to load squad.</td></tr>
           </tbody>
         </table>
       </div>
@@ -209,6 +199,17 @@
       banner.className = isErr 
         ? 'text-sm px-4 py-3 rounded bg-red-950/80 border border-red-800 text-red-200' 
         : 'text-sm px-4 py-3 rounded bg-gray-800 border border-gray-700 text-gray-300';
+    }
+
+    // Categorize EA role strings into primary zones
+    function normalizePosition(rawPos) {
+      if (!rawPos) return 'MID';
+      const p = String(rawPos).toLowerCase().trim();
+      if (['forward', 'striker', 'st', 'cf', 'lw', 'rw', 'lf', 'rf'].includes(p)) return 'FWD';
+      if (['midfielder', 'midfield', 'cm', 'cam', 'cdm', 'lm', 'rm'].includes(p)) return 'MID';
+      if (['defender', 'defence', 'cb', 'lb', 'rb', 'lwb', 'rwb'].includes(p)) return 'DEF';
+      if (['goalkeeper', 'gk'].includes(p)) return 'GK';
+      return 'MID';
     }
 
     async function handleSearch() {
@@ -294,7 +295,7 @@
 
         const membersList = renderMembers(memData);
         renderClub(clubId, combined, platform, membersList);
-        buildPitchXI(membersList);
+        buildDynamicPitchTactic(membersList);
         setStatus('');
       } catch (e) {
         console.error(e);
@@ -305,14 +306,11 @@
     function renderClub(clubId, data, platform, membersList = []) {
       const info = data.info || {};
       const overall = data.overall || {};
-
-      // overall is returned as an object or array by the SDK
       const statObj = Array.isArray(overall) ? (overall[0] || {}) : (overall[clubId] || overall);
       const infoObj = info[clubId] || info;
 
-      const name = infoObj.name || infoObj.clubName || statObj.name || 'Doge Rovers';
+      const name = infoObj.name || infoObj.clubName || statObj.name || 'Unknown Club';
 
-      // Parse matches, goals, and rating directly from overallStats
       let wins = statObj.wins ?? statObj.w ?? statObj.overallWins ?? null;
       let ties = statObj.ties ?? statObj.d ?? statObj.tiesCount ?? statObj.overallTies ?? null;
       let losses = statObj.losses ?? statObj.l ?? statObj.overallLosses ?? null;
@@ -320,7 +318,6 @@
       let conceded = statObj.goalsAgainst ?? statObj.ga ?? statObj.overallGoalsAgainst ?? null;
       let rating = statObj.skillRating ?? statObj.rating ?? statObj.sr ?? infoObj.skillRating ?? '--';
 
-      // Aggregation fallback if club is in seasonal reset
       if ((wins === null && losses === null) || (Number(wins) === 0 && Number(losses) === 0)) {
         if (membersList.length > 0) {
           const totalGoals = membersList.reduce((acc, m) => acc + (Number(m.goals) || 0), 0);
@@ -352,13 +349,15 @@
       }
 
       if (!list || !list.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-500">No member records returned for this club.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-gray-500">No member records returned for this club.</td></tr>';
         return [];
       }
 
       list.forEach(m => {
         if (!m || typeof m !== 'object') return;
         const name = m.name || m.proName || m.gamertag || 'Unknown';
+        const rawPos = m.favoritePosition || m.pos || m.favPos || 'MID';
+        const normPos = normalizePosition(rawPos);
         const games = m.gamesPlayed ?? m.games ?? 0;
         const goals = m.goals ?? 0;
         const assists = m.assists ?? 0;
@@ -366,10 +365,18 @@
         const pass = m.passSuccessRate ?? m.passSuccess ?? 0;
         const motm = m.manOfTheMatch ?? m.motm ?? 0;
 
+        m._normalizedPos = normPos;
+        m._rawPos = rawPos;
+
+        const badgeColor = normPos === 'FWD' ? 'text-rose-400 bg-rose-500/10' :
+                           normPos === 'MID' ? 'text-amber-400 bg-amber-500/10' :
+                           normPos === 'DEF' ? 'text-blue-400 bg-blue-500/10' : 'text-purple-400 bg-purple-500/10';
+
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-gray-800/40 transition border-b border-gray-800/60';
         tr.innerHTML = `
           <td class="py-3 px-2 font-medium text-white">${name}</td>
+          <td class="py-3 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${badgeColor}">${normPos}</span></td>
           <td class="py-3 px-2 text-center text-gray-300">${games}</td>
           <td class="py-3 px-2 text-center font-bold text-emerald-400">${goals}</td>
           <td class="py-3 px-2 text-center text-gray-300">${assists}</td>
@@ -383,35 +390,57 @@
       return list;
     }
 
-    function buildPitchXI(members) {
-      const positions = ['pos_LW', 'pos_ST', 'pos_RW', 'pos_LCM', 'pos_CM', 'pos_RCM', 'pos_LB', 'pos_LCB', 'pos_RCB', 'pos_RB', 'pos_GK'];
-      const defaultRoles = ['LW', 'ST', 'RW', 'LCM', 'CAM', 'RCM', 'LB', 'CB', 'CB', 'RB', 'GK'];
+    // Build the dynamic pitch lineup reflecting the club's actual formation
+    function buildDynamicPitchTactic(members) {
+      const rowAtk = document.getElementById('rowAttack');
+      const rowMid = document.getElementById('rowMidfield');
+      const rowDef = document.getElementById('rowDefense');
+      const rowGk = document.getElementById('rowGK');
 
-      const emptyBadge = (role) => `
-        <div class="flex flex-col items-center opacity-40">
-          <div class="w-10 h-10 rounded-full border border-gray-500 bg-gray-900/80 flex items-center justify-center text-xs text-gray-400 font-bold">${role}</div>
-          <span class="text-[10px] text-gray-400 mt-1">${role}</span>
-        </div>
-      `;
+      rowAtk.innerHTML = '';
+      rowMid.innerHTML = '';
+      rowDef.innerHTML = '';
+      rowGk.innerHTML = '';
 
       if (!members || !members.length) {
-        positions.forEach((posId, idx) => {
-          const el = document.getElementById(posId);
-          if (el) el.innerHTML = emptyBadge(defaultRoles[idx]);
-        });
+        document.getElementById('formationBadge').innerText = '--';
         return;
       }
 
-      const sorted = [...members].filter(p => p && typeof p === 'object').sort((a, b) => {
-        const rA = parseFloat(a.ratingAve || a.rating || 0);
-        const rB = parseFloat(b.ratingAve || b.rating || 0);
-        return rB - rA;
-      });
+      // Group active players by their most-played position line
+      const fwds = members.filter(m => m._normalizedPos === 'FWD').sort((a,b) => parseFloat(b.ratingAve||0) - parseFloat(a.ratingAve||0));
+      const mids = members.filter(m => m._normalizedPos === 'MID').sort((a,b) => parseFloat(b.ratingAve||0) - parseFloat(a.ratingAve||0));
+      const defs = members.filter(m => m._normalizedPos === 'DEF').sort((a,b) => parseFloat(b.ratingAve||0) - parseFloat(a.ratingAve||0));
+      const gks = members.filter(m => m._normalizedPos === 'GK').sort((a,b) => parseFloat(b.ratingAve||0) - parseFloat(a.ratingAve||0));
 
-      const playerBadge = (p, role) => {
-        if (!p) return emptyBadge(role);
-        const name = p.name || p.proName || 'Pro';
-        const rating = parseFloat(p.ratingAve || p.rating || 0).toFixed(1);
+      // Calculate the squad's formation shape based on player distribution
+      let defCount = Math.max(3, Math.min(5, defs.length || 4));
+      let fwdCount = Math.max(1, Math.min(3, fwds.length || 2));
+      let midCount = 10 - defCount - fwdCount;
+
+      if (midCount < 2) {
+        midCount = 2;
+        if (defCount > 4) defCount = 4;
+        else fwdCount = Math.max(1, fwdCount - 1);
+      }
+
+      const formationLabel = `${defCount} - ${midCount} - ${fwdCount}`;
+      document.getElementById('formationBadge').innerText = formationLabel;
+      document.getElementById('formationSubtitle').innerText = `Team setup optimized around your active squad roster`;
+
+      const createPlayerCard = (player, defaultRole) => {
+        if (!player) {
+          return `
+            <div class="flex flex-col items-center opacity-30">
+              <div class="w-10 h-10 rounded-full border border-gray-500 bg-gray-900 flex items-center justify-center text-xs text-gray-400 font-bold">${defaultRole}</div>
+              <span class="text-[10px] text-gray-400 mt-1">${defaultRole}</span>
+            </div>
+          `;
+        }
+        const name = player.name || player.proName || 'Player';
+        const rating = parseFloat(player.ratingAve || player.rating || 0).toFixed(1);
+        const specificRole = player._rawPos && player._rawPos.length <= 4 ? player._rawPos.toUpperCase() : defaultRole;
+        
         return `
           <div class="flex flex-col items-center hover:scale-105 transition transform cursor-pointer">
             <div class="relative">
@@ -420,20 +449,36 @@
               </div>
               <span class="absolute -bottom-1 -right-1 bg-yellow-500 text-black font-black text-[9px] px-1 rounded-sm">${rating}</span>
             </div>
-            <span class="text-xs font-semibold text-white mt-1 drop-shadow max-w-[80px] truncate">${name}</span>
-            <span class="text-[10px] text-emerald-300 uppercase tracking-wider">${role}</span>
+            <span class="text-xs font-semibold text-white mt-1 drop-shadow max-w-[85px] truncate">${name}</span>
+            <span class="text-[10px] text-emerald-300 uppercase tracking-wider font-semibold">${specificRole}</span>
           </div>
         `;
       };
 
-      positions.forEach((posId, idx) => {
-        const el = document.getElementById(posId);
-        if (el) el.innerHTML = playerBadge(sorted[idx], defaultRoles[idx]);
-      });
+      // 1. Populate Attack Line
+      const atkRoles = fwdCount === 1 ? ['ST'] : (fwdCount === 2 ? ['LS', 'RS'] : ['LW', 'ST', 'RW']);
+      for (let i = 0; i < fwdCount; i++) {
+        rowAtk.innerHTML += createPlayerCard(fwds[i] || members[10 - i], atkRoles[i] || 'ST');
+      }
+
+      // 2. Populate Midfield Line
+      const midRoles = midCount === 3 ? ['LCM', 'CAM', 'RCM'] : (midCount === 4 ? ['LM', 'LCM', 'RCM', 'RM'] : ['CM', 'CAM']);
+      for (let i = 0; i < midCount; i++) {
+        rowMid.innerHTML += createPlayerCard(mids[i] || members[5 - i], midRoles[i] || 'CM');
+      }
+
+      // 3. Populate Defense Line
+      const defRoles = defCount === 3 ? ['LCB', 'CB', 'RCB'] : (defCount === 5 ? ['LWB', 'LCB', 'CB', 'RCB', 'RWB'] : ['LB', 'LCB', 'RCB', 'RB']);
+      for (let i = 0; i < defCount; i++) {
+        rowDef.innerHTML += createPlayerCard(defs[i] || members[i], defRoles[i] || 'CB');
+      }
+
+      // 4. Populate Goalkeeper
+      rowGk.innerHTML = createPlayerCard(gks[0] || (members.find(m => m._normalizedPos === 'GK')), 'GK');
     }
 
     window.onload = () => {
-      buildPitchXI([]);
+      buildDynamicPitchTactic([]);
     };
   </script>
 </body>
