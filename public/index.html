@@ -97,14 +97,16 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Overview Card with Form Guide -->
+    <!-- Active Club Overview Card with Crest and Form Ribbon -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
-        <div class="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center border-2 border-emerald-500 text-2xl font-black text-white" id="clubInitials">
-          --
+        <div id="crestWrapper" class="w-20 h-20 bg-gray-800 rounded-2xl flex items-center justify-center border border-gray-700 overflow-hidden shadow-lg">
+          <div class="text-2xl font-black text-white" id="clubInitials">--</div>
         </div>
         <div>
-          <h2 id="clubName" class="text-3xl font-extrabold text-white">No Club Loaded</h2>
+          <h2 id="clubName" class="text-3xl font-extrabold text-white flex items-center gap-3">
+            <span>No Club Loaded</span>
+          </h2>
           <p id="clubMeta" class="text-gray-400 text-sm mt-1">Enter a club name or ID above to get started</p>
           <div class="flex items-center gap-2 mt-3" id="formGuideContainer">
             <span class="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">Form:</span>
@@ -130,20 +132,20 @@
       </div>
     </section>
 
-    <!-- Recent Matches Section -->
+    <!-- Recent Matches with Expandable Box Scores -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
-          <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent Match History
+          <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
         </h3>
-        <span class="text-xs text-gray-400">Sorted by newest match results</span>
+        <span class="text-xs text-gray-400">Click any match to reveal box scores & player telemetry</span>
       </div>
 
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
           <thead class="border-b border-gray-800 text-gray-400 uppercase text-xs">
             <tr>
-              <th class="py-3 px-2">Type / Stage</th>
+              <th class="py-3 px-2">Type</th>
               <th class="py-3 px-2">Matchup</th>
               <th class="py-3 px-2 text-center">Score</th>
               <th class="py-3 px-2 text-center">Result</th>
@@ -182,7 +184,7 @@
       </div>
     </section>
 
-    <!-- Full Squad Performance Table with G+A/Game Efficiency -->
+    <!-- Full Squad Performance Table with Efficiency & MVP Tag -->
     <section class="card p-6 space-y-4">
       <h3 class="text-lg font-bold text-white flex items-center gap-2">
         <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
@@ -360,8 +362,16 @@
       const gDiff = (Number(goals || 0) - Number(conceded || 0));
       const diffLabel = gDiff > 0 ? `+${gDiff}` : `${gDiff}`;
 
+      // Official Crest Asset or Fallback Monogram
+      const crestWrapper = document.getElementById('crestWrapper');
+      const crestId = infoObj.crestId || statObj.crestId || infoObj.customKit?.crestId;
+      if (crestId) {
+        crestWrapper.innerHTML = `<img src="https://media.contentapi.ea.com/content/dam/ea/ea-sports-fc/pro-clubs/crests/crest_${crestId}.png" class="w-full h-full object-contain p-2" onerror="this.parentElement.innerHTML='<div class=\\'text-2xl font-black text-white\\'>${name.substring(0, 2).toUpperCase()}</div>'">`;
+      } else {
+        crestWrapper.innerHTML = `<div class="text-2xl font-black text-white" id="clubInitials">${name.substring(0, 2).toUpperCase()}</div>`;
+      }
+
       document.getElementById('clubName').innerText = name;
-      document.getElementById('clubInitials').innerText = name.substring(0, 2).toUpperCase();
       document.getElementById('clubMeta').innerText = `Club ID: ${clubId} | Platform: ${platform}`;
       document.getElementById('clubRecord').innerText = `${wins ?? 0} - ${ties ?? 0} - ${losses ?? 0}`;
       document.getElementById('skillRating').innerText = rating;
@@ -386,6 +396,17 @@
         return [];
       }
 
+      // Calculate Club MVP (Highest combined rating + MoTM)
+      let topMvpScore = -1;
+      let mvpPlayer = null;
+      list.forEach(m => {
+        const score = (parseFloat(m.ratingAve || m.rating || 0) * 10) + (Number(m.manOfTheMatch || m.motm || 0) * 2);
+        if (score > topMvpScore) {
+          topMvpScore = score;
+          mvpPlayer = m;
+        }
+      });
+
       list.forEach(m => {
         if (!m || typeof m !== 'object') return;
         const name = m.name || m.proName || m.gamertag || 'Unknown';
@@ -400,8 +421,6 @@
 
         const tackles = m.tacklesmade ?? m.tackles ?? m.tacklesMade ?? 0;
         const tackleWinRate = m.tacklesuccessrate ?? m.tackleSuccessRate ?? 0;
-
-        // ProClubsHead Efficiency Metric: Goal contributions per game
         const gaPerGame = games > 0 ? ((goals + assists) / games).toFixed(2) : '0.00';
 
         m._normalizedPos = normPos;
@@ -411,10 +430,13 @@
                            normPos === 'MID' ? 'text-amber-400 bg-amber-500/10' :
                            normPos === 'DEF' ? 'text-blue-400 bg-blue-500/10' : 'text-purple-400 bg-purple-500/10';
 
+        const isMvp = mvpPlayer && (m.name === mvpPlayer.name || m.proName === mvpPlayer.proName);
+        const mvpBadge = isMvp ? '<span class="ml-1.5 text-xs text-yellow-400" title="Squad MVP"><i class="fa-solid fa-crown"></i></span>' : '';
+
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-gray-800/40 transition border-b border-gray-800/60';
         tr.innerHTML = `
-          <td class="py-3 px-2 font-medium text-white">${name}</td>
+          <td class="py-3 px-2 font-medium text-white flex items-center">${name} ${mvpBadge}</td>
           <td class="py-3 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${badgeColor}">${normPos}</span></td>
           <td class="py-3 px-2 text-center text-gray-300">${games}</td>
           <td class="py-3 px-2 text-center font-bold text-emerald-400">${goals}</td>
@@ -431,6 +453,7 @@
       return list;
     }
 
+    // Interactive Expandable Match Table with Box Scores
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
       const formContainer = document.getElementById('formBadges');
@@ -447,7 +470,7 @@
 
       const formBadgesList = [];
 
-      matchArr.slice(0, 10).forEach(m => {
+      matchArr.slice(0, 10).forEach((m, idx) => {
         const clubsData = m.clubs || m.aggregate || {};
         const clubIds = Object.keys(clubsData);
 
@@ -480,9 +503,7 @@
           formBadge = '<span class="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-400 text-[10px] font-black flex items-center justify-center">L</span>';
         }
 
-        if (formBadgesList.length < 5) {
-          formBadgesList.push(formBadge);
-        }
+        if (formBadgesList.length < 5) formBadgesList.push(formBadge);
 
         const cat = m._inferredCategory || 'League';
         let typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-gray-800 text-gray-300 border border-gray-700">League</span>';
@@ -502,21 +523,64 @@
           }
         }
 
+        // Parse individual player box scores inside this fixture
+        const playersData = m.players?.[thisId] || {};
+        const playerStats = Object.values(playersData);
+        let boxScoreRows = '';
+        if (playerStats.length > 0) {
+          boxScoreRows = playerStats.map(p => `
+            <div class="flex justify-between items-center py-1 text-xs border-b border-gray-800/40">
+              <span class="font-medium text-white">${p.playername || p.name || 'Pro'}</span>
+              <div class="space-x-3 text-gray-400">
+                <span>Rating: <b class="text-yellow-400">${parseFloat(p.rating || 0).toFixed(1)}</b></span>
+                <span>Goals: <b class="text-emerald-400">${p.goals || 0}</b></span>
+                <span>Assists: <b class="text-white">${p.assists || 0}</b></span>
+                <span>Pass: <b class="text-gray-300">${p.passsuccessrate || 0}%</b></span>
+              </div>
+            </div>
+          `).join('');
+        } else {
+          boxScoreRows = '<div class="text-xs text-gray-500 italic py-1">Detailed player box scores unavailable for this session.</div>';
+        }
+
         const tr = document.createElement('tr');
-        tr.className = 'hover:bg-gray-800/40 transition border-b border-gray-800/60';
+        tr.className = 'hover:bg-gray-800/40 transition border-b border-gray-800/60 cursor-pointer';
+        tr.onclick = () => {
+          const detailRow = document.getElementById(`boxScore_${idx}`);
+          if (detailRow) detailRow.classList.toggle('hidden');
+        };
+
         tr.innerHTML = `
           <td class="py-3 px-2">${typeBadge}</td>
-          <td class="py-3 px-2 font-medium text-white">vs ${oppName}</td>
+          <td class="py-3 px-2 font-medium text-white flex items-center gap-2">
+            vs ${oppName}
+            <i class="fa-solid fa-chevron-down text-[10px] text-gray-500"></i>
+          </td>
           <td class="py-3 px-2 text-center font-bold text-white">${myGoals} - ${oppGoals}</td>
           <td class="py-3 px-2 text-center">
             <span class="px-2.5 py-0.5 rounded text-xs font-bold border ${resultClass}">${resultLabel}</span>
           </td>
           <td class="py-3 px-2 text-right text-gray-400 text-xs">${dateText}</td>
         `;
+
+        const detailTr = document.createElement('tr');
+        detailTr.id = `boxScore_${idx}`;
+        detailTr.className = 'hidden bg-gray-900/60 border-b border-gray-800';
+        detailTr.innerHTML = `
+          <td colspan="5" class="p-4">
+            <div class="text-xs uppercase font-bold text-gray-400 tracking-wider mb-2 flex items-center gap-2">
+              <i class="fa-solid fa-chart-simple text-emerald-400"></i> Match Lineup & Box Score
+            </div>
+            <div class="space-y-1 bg-gray-950/60 p-3 rounded-lg border border-gray-800/80">
+              ${boxScoreRows}
+            </div>
+          </td>
+        `;
+
         tbody.appendChild(tr);
+        tbody.appendChild(detailTr);
       });
 
-      // Render the 5-match form guide
       formContainer.innerHTML = formBadgesList.join('');
     }
 
