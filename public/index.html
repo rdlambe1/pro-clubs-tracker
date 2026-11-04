@@ -93,6 +93,12 @@
     <!-- Status Message Banner -->
     <div id="statusBanner" class="hidden text-sm px-4 py-3 rounded"></div>
 
+    <!-- Multi-Match Disambiguation List -->
+    <div id="matchesCard" class="hidden card p-4 space-y-3">
+      <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select your club:</h3>
+      <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+    </div>
+
     <!-- Active Club Card -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
@@ -214,50 +220,70 @@
     async function handleSearch() {
       const input = document.getElementById('searchInput').value.trim();
       const platform = document.getElementById('platformSelect').value;
+      const matchesCard = document.getElementById('matchesCard');
+      matchesCard.classList.add('hidden');
+
       if (!input) {
         setStatus('Please enter a club name or numeric ID to search.', true);
         return;
       }
 
-      let clubId = input;
-
-      if (!/^\d+$/.test(input)) {
-        setStatus(`Searching EA for "${input}"...`);
-        try {
-          const res = await fetch(`${API_BASE}/search?clubName=${encodeURIComponent(input)}&platform=${platform}`);
-          const data = await res.json();
-
-          if (!res.ok || !data) {
-            setStatus(`Could not find club "${input}". Check spelling or platform.`, true);
-            return;
-          }
-
-          let resolvedId = null;
-
-          if (Array.isArray(data) && data.length > 0) {
-            const first = data[0];
-            resolvedId = first.clubId || first.id || first.clubInfo?.clubId;
-          } else if (typeof data === 'object') {
-            const keys = Object.keys(data);
-            if (keys.length > 0) {
-              const firstVal = data[keys[0]];
-              resolvedId = firstVal?.clubId || firstVal?.id || (/^\d+$/.test(keys[0]) ? keys[0] : null);
-            }
-          }
-
-          if (!resolvedId) {
-            setStatus(`Club "${input}" found, but could not resolve numeric ID. Please enter ID directly.`, true);
-            return;
-          }
-
-          clubId = resolvedId;
-        } catch (e) {
-          setStatus('Failed to search EA. Try searching using the numeric ID directly.', true);
-          return;
-        }
+      // If user typed only numbers, load directly by ID
+      if (/^\d+$/.test(input)) {
+        loadClub(input, platform);
+        return;
       }
 
-      loadClub(clubId, platform);
+      // Otherwise search by name
+      setStatus(`Searching EA for "${input}"...`);
+      try {
+        const res = await fetch(`${API_BASE}/search?clubName=${encodeURIComponent(input)}&platform=${platform}`);
+        const data = await res.json();
+
+        if (!res.ok || !Array.isArray(data) || data.length === 0) {
+          setStatus(`No clubs found matching "${input}". Check spelling or platform.`, true);
+          return;
+        }
+
+        // If only 1 club matches, load immediately
+        if (data.length === 1) {
+          setStatus(`Found ${data[0].name} (ID: ${data[0].id}). Loading records...`);
+          loadClub(data[0].id, platform);
+          return;
+        }
+
+        // Multiple clubs match - display clickable options
+        setStatus(`Found ${data.length} matching clubs. Select yours:`);
+        renderClubMatches(data, platform);
+
+      } catch (e) {
+        setStatus(`Search failed: ${e.message}`, true);
+      }
+    }
+
+    function renderClubMatches(clubs, platform) {
+      const card = document.getElementById('matchesCard');
+      const list = document.getElementById('matchesList');
+      list.innerHTML = '';
+
+      clubs.forEach(c => {
+        const div = document.createElement('div');
+        div.className = 'p-3 rounded bg-gray-800/80 hover:bg-gray-800 border border-gray-700 cursor-pointer flex justify-between items-center transition';
+        div.innerHTML = `
+          <div>
+            <div class="font-bold text-white">${c.name}</div>
+            <div class="text-xs text-gray-400">ID: ${c.id}</div>
+          </div>
+          <button class="text-xs bg-emerald-500 hover:bg-emerald-600 text-black font-semibold px-2.5 py-1 rounded">Select</button>
+        `;
+        div.onclick = () => {
+          card.classList.add('hidden');
+          loadClub(c.id, platform);
+        };
+        list.appendChild(div);
+      });
+
+      card.classList.remove('hidden');
     }
 
     async function loadClub(clubId, platform) {
@@ -268,15 +294,15 @@
           fetch(`${API_BASE}/club/${clubId}/members?platform=${platform}`)
         ]);
 
-        const combinedInfo = await infoRes.json();
+        const combined = await infoRes.json();
         const memData = await memRes.json();
 
         if (!infoRes.ok) {
-          setStatus(`Failed to fetch stats: ${combinedInfo.error || 'Club not found'}`, true);
+          setStatus(`Failed to fetch stats: ${combined.error || 'Club not found'}`, true);
           return;
         }
 
-        renderClub(clubId, combinedInfo, platform);
+        renderClub(clubId, combined, platform);
         const membersList = renderMembers(memData);
         buildPitchXI(membersList);
         setStatus('');
@@ -287,16 +313,13 @@
     }
 
     function renderClub(clubId, data, platform) {
-      // Unpack combined info and stats payloads
       const infoObj = data.info?.[clubId] || data.info || {};
       const statsObj = data.stats?.[clubId] || data.stats || {};
-      
-      // If data is still in older root format, fall back safely
       const merged = { ...infoObj, ...statsObj, ...(data[clubId] || data) };
 
       const name = merged.name || merged.clubName || 'Unknown Club';
 
-      // EA puts total club match records inside stats or overallStats
+      // Pull W-D-L from whichever nested EA structure contains numbers
       const wins = merged.wins ?? merged.overallWins ?? merged.record?.wins ?? merged.seasonalStats?.wins ?? 0;
       const ties = merged.ties ?? merged.tiesCount ?? merged.overallTies ?? merged.record?.ties ?? merged.seasonalStats?.ties ?? 0;
       const losses = merged.losses ?? merged.overallLosses ?? merged.record?.losses ?? merged.seasonalStats?.losses ?? 0;
