@@ -13,6 +13,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const proclubs = new ProClubsClient({ cache: false });
 
+const EA_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+  'Accept': 'application/json, text/plain, */*',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Referer': 'https://www.ea.com/',
+  'Origin': 'https://www.ea.com'
+};
+
 function extractClubId(obj, keyFallback = null) {
   if (!obj) return null;
   if (obj.clubId && Number(obj.clubId) > 0) return String(obj.clubId);
@@ -111,64 +119,56 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
     return res.status(400).json({ error: `Invalid clubId: ${clubId}` });
   }
 
-  const matchesMap = new Map();
-
-  // Query both match types through the SDK's internal authenticated request transport
   const matchTypes = [
     { type: 'gameType9', label: 'League' },
-    { type: 'gameType13', label: 'Playoff' }
+    { type: 'gameType13', label: 'Playoff' },
+    { type: '', label: 'General' }
   ];
 
-  for (const mObj of matchTypes) {
+  const allMatches = [];
+  const logDetails = [];
+
+  for (const m of matchTypes) {
+    const queryParam = m.type ? `&matchType=${m.type}` : '';
+    const url = `https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numericId}&platform=${platform}${queryParam}`;
+
     try {
-      let data = null;
+      const response = await fetch(url, { headers: EA_HEADERS });
+      const statusText = `HTTP ${response.status}`;
 
-      // Use the internal SDK authenticated request engine to bypass Cloudflare
-      if (typeof proclubs.request === 'function') {
-        data = await proclubs.request({
-          endpoint: 'clubsMatches',
-          query: {
-            clubIds: String(numericId),
-            platform: platform,
-            matchType: mObj.type
-          }
-        });
-      } else if (typeof proclubs.clubs?.matches === 'function') {
-        data = await proclubs.clubs.matches({
-          clubId: numericId,
-          platform: platform,
-          matchType: mObj.type
-        });
-      }
+      if (response.ok) {
+        const data = await response.json();
+        const list = Array.isArray(data) ? data : (typeof data === 'object' && data !== null ? Object.values(data) : []);
+        logDetails.push(`${m.label}: ${list.length} matches (${statusText})`);
 
-      if (data) {
-        const list = Array.isArray(data) ? data : Object.values(data);
-        for (const item of list) {
+        list.forEach(item => {
           if (item && typeof item === 'object') {
-            const key = item.matchId || item.timestamp || JSON.stringify(item.clubs);
-            if (!matchesMap.has(key)) {
-              item._inferredCategory = mObj.label;
-              matchesMap.set(key, item);
+            const key = item.matchId || item.timestamp;
+            if (key && !allMatches.some(x => (x.matchId || x.timestamp) === key)) {
+              item._inferredCategory = m.label;
+              allMatches.push(item);
             }
           }
-        }
+        });
+      } else {
+        logDetails.push(`${m.label}: ${statusText}`);
       }
-    } catch (e) {
-      console.log(`[Matches fetch skipped for ${mObj.label}]:`, e.message);
+    } catch (err) {
+      logDetails.push(`${m.label} Error: ${err.message}`);
     }
   }
 
-  const combined = Array.from(matchesMap.values());
-
-  // Sort by timestamp descending (newest first)
-  combined.sort((a, b) => {
-    const tA = Number(a.timestamp || a.timeAgo?.number || 0);
-    const tB = Number(b.timestamp || b.timeAgo?.number || 0);
+  // Sort newest first
+  allMatches.sort((a, b) => {
+    const tA = Number(a.timestamp || 0);
+    const tB = Number(b.timestamp || 0);
     return tB - tA;
   });
 
-  console.log(`[Matches found for ID ${numericId}]: ${combined.length}`);
-  res.json(combined.slice(0, 10));
+  res.json({
+    debugLogs: logDetails,
+    matches: allMatches.slice(0, 10)
+  });
 });
 
 app.get('*', (req, res) => {
