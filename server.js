@@ -162,7 +162,7 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
     });
   });
 
-  // Concurrently fetch opponent live skill ratings & crests
+  // Concurrently fetch opponent live skill ratings
   const opponentMap = new Map();
   await Promise.allSettled(
     Array.from(opponentIds).map(async (oppId) => {
@@ -171,15 +171,14 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
         const statObj = Array.isArray(stats) ? stats[0] : (stats[oppId] || stats);
         if (statObj) {
           opponentMap.set(String(oppId), {
-            skillRating: statObj.skillRating || statObj.rating || statObj.sr || null,
-            crestId: statObj.crestId || statObj.teamId || null
+            skillRating: statObj.skillRating || statObj.rating || statObj.sr || null
           });
         }
       } catch (_) {}
     })
   );
 
-  // Attach enriched opponent SR and crest back onto each match fixture
+  // Attach enriched opponent SR back onto each match fixture
   recent10.forEach(m => {
     const clubsData = m.clubs || m.aggregate || {};
     Object.keys(clubsData).forEach(id => {
@@ -187,9 +186,6 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
         const enriched = opponentMap.get(String(id));
         if (enriched) {
           clubsData[id].skillRating = enriched.skillRating;
-          if (enriched.crestId && !clubsData[id].crestId) {
-            clubsData[id].crestId = enriched.crestId;
-          }
         }
       }
     });
