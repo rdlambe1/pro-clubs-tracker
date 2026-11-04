@@ -124,6 +124,33 @@
       </div>
     </section>
 
+    <!-- Recent Matches Section -->
+    <section class="card p-6 space-y-4">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
+        </h3>
+        <span class="text-xs text-gray-400">Includes match category, scorelines, & outcomes</span>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="border-b border-gray-800 text-gray-400 uppercase text-xs">
+            <tr>
+              <th class="py-3 px-2">Type / Stage</th>
+              <th class="py-3 px-2">Matchup</th>
+              <th class="py-3 px-2 text-center">Score</th>
+              <th class="py-3 px-2 text-center">Result</th>
+              <th class="py-3 px-2 text-right">Date / Elapsed</th>
+            </tr>
+          </thead>
+          <tbody id="recentMatchesTable" class="divide-y border-gray-800">
+            <tr><td colspan="5" class="py-6 text-center text-gray-500">Search for a club to view match history.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
     <!-- Dynamic Formation Tactical Pitch Diagram -->
     <section class="card p-6 space-y-4">
       <div class="flex justify-between items-center">
@@ -149,7 +176,7 @@
       </div>
     </section>
 
-    <!-- Full Squad Performance Table (with Tackles & Defensive Stats) -->
+    <!-- Full Squad Performance Table -->
     <section class="card p-6 space-y-4">
       <h3 class="text-lg font-bold text-white flex items-center gap-2">
         <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
@@ -274,13 +301,15 @@
     async function loadClub(clubId, platform) {
       setStatus(`Loading club stats for ID #${clubId}...`);
       try {
-        const [infoRes, memRes] = await Promise.all([
+        const [infoRes, memRes, matchesRes] = await Promise.all([
           fetch(`${API_BASE}/club/${clubId}/info?platform=${platform}`),
-          fetch(`${API_BASE}/club/${clubId}/members?platform=${platform}`)
+          fetch(`${API_BASE}/club/${clubId}/members?platform=${platform}`),
+          fetch(`${API_BASE}/club/${clubId}/matches?platform=${platform}`)
         ]);
 
         const combined = await infoRes.json();
         const memData = await memRes.json();
+        const matchesData = await matchesRes.json();
 
         if (!infoRes.ok) {
           setStatus(`Failed to fetch stats: ${combined.error || 'Club not found'}`, true);
@@ -290,6 +319,7 @@
         const membersList = renderMembers(memData);
         renderClub(clubId, combined, platform, membersList);
         buildDynamicPitchTactic(membersList);
+        renderRecentMatches(clubId, matchesData);
         setStatus('');
       } catch (e) {
         console.error(e);
@@ -359,7 +389,6 @@
         const pass = m.passSuccessRate ?? m.passSuccess ?? 0;
         const motm = m.manOfTheMatch ?? m.motm ?? 0;
 
-        // Extract EA defensive telemetry
         const tackles = m.tacklesmade ?? m.tackles ?? m.tacklesMade ?? 0;
         const tackleWinRate = m.tacklesuccessrate ?? m.tackleSuccessRate ?? 0;
         const intercepts = m.interceptions ?? m.intercepts ?? 0;
@@ -389,6 +418,80 @@
       });
 
       return list;
+    }
+
+    // Render Recent Matches with Match Type & Outcome Styling
+    function renderRecentMatches(clubId, matches) {
+      const tbody = document.getElementById('recentMatchesTable');
+      tbody.innerHTML = '';
+
+      const matchArr = Array.isArray(matches) ? matches : Object.values(matches || {});
+      const recent10 = matchArr.slice(0, 10);
+
+      if (!recent10.length) {
+        tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-gray-500">No recent match history found for this club.</td></tr>';
+        return;
+      }
+
+      recent10.forEach(m => {
+        // Resolve clubs and scores
+        const clubsData = m.clubs || {};
+        const clubIds = Object.keys(clubsData);
+        const thisId = clubIds.find(id => String(id) === String(clubId)) || clubIds[0];
+        const oppId = clubIds.find(id => String(id) !== String(thisId));
+
+        const myClub = clubsData[thisId] || {};
+        const oppClub = clubsData[oppId] || {};
+
+        const myGoals = Number(myClub.goals ?? myClub.score ?? 0);
+        const oppGoals = Number(oppClub.goals ?? oppClub.score ?? 0);
+        const oppName = oppClub.details?.name || oppClub.name || 'Opponent FC';
+
+        // Match outcome
+        let resultLabel = 'DRAW';
+        let resultClass = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+        if (myGoals > oppGoals) {
+          resultLabel = 'WIN';
+          resultClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+        } else if (myGoals < oppGoals) {
+          resultLabel = 'LOSS';
+          resultClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+        }
+
+        // Match type category badge (League, Playoff, Promotion, Relegation, Friendly)
+        const rawType = (m.matchType || m.gameType || '').toLowerCase();
+        let typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-gray-800 text-gray-300 border border-gray-700">League</span>';
+
+        if (rawType.includes('playoff') || m.isPlayoff) {
+          typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-purple-500/15 text-purple-400 border border-purple-500/30">Playoff</span>';
+        } else if (rawType.includes('promotion') || m.isPromotion) {
+          typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">Promotion</span>';
+        } else if (rawType.includes('relegation') || m.isRelegation) {
+          typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30">Relegation</span>';
+        } else if (rawType.includes('friendly') || rawType.includes('practice')) {
+          typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30">Friendly</span>';
+        }
+
+        // Formatted timestamp / date
+        let dateText = 'Recent';
+        if (m.timestamp) {
+          const d = new Date(Number(m.timestamp) * 1000);
+          dateText = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-gray-800/40 transition border-b border-gray-800/60';
+        tr.innerHTML = `
+          <td class="py-3 px-2">${typeBadge}</td>
+          <td class="py-3 px-2 font-medium text-white">vs ${oppName}</td>
+          <td class="py-3 px-2 text-center font-bold text-white">${myGoals} - ${oppGoals}</td>
+          <td class="py-3 px-2 text-center">
+            <span class="px-2.5 py-0.5 rounded text-xs font-bold border ${resultClass}">${resultLabel}</span>
+          </td>
+          <td class="py-3 px-2 text-right text-gray-400 text-xs">${dateText}</td>
+        `;
+        tbody.appendChild(tr);
+      });
     }
 
     function buildDynamicPitchTactic(members) {
