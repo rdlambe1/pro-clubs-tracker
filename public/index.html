@@ -8,13 +8,68 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     body { background-color: #0b0f19; color: #cbd5e1; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    .card { background-color: #111827; border: 1px solid #1f2937; border-radius: 10px; }
+    .card { background-color: #111827; border: 1px solid #1f2937; border-radius: 12px; }
+    
+    /* Pitch Visual Styling */
+    .pitch-bg {
+      background: #143823;
+      background-image: 
+        repeating-linear-gradient(0deg, #164027, #164027 40px, #133621 40px, #133621 80px);
+      border: 2px solid rgba(255, 255, 255, 0.35);
+      border-radius: 12px;
+      position: relative;
+      overflow: hidden;
+    }
+    .pitch-line { border-color: rgba(255, 255, 255, 0.3); }
+    .pitch-center-circle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 100px;
+      height: 100px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .pitch-center-line {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      border-top: 2px solid rgba(255, 255, 255, 0.3);
+      pointer-events: none;
+    }
+    .pitch-penalty-top {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 180px;
+      height: 70px;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+      border-left: 2px solid rgba(255, 255, 255, 0.3);
+      border-right: 2px solid rgba(255, 255, 255, 0.3);
+      pointer-events: none;
+    }
+    .pitch-penalty-bottom {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 180px;
+      height: 70px;
+      border-top: 2px solid rgba(255, 255, 255, 0.3);
+      border-left: 2px solid rgba(255, 255, 255, 0.3);
+      border-right: 2px solid rgba(255, 255, 255, 0.3);
+      pointer-events: none;
+    }
   </style>
 </head>
 <body class="p-4 md:p-8">
   <div class="max-w-6xl mx-auto space-y-6">
 
-    <!-- Header & Search Controls -->
+    <!-- Header & Search -->
     <header class="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-gray-800 pb-6">
       <div class="flex items-center gap-3">
         <i class="fa-solid fa-shield-halved text-emerald-400 text-3xl"></i>
@@ -38,14 +93,7 @@
       </div>
     </header>
 
-    <!-- Status Banner -->
     <div id="statusBanner" class="hidden text-sm px-4 py-3 rounded"></div>
-
-    <!-- Multi-Match Disambiguation List -->
-    <div id="matchesCard" class="hidden card p-4 space-y-3">
-      <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Multiple clubs found. Select yours:</h3>
-      <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
-    </div>
 
     <!-- Active Club Card -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
@@ -74,10 +122,58 @@
       </div>
     </section>
 
-    <!-- Squad Members Performance -->
+    <!-- Tactical Formation & Pitch Diagram -->
+    <section class="card p-6 space-y-4">
+      <div class="flex justify-between items-center">
+        <div>
+          <h3 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-chess-board text-emerald-400"></i> Best XI & Formation
+          </h3>
+          <p class="text-xs text-gray-400 mt-0.5">Automated 4-3-3 selected based on average match ratings & roles</p>
+        </div>
+        <span class="text-xs font-semibold px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">4 - 3 - 3</span>
+      </div>
+
+      <!-- Pitch Area -->
+      <div class="pitch-bg w-full h-[540px] p-6 flex flex-col justify-between relative shadow-inner">
+        <div class="pitch-penalty-top"></div>
+        <div class="pitch-center-line"></div>
+        <div class="pitch-center-circle"></div>
+        <div class="pitch-penalty-bottom"></div>
+
+        <!-- Attack Row (LW, ST, RW) -->
+        <div class="flex justify-around items-center z-10" id="pitchAttack">
+          <div class="text-center" id="pos_LW"><span class="text-gray-400 text-xs">LW: --</span></div>
+          <div class="text-center" id="pos_ST"><span class="text-gray-400 text-xs">ST: --</span></div>
+          <div class="text-center" id="pos_RW"><span class="text-gray-400 text-xs">RW: --</span></div>
+        </div>
+
+        <!-- Midfield Row (LCM, CM, RCM) -->
+        <div class="flex justify-around items-center z-10 px-8" id="pitchMidfield">
+          <div class="text-center" id="pos_LCM"><span class="text-gray-400 text-xs">LCM: --</span></div>
+          <div class="text-center" id="pos_CM"><span class="text-gray-400 text-xs">CM: --</span></div>
+          <div class="text-center" id="pos_RCM"><span class="text-gray-400 text-xs">RCM: --</span></div>
+        </div>
+
+        <!-- Defense Row (LB, LCB, RCB, RB) -->
+        <div class="flex justify-around items-center z-10" id="pitchDefense">
+          <div class="text-center" id="pos_LB"><span class="text-gray-400 text-xs">LB: --</span></div>
+          <div class="text-center" id="pos_LCB"><span class="text-gray-400 text-xs">CB: --</span></div>
+          <div class="text-center" id="pos_RCB"><span class="text-gray-400 text-xs">CB: --</span></div>
+          <div class="text-center" id="pos_RB"><span class="text-gray-400 text-xs">RB: --</span></div>
+        </div>
+
+        <!-- Goalkeeper (GK) -->
+        <div class="flex justify-center items-center z-10" id="pitchGK">
+          <div class="text-center" id="pos_GK"><span class="text-gray-400 text-xs">GK: --</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Squad Member Stats Table -->
     <section class="card p-6 space-y-4">
       <h3 class="text-lg font-bold text-white flex items-center gap-2">
-        <i class="fa-solid fa-users text-emerald-400"></i> Squad Performance
+        <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
       </h3>
 
       <div class="overflow-x-auto">
@@ -121,177 +217,27 @@
     async function handleSearch() {
       const input = document.getElementById('searchInput').value.trim();
       const platform = document.getElementById('platformSelect').value;
-      const matchesCard = document.getElementById('matchesCard');
-      matchesCard.classList.add('hidden');
-
       if (!input) return;
 
-      // 1. Direct Numeric ID Search
-      if (/^\d+$/.test(input)) {
-        loadClub(input, platform);
-        return;
+      let clubId = input;
+
+      if (!/^\d+$/.test(input)) {
+        setStatus(`Searching EA for "${input}"...`); try { const res = await fetch(`${API_BASE}/search?clubName=${encodeURIComponent(input)}&platform=${platform}`);
+          const data = await res.json();
+          
+          if (!res.ok || !data) {
+            setStatus(`Could not find club "${input}".`, true); return; }  let resolvedId = null; if (Array.isArray(data) && data.length > 0) { resolvedId = data[0].clubId \vert{}\vert{} data[0].id \vert{}\vert{} data[0].clubInfo?.clubId; } else if (typeof data === 'object') { const keys = Object.keys(data); if (keys.length > 0) { const firstVal = data[keys[0]]; resolvedId = firstVal?.clubId \vert{}\vert{} firstVal?.id \vert{}\vert{} (/^\d+$/.test(keys[0]) ? keys[0] : null); } }  if (!resolvedId) { setStatus(`Found "${input}", but could not parse numerical ID. Try searching by ID directly.`, true);
+            return;
+          }
+          clubId = resolvedId;
+        } catch (e) {
+          setStatus('Search query failed.', true);
+          return;
+        }
       }
 
-      // 2. Club Name Search
-      setStatus(`Searching EA for "${input}"...`);
-      try {
-        const res = await fetch(`${API_BASE}/search?clubName=${encodeURIComponent(input)}&platform=${platform}`);
-        const data = await res.json();
-
-        if (!res.ok || !data) {
-          setStatus(`No clubs found matching "${input}". Check spelling or platform.`, true);
-          return;
-        }
-
-        // Normalize data shape (handles array of clubs OR key-value dictionary)
-        const parsedClubs = [];
-
-        if (Array.isArray(data)) {
-          data.forEach(item => {
-            const id = item.clubId || item.id || item.clubInfo?.clubId;
-            const name = item.name || item.clubName || item.clubInfo?.name || input;
-            if (id) parsedClubs.push({ id: String(id), name });
-          });
-        } else if (typeof data === 'object') {
-          Object.entries(data).forEach(([key, val]) => {
-            // EA often uses the key itself as the Club ID (e.g. {"28268": {...}})
-            const id = val?.clubId || val?.id || val?.clubInfo?.clubId || (/^\d+$/.test(key) ? key : null);
-            const name = val?.name || val?.clubName || val?.clubInfo?.name || input;
-            if (id) parsedClubs.push({ id: String(id), name });
-          });
-        }
-
-        if (parsedClubs.length === 0) {
-          setStatus(`Could not resolve a Club ID for "${input}". Try searching by numeric ID directly.`, true);
-          return;
-        }
-
-        // If only 1 result, load it immediately
-        if (parsedClubs.length === 1) {
-          setStatus(`Found ${parsedClubs[0].name} (ID: ${parsedClubs[0].id}). Loading records...`);
-          loadClub(parsedClubs[0].id, platform);
-          return;
-        }
-
-        // If multiple clubs found, show options to select
-        setStatus(`Found ${parsedClubs.length} matching clubs. Choose yours:`);
-        renderMatches(parsedClubs, platform);
-
-      } catch (err) {
-        setStatus(`Search error: ${err.message}`, true);
-      }
-    }
-
-    function renderMatches(clubs, platform) {
-      const card = document.getElementById('matchesCard');
-      const list = document.getElementById('matchesList');
-      list.innerHTML = '';
-
-      clubs.forEach(c => {
-        const div = document.createElement('div');
-        div.className = 'p-3 rounded bg-gray-800/80 hover:bg-gray-800 border border-gray-700 cursor-pointer flex justify-between items-center transition';
-        div.innerHTML = `
-          <div>
-            <div class="font-bold text-white">${c.name}</div>
-            <div class="text-xs text-gray-400">ID: ${c.id}</div>
-          </div>
-          <button class="text-xs bg-emerald-500 hover:bg-emerald-600 text-black font-semibold px-2.5 py-1 rounded">Select</button>
-        `;
-        div.onclick = () => {
-          card.classList.add('hidden');
-          loadClub(c.id, platform);
-        };
-        list.appendChild(div);
-      });
-
-      card.classList.remove('hidden');
+      loadClub(clubId, platform);
     }
 
     async function loadClub(clubId, platform) {
-      setStatus(`Loading club #${clubId}...`);
-      try {
-        const [infoRes, memRes] = await Promise.all([
-          fetch(`${API_BASE}/club/${clubId}/info?platform=${platform}`),
-          fetch(`${API_BASE}/club/${clubId}/members?platform=${platform}`)
-        ]);
-
-        const info = await infoRes.json();
-        const memData = await memRes.json();
-
-        if (!infoRes.ok) {
-          setStatus(`Failed to fetch stats for ID ${clubId}: ${info.error || 'Club not found'}`, true);
-          return;
-        }
-
-        renderClub(clubId, info, platform);
-        renderMembers(memData);
-        setStatus('');
-      } catch (e) {
-        setStatus(`Error loading stats: ${e.message}`, true);
-      }
-    }
-
-    function renderClub(clubId, info, platform) {
-      const clubObj = info[clubId] || info;
-      const name = clubObj.name || clubObj.clubName || 'Unknown Club';
-      const wins = clubObj.wins ?? clubObj.record?.wins ?? 0;
-      const ties = clubObj.ties ?? clubObj.record?.ties ?? 0;
-      const losses = clubObj.losses ?? clubObj.record?.losses ?? 0;
-      const goals = clubObj.goals ?? clubObj.record?.goals ?? 0;
-      const conceded = clubObj.goalsAgainst ?? clubObj.record?.goalsAgainst ?? 0;
-      const rating = clubObj.skillRating || clubObj.rating || '--';
-
-      document.getElementById('clubName').innerText = name;
-      document.getElementById('clubInitials').innerText = name.substring(0, 2).toUpperCase();
-      document.getElementById('clubMeta').innerText = `Club ID: ${clubId} | Platform: ${platform}`;
-      document.getElementById('clubRecord').innerText = `${wins} - ${ties} - ${losses}`;
-      document.getElementById('skillRating').innerText = rating;
-      document.getElementById('goalStats').innerText = `${goals} / ${conceded}`;
-    }
-
-    function renderMembers(data) {
-      const tbody = document.getElementById('membersTable');
-      tbody.innerHTML = '';
-
-      let list = [];
-      if (Array.isArray(data)) {
-        list = data;
-      } else if (data.members && Array.isArray(data.members)) {
-        list = data.members;
-      } else if (typeof data === 'object') {
-        list = Object.values(data.members || data);
-      }
-
-      if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-500">No member records found for this club.</td></tr>';
-        return;
-      }
-
-      list.forEach(m => {
-        const name = m.name || m.proName || m.gamertag || 'Unknown';
-        const games = m.gamesPlayed ?? m.games ?? 0;
-        const goals = m.goals ?? 0;
-        const assists = m.assists ?? 0;
-        const rating = parseFloat(m.ratingAve || m.rating || 0).toFixed(1);
-        const pass = m.passSuccessRate ?? m.passSuccess ?? 0;
-        const motm = m.manOfTheMatch ?? m.motm ?? 0;
-
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-gray-800/40 transition border-b border-gray-800/60';
-        tr.innerHTML = `
-          <td class="py-3 px-2 font-medium text-white">${name}</td>
-          <td class="py-3 px-2 text-center text-gray-300">${games}</td>
-          <td class="py-3 px-2 text-center font-bold text-emerald-400">${goals}</td>
-          <td class="py-3 px-2 text-center text-gray-300">${assists}</td>
-          <td class="py-3 px-2 text-center text-yellow-400 font-semibold">${rating}</td>
-          <td class="py-3 px-2 text-center text-gray-300">${pass}%</td>
-          <td class="py-3 px-2 text-center text-purple-400">${motm}</td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
-
-    window.onload = handleSearch;
-  </script>
-</body>
-</html>
+      setStatus(`Loading club #${clubId}...`); try { const [infoRes, memRes] = await Promise.all([ fetch(`${API_BASE}/club/${clubId}/info?platform=${platform
