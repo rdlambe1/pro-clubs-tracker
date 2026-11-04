@@ -130,9 +130,7 @@
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
         </h3>
-        <div class="flex items-center gap-2">
-          <span id="matchTelemetry" class="text-xs text-gray-400 font-mono"></span>
-        </div>
+        <span class="text-xs text-gray-400">Includes match type, scorelines, & outcomes</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -422,17 +420,11 @@
       return list;
     }
 
-    function renderRecentMatches(clubId, payload) {
+    function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
-      const telemetryEl = document.getElementById('matchTelemetry');
       tbody.innerHTML = '';
 
-      const matchArr = Array.isArray(payload) ? payload : (payload?.matches || []);
-      const debugLogs = payload?.debugLogs || [];
-
-      if (telemetryEl && debugLogs.length) {
-        telemetryEl.innerText = debugLogs.join(' | ');
-      }
+      const matchArr = Array.isArray(matches) ? matches : (matches?.matches || []);
 
       if (!matchArr || matchArr.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-gray-500">No recent match history found for this club.</td></tr>';
