@@ -290,16 +290,18 @@
           fetch(`${API_BASE}/club/${clubId}/members?platform=${platform}`)
         ]);
 
-        const combined = await infoRes.json();
+        const rawClub = await infoRes.json();
         const memData = await memRes.json();
 
+        console.log('[DEBUG RAW CLUB INFO RESPONSE]:', rawClub);
+
         if (!infoRes.ok) {
-          setStatus(`Failed to fetch stats: ${combined.error || 'Club not found'}`, true);
+          setStatus(`Failed to fetch stats: ${rawClub.error || 'Club not found'}`, true);
           return;
         }
 
         const membersList = renderMembers(memData);
-        renderClub(clubId, combined, platform, membersList);
+        renderClub(clubId, rawClub, platform, membersList);
         buildPitchXI(membersList);
         setStatus('');
       } catch (e) {
@@ -308,45 +310,36 @@
       }
     }
 
-    function renderClub(clubId, data, platform, membersList = []) {
-      // Unpack all potential record sources
-      const infoObj = data.info?.[clubId] || data.info || {};
-      const seasonalObj = data.seasonal?.[clubId] || data.seasonal || (Array.isArray(data.seasonal) ? data.seasonal[0] : {});
-      const overallObj = data.overall?.[clubId] || data.overall || (Array.isArray(data.overall) ? data.overall[0] : {});
-      
-      const merged = { ...infoObj, ...seasonalObj, ...overallObj, ...(data[clubId] || data) };
+    function renderClub(clubId, rawData, platform, membersList = []) {
+      // Find the inner record object if keyed under the club ID
+      const c = rawData[clubId] || rawData.clubInfo || rawData;
 
-      const name = merged.name || merged.clubName || 'Unknown Club';
+      console.log('[PARSING CLUB OBJECT]:', c);
 
-      // 1. Look for explicit match stats returned by EA endpoints
-      let wins = merged.wins ?? merged.overallWins ?? merged.seasonalStats?.wins ?? merged.record?.wins ?? null;
-      let ties = merged.ties ?? merged.overallTies ?? merged.tiesCount ?? merged.seasonalStats?.ties ?? merged.record?.ties ?? null;
-      let losses = merged.losses ?? merged.overallLosses ?? merged.seasonalStats?.losses ?? merged.record?.losses ?? null;
-      let goals = merged.goals ?? merged.overallGoals ?? merged.goalsScored ?? merged.record?.goals ?? null;
-      let conceded = merged.goalsAgainst ?? merged.overallGoalsAgainst ?? merged.record?.goalsAgainst ?? null;
+      const name = c.name || c.clubName || 'Doge Rovers';
 
-      // 2. If EA returned zeroes or nulls (due to season transition), compute from members list
-      if ((wins === null || (Number(wins) === 0 && Number(losses) === 0)) && membersList.length > 0) {
-        const totalGoals = membersList.reduce((acc, m) => acc + (Number(m.goals) || 0), 0);
-        if (totalGoals > 0 && (goals === null || Number(goals) === 0)) {
-          goals = totalGoals;
-        }
+      // EA uses w/d/l, wins/ties/losses, or nested record properties
+      let wins = c.w ?? c.wins ?? c.overallWins ?? c.record?.wins ?? c.seasonalStats?.wins ?? null;
+      let ties = c.d ?? c.ties ?? c.tiesCount ?? c.overallTies ?? c.record?.ties ?? c.seasonalStats?.ties ?? null;
+      let losses = c.l ?? c.losses ?? c.overallLosses ?? c.record?.losses ?? c.seasonalStats?.losses ?? null;
+
+      let goals = c.gf ?? c.goals ?? c.overallGoals ?? c.goalsScored ?? c.record?.goals ?? null;
+      let conceded = c.ga ?? c.goalsAgainst ?? c.overallGoalsAgainst ?? c.record?.goalsAgainst ?? null;
+
+      let rating = c.sr ?? c.skillRating ?? c.rating ?? c.bestSkillRating ?? c.reputationTier ?? '--';
+
+      // Fallback: If goals or matches are missing from club header, aggregate from squad data
+      if ((goals === null || Number(goals) === 0) && membersList.length > 0) {
+        const squadGoals = membersList.reduce((acc, m) => acc + (Number(m.goals) || 0), 0);
+        if (squadGoals > 0) goals = squadGoals;
       }
-
-      wins = wins ?? 0;
-      ties = ties ?? 0;
-      losses = losses ?? 0;
-      goals = goals ?? 0;
-      conceded = conceded ?? 0;
-
-      const rating = merged.skillRating || merged.rating || merged.bestSkillRating || '--';
 
       document.getElementById('clubName').innerText = name;
       document.getElementById('clubInitials').innerText = name.substring(0, 2).toUpperCase();
       document.getElementById('clubMeta').innerText = `Club ID: ${clubId} | Platform: ${platform}`;
-      document.getElementById('clubRecord').innerText = `${wins} - ${ties} - ${losses}`;
+      document.getElementById('clubRecord').innerText = `${wins ?? 0} - ${ties ?? 0} - ${losses ?? 0}`;
       document.getElementById('skillRating').innerText = rating;
-      document.getElementById('goalStats').innerText = `${goals} / ${conceded}`;
+      document.getElementById('goalStats').innerText = `${goals ?? 0} / ${conceded ?? 0}`;
     }
 
     function renderMembers(data) {
