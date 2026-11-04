@@ -311,6 +311,8 @@
         const memData = await memRes.json();
         const matchesData = await matchesRes.json();
 
+        console.log('[DEBUG MATCHES RAW]:', matchesData);
+
         if (!infoRes.ok) {
           setStatus(`Failed to fetch stats: ${combined.error || 'Club not found'}`, true);
           return;
@@ -424,20 +426,31 @@
       const tbody = document.getElementById('recentMatchesTable');
       tbody.innerHTML = '';
 
-      const matchArr = Array.isArray(matches) ? matches : Object.values(matches || {});
-      const recent10 = matchArr.slice(0, 10);
+      let matchArr = [];
+      if (Array.isArray(matches)) {
+        matchArr = matches;
+      } else if (typeof matches === 'object' && matches !== null) {
+        matchArr = Object.values(matches);
+      }
 
-      if (!recent10.length) {
+      if (!matchArr || matchArr.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-gray-500">No recent match history found for this club.</td></tr>';
         return;
       }
+
+      const recent10 = matchArr.slice(0, 10);
 
       recent10.forEach(m => {
         const clubsData = m.clubs || {};
         const clubIds = Object.keys(clubsData);
 
-        const thisId = clubIds.find(id => String(id) === String(clubId)) || clubIds[0];
-        const oppId = clubIds.find(id => String(id) !== String(thisId));
+        let thisId = clubIds.find(id => String(id) === String(clubId));
+        let oppId = clubIds.find(id => String(id) !== String(clubId));
+
+        if (!thisId && clubIds.length >= 2) {
+          thisId = clubIds[0];
+          oppId = clubIds[1];
+        }
 
         const myClub = clubsData[thisId] || {};
         const oppClub = clubsData[oppId] || {};
