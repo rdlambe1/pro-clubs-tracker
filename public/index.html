@@ -97,30 +97,11 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Overview Card with High-Res Shield Crest & Form Guide -->
+    <!-- Active Club Overview Card with Official Crest & Form Guide -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
-        <div id="crestContainer" class="w-20 h-20 flex items-center justify-center relative">
-          <!-- Dynamic SVG Vector Shield Crest -->
-          <svg viewBox="0 0 100 115" class="w-20 h-20 drop-shadow-xl filter">
-            <defs>
-              <linearGradient id="crestGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stop-color="#10b981" />
-                <stop offset="50%" stop-color="#047857" />
-                <stop offset="100%" stop-color="#064e3b" />
-              </linearGradient>
-              <linearGradient id="shieldBorder" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stop-color="#34d399" />
-                <stop offset="100%" stop-color="#065f46" />
-              </linearGradient>
-            </defs>
-            <path d="M 50 5 C 80 5 95 15 95 35 C 95 75 50 110 50 110 C 50 110 5 75 5 35 C 5 15 20 5 50 5 Z" 
-                  fill="url(#crestGrad)" stroke="url(#shieldBorder)" stroke-width="4" stroke-linejoin="round" />
-            <path d="M 50 12 C 75 12 87 20 87 37 C 87 70 50 100 50 100 C 50 100 13 70 13 37 C 13 20 25 12 50 12 Z" 
-                  fill="#0b0f19" opacity="0.65" />
-            <text x="50" y="62" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle" id="crestInitials" letter-spacing="1">DO</text>
-            <path d="M 30 75 Q 50 85 70 75" stroke="#10b981" stroke-width="3" fill="none" stroke-linecap="round" />
-          </svg>
+        <div id="crestContainer" class="w-20 h-20 flex items-center justify-center relative bg-gray-900/80 rounded-2xl p-1.5 border border-gray-800 shadow-lg">
+          <img id="clubCrestImg" src="" alt="Crest" class="w-full h-full object-contain drop-shadow" />
         </div>
 
         <div>
@@ -151,7 +132,7 @@
       </div>
     </section>
 
-    <!-- Recent Matches with Opponent SR & Exclusive Match MVP -->
+    <!-- Recent Matches with Opponent SR & Exclusive Single-Match MVP -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
@@ -244,6 +225,17 @@
       if (p.includes('gen4')) return 'PS4 / XBOX ONE';
       if (p.includes('nx') || p.includes('switch')) return 'NINTENDO SWITCH';
       return rawPlatform.toUpperCase();
+    }
+
+    function buildCrestUrl(crestId, teamId) {
+      const id = crestId || teamId;
+      if (!id) return '';
+      return `https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2024/fc/crests/light/previews/crest_${id}.png`;
+    }
+
+    function fallbackSvgCrest(name) {
+      const initials = (name || 'FC').substring(0, 2).toUpperCase();
+      return `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 115"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="%2310b981"/><stop offset="100%" stop-color="%23047857"/></linearGradient></defs><path d="M 50 5 C 80 5 95 15 95 35 C 95 75 50 110 50 110 C 50 110 5 75 5 35 C 5 15 20 5 50 5 Z" fill="url(%23g)" stroke="%2334d399" stroke-width="4"/><text x="50" y="65" font-size="28" font-family="sans-serif" font-weight="900" fill="%23ffffff" text-anchor="middle">${initials}</text></svg>`;
     }
 
     function setStatus(msg, isErr = false) {
@@ -390,10 +382,13 @@
       const gDiff = (Number(goals || 0) - Number(conceded || 0));
       const diffLabel = gDiff > 0 ? `+${gDiff}` : `${gDiff}`;
 
-      // Update Shield Crest with Monogram Initials
-      const initials = name.substring(0, 2).toUpperCase();
-      const crestInitialsEl = document.getElementById('crestInitials');
-      if (crestInitialsEl) crestInitialsEl.textContent = initials;
+      // Official Crest Image Loader with Auto-Fallback
+      const crestId = infoObj.crestId || statObj.crestId || infoObj.customKit?.crestId || infoObj.teamId || statObj.teamId;
+      const imgEl = document.getElementById('clubCrestImg');
+      if (imgEl) {
+        imgEl.onerror = () => { imgEl.src = fallbackSvgCrest(name); };
+        imgEl.src = crestId ? buildCrestUrl(crestId) : fallbackSvgCrest(name);
+      }
 
       const friendlyPlatform = formatPlatformLabel(platform);
 
@@ -501,11 +496,15 @@
         const oppGoals = Number(oppClub.goals ?? oppClub.score ?? m.goalsAgainst ?? 0);
         const oppName = oppClub.details?.name || oppClub.name || 'Opponent FC';
 
-        // Extract Opponent Skill Rating directly from EA match payload
-        const oppSR = oppClub.details?.skillRating ?? oppClub.skillRating ?? oppClub.rating ?? oppClub.details?.sr ?? null;
+        // Opponent Skill Rating (Server-Enriched)
+        const oppSR = oppClub.skillRating || oppClub.details?.skillRating || oppClub.rating || null;
         const oppSRBadge = oppSR 
-          ? `<span class="ml-1 text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">SR: ${oppSR}</span>` 
-          : '';
+          ? `<span class="ml-1.5 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">SR: ${oppSR}</span>` 
+          : `<span class="ml-1.5 text-[11px] font-semibold text-gray-500 bg-gray-800 px-2 py-0.5 rounded">SR: --</span>`;
+
+        // Opponent Crest Thumbnail
+        const oppCrestId = oppClub.crestId || oppClub.details?.crestId || oppClub.details?.teamId;
+        const oppCrestUrl = oppCrestId ? buildCrestUrl(oppCrestId) : fallbackSvgCrest(oppName);
 
         let resultLabel = 'DRAW';
         let resultClass = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
@@ -541,11 +540,11 @@
           }
         }
 
-        // 1. Parse individual players in this match & determine exactly ONE MVP
+        // 1. Parse individual players in this match & determine strictly ONE MVP
         const playersData = m.players?.[thisId] || {};
         const playerStats = Object.values(playersData);
 
-        let bestMvpIdentifier = null;
+        let bestMvpKey = null;
         let highestInfluenceScore = -Infinity;
 
         playerStats.forEach(p => {
@@ -562,24 +561,21 @@
           }
           p._computedPassPct = passPct;
 
-          // Influence Index
           const influenceScore = (r * 12) + (g * 5) + (a * 4) + (t * 2) + (passPct * 0.05);
           p._influenceScore = influenceScore;
 
-          // Unique identifier key
-          const uid = p.playername || p.name || p.proName || JSON.stringify(p);
+          const uid = p.playername || p.name || p.proName;
           if (influenceScore > highestInfluenceScore) {
             highestInfluenceScore = influenceScore;
-            bestMvpIdentifier = uid;
+            bestMvpKey = uid;
           }
         });
 
-        // 2. Build Box Score rows, ensuring ONLY the top player gets the crown
+        // 2. Build Box Score rows, ensuring strictly 1 MVP crown per match
         let boxScoreRows = '';
-        let crownAwarded = false;
+        let crownGiven = false;
 
         if (playerStats.length > 0) {
-          // Sort players in the box score by influence score descending
           playerStats.sort((a, b) => (b._influenceScore || 0) - (a._influenceScore || 0));
 
           boxScoreRows = playerStats.map(p => {
@@ -590,11 +586,11 @@
             const tackles = p.tacklesmade || p.tackles || 0;
             const passPct = p._computedPassPct ?? 0;
 
-            const uid = p.playername || p.name || p.proName || JSON.stringify(p);
+            const uid = p.playername || p.name || p.proName;
             let crownBadge = '';
-            if (!crownAwarded && uid === bestMvpIdentifier && highestInfluenceScore > 0) {
-              crownBadge = `<span class="inline-flex items-center gap-1 ml-1.5 px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-[10px] font-black" title="Match MVP (Highest Influence Score)"><i class="fa-solid fa-crown text-[9px]"></i> MVP</span>`;
-              crownAwarded = true; // Prevents any duplicate MVP in this fixture
+            if (!crownGiven && uid === bestMvpKey && highestInfluenceScore > 0) {
+              crownBadge = `<span class="inline-flex items-center gap-1 ml-1.5 px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-[10px] font-black" title="Match MVP (Highest Pitch Influence)"><i class="fa-solid fa-crown text-[9px]"></i> MVP</span>`;
+              crownGiven = true;
             }
 
             return `
@@ -627,6 +623,7 @@
         tr.innerHTML = `
           <td class="py-3 px-2">${typeBadge}</td>
           <td class="py-3 px-2 font-medium text-white flex items-center gap-2">
+            <img src="${oppCrestUrl}" class="w-5 h-5 object-contain rounded" onerror="this.src='${fallbackSvgCrest(oppName)}'">
             <span>vs ${oppName}</span>
             ${oppSRBadge}
             <i class="fa-solid fa-chevron-down text-[10px] text-gray-500 ml-1"></i>
