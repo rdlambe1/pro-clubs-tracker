@@ -109,7 +109,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Match History (Requests up to 15 matches from EA across league and playoff)
+// 4. Match History
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
