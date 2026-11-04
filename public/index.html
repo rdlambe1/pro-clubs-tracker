@@ -97,16 +97,34 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Overview Card with Crest and Form Ribbon -->
+    <!-- Active Club Overview Card with High-Res Shield Crest & Form Guide -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
-        <div id="crestWrapper" class="w-20 h-20 bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl flex items-center justify-center border-2 border-emerald-500/40 p-1 shadow-lg relative">
-          <div class="text-2xl font-black text-white" id="clubInitials">--</div>
+        <div id="crestContainer" class="w-20 h-20 flex items-center justify-center relative">
+          <!-- Dynamic SVG Vector Shield Crest -->
+          <svg viewBox="0 0 100 115" class="w-20 h-20 drop-shadow-xl filter">
+            <defs>
+              <linearGradient id="crestGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#10b981" />
+                <stop offset="50%" stop-color="#047857" />
+                <stop offset="100%" stop-color="#064e3b" />
+              </linearGradient>
+              <linearGradient id="shieldBorder" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#34d399" />
+                <stop offset="100%" stop-color="#065f46" />
+              </linearGradient>
+            </defs>
+            <path d="M 50 5 C 80 5 95 15 95 35 C 95 75 50 110 50 110 C 50 110 5 75 5 35 C 5 15 20 5 50 5 Z" 
+                  fill="url(#crestGrad)" stroke="url(#shieldBorder)" stroke-width="4" stroke-linejoin="round" />
+            <path d="M 50 12 C 75 12 87 20 87 37 C 87 70 50 100 50 100 C 50 100 13 70 13 37 C 13 20 25 12 50 12 Z" 
+                  fill="#0b0f19" opacity="0.65" />
+            <text x="50" y="62" font-size="28" font-weight="900" fill="#ffffff" text-anchor="middle" id="crestInitials" letter-spacing="1">DO</text>
+            <path d="M 30 75 Q 50 85 70 75" stroke="#10b981" stroke-width="3" fill="none" stroke-linecap="round" />
+          </svg>
         </div>
+
         <div>
-          <h2 id="clubName" class="text-3xl font-extrabold text-white flex items-center gap-3">
-            <span>No Club Loaded</span>
-          </h2>
+          <h2 id="clubName" class="text-3xl font-extrabold text-white">No Club Loaded</h2>
           <p id="clubMeta" class="text-gray-400 text-sm mt-1">Enter a club name or ID above to get started</p>
           <div class="flex items-center gap-2 mt-3" id="formGuideContainer">
             <span class="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">Form:</span>
@@ -116,6 +134,7 @@
           </div>
         </div>
       </div>
+
       <div class="grid grid-cols-3 gap-6 text-center border-t md:border-t-0 md:border-l border-gray-800 pt-4 md:pt-0 md:pl-8">
         <div>
           <div class="text-gray-400 text-xs uppercase tracking-wider">Record (W-D-L)</div>
@@ -132,13 +151,13 @@
       </div>
     </section>
 
-    <!-- Recent Matches with Expandable Box Scores -->
+    <!-- Recent Matches with Box Scores and Influence-Based MVP Crown -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
         </h3>
-        <span class="text-xs text-gray-400">Click any match to reveal box scores & player telemetry</span>
+        <span class="text-xs text-gray-400">Click any match to expand influence breakdown, pass % & tackles</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -184,16 +203,11 @@
       </div>
     </section>
 
-    <!-- Full Squad Performance Table with MVP Crown Badge -->
+    <!-- Full Squad Performance Table (Clean, no MVP crown here) -->
     <section class="card p-6 space-y-4">
-      <div class="flex justify-between items-center">
-        <h3 class="text-lg font-bold text-white flex items-center gap-2">
-          <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
-        </h3>
-        <span class="text-xs text-yellow-400/90 font-medium flex items-center gap-1.5 bg-yellow-400/10 px-2.5 py-1 rounded border border-yellow-400/20">
-          <i class="fa-solid fa-crown"></i> MVP denotes top rated impact performer
-        </span>
-      </div>
+      <h3 class="text-lg font-bold text-white flex items-center gap-2">
+        <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
+      </h3>
 
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
@@ -367,26 +381,10 @@
       const gDiff = (Number(goals || 0) - Number(conceded || 0));
       const diffLabel = gDiff > 0 ? `+${gDiff}` : `${gDiff}`;
 
-      // In-game Crest: Check customKit / crestId across EA CDN endpoints with SVG Shield fallback
-      const crestWrapper = document.getElementById('crestWrapper');
-      const crestId = infoObj.crestId || statObj.crestId || infoObj.customKit?.crestId;
-
-      if (crestId) {
-        const eaCrestUrl = `https://fifa21.content.easports.com/fifa/fltOnlineAssets/24B947F1-9C4E-481A-B474-04F69B8E6962/2024/fc/crests/light/previews/crest_${crestId}.png`;
-        crestWrapper.innerHTML = `
-          <img src="${eaCrestUrl}" 
-               alt="Crest" 
-               class="w-full h-full object-contain p-1.5 drop-shadow" 
-               onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'flex flex-col items-center justify-center w-full h-full\\'><i class=\\'fa-solid fa-shield text-emerald-400 text-3xl\\'></i><span class=\\'text-[11px] font-black text-white mt-0.5\\'>${name.substring(0, 2).toUpperCase()}</span></div>';">
-        `;
-      } else {
-        crestWrapper.innerHTML = `
-          <div class="flex flex-col items-center justify-center w-full h-full">
-            <i class="fa-solid fa-shield text-emerald-400 text-3xl"></i>
-            <span class="text-[11px] font-black text-white mt-0.5">${name.substring(0, 2).toUpperCase()}</span>
-          </div>
-        `;
-      }
+      // Update Shield Crest with Official Monogram
+      const initials = name.substring(0, 2).toUpperCase();
+      const crestInitialsEl = document.getElementById('crestInitials');
+      if (crestInitialsEl) crestInitialsEl.textContent = initials;
 
       document.getElementById('clubName').innerText = name;
       document.getElementById('clubMeta').innerText = `Club ID: ${clubId} | Platform: ${platform}`;
@@ -413,27 +411,7 @@
         return [];
       }
 
-      // 1. Calculate Club MVP across all squad members BEFORE rendering rows
-      let highestMvpScore = -1;
-      let topMvpMember = null;
-
-      list.forEach(m => {
-        if (!m || typeof m !== 'object') return;
-        const avgRating = parseFloat(m.ratingAve || m.rating || 0);
-        const motmCount = Number(m.manOfTheMatch || m.motm || 0);
-        const totalGames = Number(m.gamesPlayed || m.games || 0);
-        
-        // MVP Formula weighted by performance consistency & MoTM frequency
-        if (totalGames > 0) {
-          const score = (avgRating * 10) + (motmCount * 1.5);
-          if (score > highestMvpScore) {
-            highestMvpScore = score;
-            topMvpMember = m;
-          }
-        }
-      });
-
-      // 2. Render each player with MVP Crown Badge and G+A efficiency
+      // Render players cleanly (no squad-level crown badge)
       list.forEach(m => {
         if (!m || typeof m !== 'object') return;
         const name = m.name || m.proName || m.gamertag || 'Unknown';
@@ -457,15 +435,10 @@
                            normPos === 'MID' ? 'text-amber-400 bg-amber-500/10' :
                            normPos === 'DEF' ? 'text-blue-400 bg-blue-500/10' : 'text-purple-400 bg-purple-500/10';
 
-        const isMvp = topMvpMember && (m.name === topMvpMember.name || m.proName === topMvpMember.proName);
-        const mvpTag = isMvp 
-          ? `<span class="inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded text-[10px] font-black bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 shadow-sm" title="Club MVP"><i class="fa-solid fa-crown text-[9px]"></i> MVP</span>` 
-          : '';
-
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-gray-800/40 transition border-b border-gray-800/60';
         tr.innerHTML = `
-          <td class="py-3 px-2 font-medium text-white flex items-center">${name} ${mvpTag}</td>
+          <td class="py-3 px-2 font-medium text-white">${name}</td>
           <td class="py-3 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${badgeColor}">${normPos}</span></td>
           <td class="py-3 px-2 text-center text-gray-300">${games}</td>
           <td class="py-3 px-2 text-center font-bold text-emerald-400">${goals}</td>
@@ -482,7 +455,7 @@
       return list;
     }
 
-    // Interactive Expandable Match Table with Box Scores
+    // Match Box Scores with Influence-Weighted MVP Crown
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
       const formContainer = document.getElementById('formBadges');
@@ -552,24 +525,70 @@
           }
         }
 
-        // Parse individual player box scores inside this fixture
+        // 1. Parse individual players in this match & compute Influence Score
         const playersData = m.players?.[thisId] || {};
         const playerStats = Object.values(playersData);
+
+        let matchMvpPlayer = null;
+        let highestInfluenceScore = -1;
+
+        playerStats.forEach(p => {
+          const r = parseFloat(p.rating || 0);
+          const g = Number(p.goals || 0);
+          const a = Number(p.assists || 0);
+          const t = Number(p.tacklesmade || p.tackles || 0);
+
+          // Calculate exact pass percentage from attempts/completed
+          let passPct = Number(p.passsuccessrate || p.passSuccessRate || 0);
+          const made = Number(p.passesmade || 0);
+          const attempts = Number(p.passattempts || 0);
+          if (attempts > 0) {
+            passPct = Math.round((made / attempts) * 100);
+          }
+          p._computedPassPct = passPct;
+
+          // Influence Index: weights gameplay consistency, defensive work, distribution & clinical finishing
+          const influenceScore = (r * 12) + (g * 5) + (a * 4) + (t * 2) + (passPct * 0.05);
+          if (influenceScore > highestInfluenceScore) {
+            highestInfluenceScore = influenceScore;
+            matchMvpPlayer = p;
+          }
+        });
+
+        // 2. Build Box Score rows with Pass %, Tackles & Crown Badge
         let boxScoreRows = '';
         if (playerStats.length > 0) {
-          boxScoreRows = playerStats.map(p => `
-            <div class="flex justify-between items-center py-1 text-xs border-b border-gray-800/40">
-              <span class="font-medium text-white">${p.playername || p.name || 'Pro'}</span>
-              <div class="space-x-3 text-gray-400">
-                <span>Rating: <b class="text-yellow-400">${parseFloat(p.rating || 0).toFixed(1)}</b></span>
-                <span>Goals: <b class="text-emerald-400">${p.goals || 0}</b></span>
-                <span>Assists: <b class="text-white">${p.assists || 0}</b></span>
-                <span>Pass: <b class="text-gray-300">${p.passsuccessrate || 0}%</b></span>
+          boxScoreRows = playerStats.map(p => {
+            const pName = p.playername || p.name || 'Pro';
+            const rating = parseFloat(p.rating || 0).toFixed(1);
+            const goals = p.goals || 0;
+            const assists = p.assists || 0;
+            const tackles = p.tacklesmade || p.tackles || 0;
+            const passPct = p._computedPassPct ?? 0;
+
+            const isMvp = matchMvpPlayer && (p.playername === matchMvpPlayer.playername || p.name === matchMvpPlayer.name);
+            const crownBadge = isMvp 
+              ? `<span class="inline-flex items-center gap-1 ml-1.5 px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-[10px] font-black" title="Match MVP (Highest Influence Score)"><i class="fa-solid fa-crown text-[9px]"></i> MVP</span>` 
+              : '';
+
+            return `
+              <div class="flex flex-col sm:flex-row justify-between sm:items-center py-2 px-1 text-xs border-b border-gray-800/50 hover:bg-gray-900/40 transition">
+                <div class="font-medium text-white flex items-center mb-1 sm:mb-0">
+                  <span>${pName}</span>
+                  ${crownBadge}
+                </div>
+                <div class="flex items-center gap-4 text-gray-400">
+                  <span>Rating: <b class="text-yellow-400 font-bold">${rating}</b></span>
+                  <span>G: <b class="text-emerald-400 font-bold">${goals}</b></span>
+                  <span>A: <b class="text-white font-bold">${assists}</b></span>
+                  <span>Tackles: <b class="text-sky-400 font-bold">${tackles}</b></span>
+                  <span>Pass: <b class="text-cyan-300 font-bold">${passPct}%</b></span>
+                </div>
               </div>
-            </div>
-          `).join('');
+            `;
+          }).join('');
         } else {
-          boxScoreRows = '<div class="text-xs text-gray-500 italic py-1">Detailed player box scores unavailable for this session.</div>';
+          boxScoreRows = '<div class="text-xs text-gray-500 italic py-1">Detailed player telemetry unavailable for this session.</div>';
         }
 
         const tr = document.createElement('tr');
@@ -597,10 +616,13 @@
         detailTr.className = 'hidden bg-gray-900/60 border-b border-gray-800';
         detailTr.innerHTML = `
           <td colspan="5" class="p-4">
-            <div class="text-xs uppercase font-bold text-gray-400 tracking-wider mb-2 flex items-center gap-2">
-              <i class="fa-solid fa-chart-simple text-emerald-400"></i> Match Lineup & Box Score
+            <div class="text-xs uppercase font-bold text-gray-400 tracking-wider mb-2 flex items-center justify-between">
+              <span class="flex items-center gap-2">
+                <i class="fa-solid fa-chart-simple text-emerald-400"></i> Match Influence & Box Score
+              </span>
+              <span class="text-[11px] text-gray-500 font-normal normal-case">MVP awarded for overall pitch impact</span>
             </div>
-            <div class="space-y-1 bg-gray-950/60 p-3 rounded-lg border border-gray-800/80">
+            <div class="space-y-1 bg-gray-950/70 p-3 rounded-lg border border-gray-800/80">
               ${boxScoreRows}
             </div>
           </td>
