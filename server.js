@@ -56,7 +56,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info
+// 2. Club Info + Overall W-D-L & Skill Rating
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -67,9 +67,16 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 
   try {
-    const info = await proclubs.clubs.get({ clubId: numericId, platform });
-    console.log(`[RAW CLUB INFO ${clubId}]:`, JSON.stringify(info));
-    res.json(info);
+    // Call both SDK methods concurrently
+    const [infoRes, statsRes] = await Promise.allSettled([
+      proclubs.clubs.get({ clubId: numericId, platform }),
+      proclubs.clubs.overallStats({ clubId: numericId, platform })
+    ]);
+
+    const info = infoRes.status === 'fulfilled' ? infoRes.value : {};
+    const overall = statsRes.status === 'fulfilled' ? statsRes.value : {};
+
+    res.json({ info, overall });
   } catch (error) {
     console.error(`[Club Info Error ${clubId}]:`, error);
     res.status(500).json({ error: error.message || 'Failed to fetch club info' });
