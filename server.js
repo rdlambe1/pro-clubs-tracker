@@ -13,6 +13,14 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const proclubs = new ProClubsClient({ cache: true });
 
+const EA_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+  'Accept': 'application/json, text/plain, */*',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Referer': 'https://www.ea.com/',
+  'Origin': 'https://www.ea.com'
+};
+
 function extractClubId(obj, keyFallback = null) {
   if (!obj) return null;
   if (obj.clubId && Number(obj.clubId) > 0) return String(obj.clubId);
@@ -101,7 +109,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Match History with EA GameType IDs and Multi-Method Strategy
+// 4. Match History (Direct HTTP fetch to EA endpoint with browser headers)
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -111,55 +119,39 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
     return res.status(400).json({ error: `Invalid clubId: ${clubId}` });
   }
 
-  const collectedMatches = [];
+  const matchTypes = ['gameType9', 'gameType13'];
+  const allMatches = [];
 
-  // EA FC uses gameType9 for regular league matches and gameType13 for playoffs
-  const queries = [
-    { matchType: 'gameType9' },
-    { matchType: 'gameType13' },
-    { matchType: 'leagueMatch' },
-    {} // empty filter queries overall recent matches
-  ];
-
-  for (const q of queries) {
+  for (const mType of matchTypes) {
+    const url = `https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numericId}&platform=${platform}&matchType=${mType}`;
     try {
-      let data = null;
-
-      if (typeof proclubs.clubs?.matches === 'function') {
-        data = await proclubs.clubs.matches({ clubId: numericId, platform, ...q });
-      } else if (typeof proclubs.matches?.get === 'function') {
-        data = await proclubs.matches.get({ clubIds: numericId, platform, ...q });
-      } else if (typeof proclubs.request === 'function') {
-        data = await proclubs.request({
-          endpoint: 'clubsMatches',
-          query: { clubIds: String(numericId), platform, ...q }
-        });
-      }
-
-      if (data) {
-        const list = Array.isArray(data) ? data : Object.values(data);
-        for (const item of list) {
-          if (item && typeof item === 'object') {
-            const mId = item.matchId || item.timestamp;
-            // Prevent duplicate matches across queries
-            if (!collectedMatches.some(existing => (existing.matchId || existing.timestamp) === mId)) {
-              item._inferredType = q.matchType || 'gameType9';
-              collectedMatches.push(item);
+      const response = await fetch(url, { headers: EA_HEADERS });
+      if (response.ok) {
+        const data = await response.json();
+        const list = Array.isArray(data) ? data : Object.values(data || {});
+        list.forEach(m => {
+          if (m && typeof m === 'object') {
+            m._inferredType = mType === 'gameType13' ? 'playoff' : 'league';
+            // Deduplicate by matchId
+            const id = m.matchId || m.timestamp;
+            if (!allMatches.some(x => (x.matchId || x.timestamp) === id)) {
+              allMatches.push(m);
             }
           }
-        }
+        });
+      } else {
+        console.log(`[EA match fetch HTTP ${response.status}] for ${mType}`);
       }
-    } catch (e) {
-      // Continue to next query format
+    } catch (err) {
+      console.log(`[EA match fetch error ${mType}]:`, err.message);
     }
   }
 
-  console.log(`[Matches found for ID ${numericId}]: ${collectedMatches.length}`);
-
   // Sort newest first
-  collectedMatches.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+  allMatches.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
 
-  res.json(collectedMatches.slice(0, 10));
+  console.log(`[Matches retrieved for ${numericId}]: ${allMatches.length}`);
+  res.json(allMatches.slice(0, 10));
 });
 
 app.get('*', (req, res) => {
