@@ -13,21 +13,53 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const proclubs = new ProClubsClient({ cache: true });
 
-// 1. Search clubs by name
+// Helper to recursively locate a valid numeric club ID in any EA data structure
+function extractClubId(obj, keyFallback = null) {
+  if (!obj) return null;
+  if (obj.clubId && Number(obj.clubId) > 0) return String(obj.clubId);
+  if (obj.id && Number(obj.id) > 0) return String(obj.id);
+  if (obj.clubInfo?.clubId && Number(obj.clubInfo.clubId) > 0) return String(obj.clubInfo.clubId);
+  if (keyFallback && /^\d+$/.test(keyFallback) && Number(keyFallback) > 0) return String(keyFallback);
+  return null;
+}
+
+// 1. Search clubs by name - Always returns a clean [{ id, name }] array
 app.get('/api/search', async (req, res) => {
   const { clubName, platform = 'common-gen5' } = req.query;
   if (!clubName) return res.status(400).json({ error: 'Club name required' });
 
   try {
-    const rawResults = await proclubs.clubs.search({ name: clubName.trim(), platform });
-    res.json(rawResults);
+    const raw = await proclubs.clubs.search({ name: clubName.trim(), platform });
+    console.log('[Search Raw]:', JSON.stringify(raw));
+
+    const results = [];
+
+    if (Array.isArray(raw)) {
+      raw.forEach(item => {
+        const id = extractClubId(item);
+        const name = item.name || item.clubName || item.clubInfo?.name || clubName;
+        if (id) results.push({ id, name });
+      });
+    } else if (typeof raw === 'object' && raw !== null) {
+      Object.entries(raw).forEach(([k, v]) => {
+        const id = extractClubId(v, k);
+        const name = v?.name || v?.clubName || v?.clubInfo?.name || clubName;
+        if (id) results.push({ id, name });
+      });
+    }
+
+    if (results.length === 0) {
+      return res.status(404).json({ error: `No clubs found matching "${clubName}" on ${platform}.` });
+    }
+
+    res.json(results);
   } catch (error) {
     console.error('[Search Error]:', error);
     res.status(500).json({ error: error.message || 'Error searching clubs' });
   }
 });
 
-// 2. Club Info + Overall Season Stats
+// 2. Club Info & Comprehensive Overall Records
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -38,27 +70,25 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 
   try {
-    // Query both base info and seasonal / overall records concurrently
-    const [info, stats] = await Promise.allSettled([
+    const [infoRes, statsRes] = await Promise.allSettled([
       proclubs.clubs.get({ clubId: numericId, platform }),
       proclubs.clubs.stats({ clubId: numericId, platform })
     ]);
 
-    const infoData = info.status === 'fulfilled' ? info.value : {};
-    const statsData = stats.status === 'fulfilled' ? stats.value : {};
+    const info = infoRes.status === 'fulfilled' ? infoRes.value : {};
+    const stats = statsRes.status === 'fulfilled' ? statsRes.value : {};
 
-    // Combine both sets of data so the frontend gets metadata + real match stats
-    res.json({
-      info: infoData,
-      stats: statsData
-    });
+    console.log(`[Info ${numericId}]:`, JSON.stringify(info));
+    console.log(`[Stats ${numericId}]:`, JSON.stringify(stats));
+
+    res.json({ info, stats });
   } catch (error) {
     console.error(`[Club Info Error ${clubId}]:`, error);
     res.status(500).json({ error: error.message || 'Failed to fetch club info' });
   }
 });
 
-// 3. Member / Squad Stats
+// 3. Squad and Member Statistics
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
