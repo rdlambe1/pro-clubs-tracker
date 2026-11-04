@@ -101,7 +101,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Recent Matches (Multi-type query with parameter fallback)
+// 4. Recent Matches - Using SDK request transport with multi-endpoint fallback
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -118,13 +118,19 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
     try {
       let data = null;
 
-      // Try proclubs.matches.club first (standard sdk signature)
-      if (typeof proclubs.matches?.club === 'function') {
-        data = await proclubs.matches.club({ clubIds: numericId, platform, matchType: mType });
-      } else if (typeof proclubs.matches?.get === 'function') {
-        data = await proclubs.matches.get({ clubIds: numericId, platform, matchType: mType });
+      // 1. Direct method calls available on proclubs instance
+      if (typeof proclubs.getMatches === 'function') {
+        data = await proclubs.getMatches({ clubIds: numericId, platform, matchType: mType });
       } else if (typeof proclubs.clubs?.matches === 'function') {
         data = await proclubs.clubs.matches({ clubId: numericId, platform, matchType: mType });
+      } else if (typeof proclubs.matches?.get === 'function') {
+        data = await proclubs.matches.get({ clubIds: numericId, platform, matchType: mType });
+      } else if (typeof proclubs.request === 'function') {
+        // Fallback directly to SDK's authenticated request pipeline
+        data = await proclubs.request({
+          endpoint: 'clubsMatches',
+          query: { clubIds: String(numericId), platform, matchType: mType }
+        });
       }
 
       if (data) {
@@ -137,7 +143,7 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
         });
       }
     } catch (err) {
-      console.log(`[Matches ${mType} fetch skipped]:`, err.message);
+      console.log(`[Matches fetch skipped for ${mType}]:`, err.message);
     }
   }
 
