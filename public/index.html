@@ -97,7 +97,7 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Overview Card -->
+    <!-- Active Club Overview Card with Form Guide -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
         <div class="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center border-2 border-emerald-500 text-2xl font-black text-white" id="clubInitials">
@@ -106,6 +106,12 @@
         <div>
           <h2 id="clubName" class="text-3xl font-extrabold text-white">No Club Loaded</h2>
           <p id="clubMeta" class="text-gray-400 text-sm mt-1">Enter a club name or ID above to get started</p>
+          <div class="flex items-center gap-2 mt-3" id="formGuideContainer">
+            <span class="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">Form:</span>
+            <div id="formBadges" class="flex items-center gap-1.5">
+              <span class="text-xs text-gray-500 font-mono">--</span>
+            </div>
+          </div>
         </div>
       </div>
       <div class="grid grid-cols-3 gap-6 text-center border-t md:border-t-0 md:border-l border-gray-800 pt-4 md:pt-0 md:pl-8">
@@ -118,19 +124,19 @@
           <div id="skillRating" class="text-xl font-bold text-emerald-400 mt-1">--</div>
         </div>
         <div>
-          <div class="text-gray-400 text-xs uppercase tracking-wider">Goals (Scored/Con)</div>
+          <div class="text-gray-400 text-xs uppercase tracking-wider">Goals (Diff)</div>
           <div id="goalStats" class="text-xl font-bold text-white mt-1">-- / --</div>
         </div>
       </div>
     </section>
 
-    <!-- Recent 10 Matches Section -->
+    <!-- Recent Matches Section -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
-          <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
+          <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent Match History
         </h3>
-        <span class="text-xs text-gray-400">Includes match type, scorelines, & outcomes</span>
+        <span class="text-xs text-gray-400">Sorted by newest match results</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -176,7 +182,7 @@
       </div>
     </section>
 
-    <!-- Full Squad Performance Table -->
+    <!-- Full Squad Performance Table with G+A/Game Efficiency -->
     <section class="card p-6 space-y-4">
       <h3 class="text-lg font-bold text-white flex items-center gap-2">
         <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
@@ -191,8 +197,8 @@
               <th class="py-3 px-2 text-center">Matches</th>
               <th class="py-3 px-2 text-center">Goals</th>
               <th class="py-3 px-2 text-center">Assists</th>
+              <th class="py-3 px-2 text-center">G+A / G</th>
               <th class="py-3 px-2 text-center">Tackles (Win %)</th>
-              <th class="py-3 px-2 text-center">Intercepts</th>
               <th class="py-3 px-2 text-center">Rating</th>
               <th class="py-3 px-2 text-center">Pass %</th>
               <th class="py-3 px-2 text-center">MoTM</th>
@@ -351,12 +357,15 @@
         }
       }
 
+      const gDiff = (Number(goals || 0) - Number(conceded || 0));
+      const diffLabel = gDiff > 0 ? `+${gDiff}` : `${gDiff}`;
+
       document.getElementById('clubName').innerText = name;
       document.getElementById('clubInitials').innerText = name.substring(0, 2).toUpperCase();
       document.getElementById('clubMeta').innerText = `Club ID: ${clubId} | Platform: ${platform}`;
       document.getElementById('clubRecord').innerText = `${wins ?? 0} - ${ties ?? 0} - ${losses ?? 0}`;
       document.getElementById('skillRating').innerText = rating;
-      document.getElementById('goalStats').innerText = `${goals ?? 0} / ${conceded ?? 0}`;
+      document.getElementById('goalStats').innerHTML = `${goals ?? 0}/${conceded ?? 0} <span class="text-xs text-gray-400 font-normal">(${diffLabel})</span>`;
     }
 
     function renderMembers(data) {
@@ -382,16 +391,18 @@
         const name = m.name || m.proName || m.gamertag || 'Unknown';
         const rawPos = m.favoritePosition || m.pos || m.favPos || 'MID';
         const normPos = normalizePosition(rawPos);
-        const games = m.gamesPlayed ?? m.games ?? 0;
-        const goals = m.goals ?? 0;
-        const assists = m.assists ?? 0;
+        const games = Number(m.gamesPlayed ?? m.games ?? 0);
+        const goals = Number(m.goals ?? 0);
+        const assists = Number(m.assists ?? 0);
         const rating = parseFloat(m.ratingAve || m.rating || 0).toFixed(1);
         const pass = m.passSuccessRate ?? m.passSuccess ?? 0;
         const motm = m.manOfTheMatch ?? m.motm ?? 0;
 
         const tackles = m.tacklesmade ?? m.tackles ?? m.tacklesMade ?? 0;
         const tackleWinRate = m.tacklesuccessrate ?? m.tackleSuccessRate ?? 0;
-        const intercepts = m.interceptions ?? m.intercepts ?? 0;
+
+        // ProClubsHead Efficiency Metric: Goal contributions per game
+        const gaPerGame = games > 0 ? ((goals + assists) / games).toFixed(2) : '0.00';
 
         m._normalizedPos = normPos;
         m._rawPos = rawPos;
@@ -408,8 +419,8 @@
           <td class="py-3 px-2 text-center text-gray-300">${games}</td>
           <td class="py-3 px-2 text-center font-bold text-emerald-400">${goals}</td>
           <td class="py-3 px-2 text-center text-gray-300">${assists}</td>
+          <td class="py-3 px-2 text-center text-emerald-300 font-mono font-medium">${gaPerGame}</td>
           <td class="py-3 px-2 text-center text-sky-400 font-medium">${tackles} <span class="text-xs text-gray-400">(${tackleWinRate}%)</span></td>
-          <td class="py-3 px-2 text-center text-cyan-300">${intercepts}</td>
           <td class="py-3 px-2 text-center text-yellow-400 font-semibold">${rating}</td>
           <td class="py-3 px-2 text-center text-gray-300">${pass}%</td>
           <td class="py-3 px-2 text-center text-purple-400">${motm}</td>
@@ -422,14 +433,19 @@
 
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
+      const formContainer = document.getElementById('formBadges');
       tbody.innerHTML = '';
+      formContainer.innerHTML = '';
 
       const matchArr = Array.isArray(matches) ? matches : (matches?.matches || []);
 
       if (!matchArr || matchArr.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="py-6 text-center text-gray-500">No recent match history found for this club.</td></tr>';
+        formContainer.innerHTML = '<span class="text-xs text-gray-500 font-mono">--</span>';
         return;
       }
+
+      const formBadgesList = [];
 
       matchArr.slice(0, 10).forEach(m => {
         const clubsData = m.clubs || m.aggregate || {};
@@ -452,12 +468,20 @@
 
         let resultLabel = 'DRAW';
         let resultClass = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+        let formBadge = '<span class="w-5 h-5 rounded-full bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 text-[10px] font-black flex items-center justify-center">D</span>';
+
         if (myGoals > oppGoals) {
           resultLabel = 'WIN';
           resultClass = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+          formBadge = '<span class="w-5 h-5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-[10px] font-black flex items-center justify-center">W</span>';
         } else if (myGoals < oppGoals) {
           resultLabel = 'LOSS';
           resultClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+          formBadge = '<span class="w-5 h-5 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-400 text-[10px] font-black flex items-center justify-center">L</span>';
+        }
+
+        if (formBadgesList.length < 5) {
+          formBadgesList.push(formBadge);
         }
 
         const cat = m._inferredCategory || 'League';
@@ -491,6 +515,9 @@
         `;
         tbody.appendChild(tr);
       });
+
+      // Render the 5-match form guide
+      formContainer.innerHTML = formBadgesList.join('');
     }
 
     function buildDynamicPitchTactic(members) {
