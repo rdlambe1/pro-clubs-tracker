@@ -56,7 +56,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Overall Stats
+// 2. Club Info + Overall W-D-L & Skill Rating
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -101,10 +101,10 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Recent Matches (League, Playoffs, Relegation/Promotion)
+// 4. Recent Matches (Aggregates League + Playoff matches)
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
-  const { platform = 'common-gen5', matchType = 'leagueMatch' } = req.query;
+  const { platform = 'common-gen5' } = req.query;
 
   const numericId = parseInt(clubId, 10);
   if (isNaN(numericId) || numericId <= 0) {
@@ -112,17 +112,42 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   }
 
   try {
-    // Attempt match fetch across SDK methods
-    let matches = [];
-    if (typeof proclubs.matches?.get === 'function') {
-      matches = await proclubs.matches.get({ clubId: numericId, platform, matchType });
-    } else if (typeof proclubs.clubs?.matches === 'function') {
-      matches = await proclubs.clubs.matches({ clubId: numericId, platform, matchType });
-    }
-    res.json(matches || []);
+    const matchTypes = ['leagueMatch', 'playoffMatch'];
+    const results = await Promise.allSettled(
+      matchTypes.map(type => {
+        if (typeof proclubs.matches?.get === 'function') {
+          return proclubs.matches.get({ clubId: numericId, platform, matchType: type });
+        } else if (typeof proclubs.clubs?.matches === 'function') {
+          return proclubs.clubs.matches({ clubId: numericId, platform, matchType: type });
+        }
+        return Promise.resolve([]);
+      })
+    );
+
+    let allMatches = [];
+    results.forEach((r, idx) => {
+      if (r.status === 'fulfilled' && r.value) {
+        const raw = r.value;
+        const list = Array.isArray(raw) ? raw : Object.values(raw);
+        list.forEach(m => {
+          if (m && typeof m === 'object') {
+            m._inferredType = matchTypes[idx];
+            allMatches.push(m);
+          }
+        });
+      }
+    });
+
+    allMatches.sort((a, b) => {
+      const tA = Number(a.timestamp || 0);
+      const tB = Number(b.timestamp || 0);
+      return tB - tA;
+    });
+
+    res.json(allMatches.slice(0, 10));
   } catch (error) {
     console.error(`[Matches Error ${clubId}]:`, error);
-    res.json([]); // Return empty list gracefully if no recent matches recorded
+    res.json([]);
   }
 });
 
