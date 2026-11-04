@@ -28,7 +28,7 @@
       </div>
     </header>
 
-    <div id="statusMessage" class="hidden text-sm px-4 py-2 rounded bg-gray-800 border border-gray-700 text-gray-300"></div>
+    <div id="statusMessage" class="hidden text-sm px-4 py-3 rounded"></div>
 
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
@@ -91,35 +91,40 @@
       el.classList.remove('hidden');
       el.innerText = text;
       el.className = isError 
-        ? 'text-sm px-4 py-2 rounded bg-red-950/60 border border-red-700 text-red-300' 
-        : 'text-sm px-4 py-2 rounded bg-gray-800 border border-gray-700 text-gray-300';
+        ? 'text-sm px-4 py-3 rounded bg-red-950/80 border border-red-700 text-red-200' 
+        : 'text-sm px-4 py-3 rounded bg-gray-800 border border-gray-700 text-gray-300';
     }
 
     async function executeSearch() {
       const query = document.getElementById('searchInput').value.trim();
       if (!query) return;
 
-      setStatus(`Searching for "${query}"...`);
+      setStatus(`Searching EA database for "${query}"...`);
 
       let targetClubId = query;
 
-      // If the user typed a name rather than an ID, search EA first
+      // If text query, search EA by name first
       if (isNaN(query)) {
         try {
-          const searchRes = await fetch(`${API_BASE}/search?clubName=${encodeURIComponent(query)}`);
-          const searchData = await searchRes.json();
+          const res = await fetch(`${API_BASE}/search?clubName=${encodeURIComponent(query)}`);
+          const data = await res.json();
           
-          const clubs = Object.entries(searchData);
-          if (!clubs.length) {
-            setStatus(`No club found matching "${query}". Check spelling or platform.`, true);
+          if (!res.ok) {
+            setStatus(`EA Server Error (${res.status}): ${data.error || 'Request blocked by EA'}. Check Render logs.`, true);
             return;
           }
 
-          // Pick the first matched club ID
-          targetClubId = clubs[0][0];
-          setStatus(`Found club: ${clubs[0][1]?.clubInfo?.name || query} (ID: ${targetClubId}). Loading stats...`);
+          const entries = Object.entries(data);
+          if (!entries.length) {
+            setStatus(`No clubs found matching "${query}". Verify exact spelling or search by Club ID directly.`, true);
+            return;
+          }
+
+          // Pick the first match
+          targetClubId = entries[0][0];
+          setStatus(`Found club: ${entries[0][1]?.clubInfo?.name || query} (ID: ${targetClubId}). Loading roster...`);
         } catch (err) {
-          setStatus('Failed to connect to search service.', true);
+          setStatus(`Connection failed: ${err.message}`, true);
           return;
         }
       }
@@ -128,9 +133,6 @@
     }
 
     async function loadClubById(clubId) {
-      document.getElementById('clubName').innerText = 'Loading Club...';
-      document.getElementById('membersTable').innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-500">Loading squad...</td></tr>';
-
       try {
         const [infoRes, membersRes] = await Promise.all([
           fetch(`${API_BASE}/club/${clubId}/info`),
@@ -140,12 +142,16 @@
         const infoData = await infoRes.json();
         const membersData = await membersRes.json();
 
+        if (!infoRes.ok || !membersRes.ok) {
+          setStatus('Failed to fetch details for club ID: ' + clubId, true);
+          return;
+        }
+
         renderClubInfo(clubId, infoData);
         renderMembers(membersData);
         setStatus('');
       } catch (err) {
-        console.error('Fetch error:', err);
-        setStatus('Error retrieving stats from EA servers.', true);
+        setStatus(`Error loading club data: ${err.message}`, true);
       }
     }
 
