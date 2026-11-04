@@ -20,7 +20,6 @@ app.get('/api/search', async (req, res) => {
 
   try {
     const rawResults = await proclubs.clubs.search({ name: clubName.trim(), platform });
-    console.log('[Search Raw Result]:', JSON.stringify(rawResults));
     res.json(rawResults);
   } catch (error) {
     console.error('[Search Error]:', error);
@@ -28,7 +27,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info by ID
+// 2. Club Info + Overall Season Stats
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -39,15 +38,27 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 
   try {
-    const info = await proclubs.clubs.get({ clubId: numericId, platform });
-    res.json(info);
+    // Query both base info and seasonal / overall records concurrently
+    const [info, stats] = await Promise.allSettled([
+      proclubs.clubs.get({ clubId: numericId, platform }),
+      proclubs.clubs.stats({ clubId: numericId, platform })
+    ]);
+
+    const infoData = info.status === 'fulfilled' ? info.value : {};
+    const statsData = stats.status === 'fulfilled' ? stats.value : {};
+
+    // Combine both sets of data so the frontend gets metadata + real match stats
+    res.json({
+      info: infoData,
+      stats: statsData
+    });
   } catch (error) {
     console.error(`[Club Info Error ${clubId}]:`, error);
     res.status(500).json({ error: error.message || 'Failed to fetch club info' });
   }
 });
 
-// 3. Member / Squad Stats by ID
+// 3. Member / Squad Stats
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
