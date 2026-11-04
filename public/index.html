@@ -14,7 +14,6 @@
 <body class="p-4 md:p-8">
   <div class="max-w-6xl mx-auto space-y-6">
 
-    <!-- Header & Search -->
     <header class="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-gray-800 pb-6">
       <div class="flex items-center gap-3">
         <i class="fa-solid fa-shield-halved text-emerald-400 text-3xl"></i>
@@ -38,7 +37,6 @@
       </div>
     </header>
 
-    <!-- Status Message -->
     <div id="statusBanner" class="hidden text-sm px-4 py-3 rounded"></div>
 
     <!-- Club Overview -->
@@ -70,11 +68,9 @@
 
     <!-- Squad Member Stats -->
     <section class="card p-6 space-y-4">
-      <div class="flex justify-between items-center">
-        <h3 class="text-lg font-bold text-white flex items-center gap-2">
-          <i class="fa-solid fa-users text-emerald-400"></i> Squad Performance
-        </h3>
-      </div>
+      <h3 class="text-lg font-bold text-white flex items-center gap-2">
+        <i class="fa-solid fa-users text-emerald-400"></i> Squad Performance
+      </h3>
 
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
@@ -121,17 +117,38 @@
 
       let clubId = input;
 
-      if (isNaN(input)) {
+      // If the input is not purely digits, perform search lookup
+      if (!/^\d+$/.test(input)) {
         setStatus(`Searching EA for "${input}"...`);
         try {
           const res = await fetch(`${API_BASE}/search?clubName=${encodeURIComponent(input)}&platform=${platform}`);
           const data = await res.json();
+          
           if (!res.ok || !data) {
-            setStatus(`Could not find club "${input}". Try searching directly by its numeric ID.`, true);
+            setStatus(`Could not find club "${input}". Try searching directly with its numeric ID.`, true);
             return;
           }
-          const first = Array.isArray(data) ? data[0] : Object.values(data)[0];
-          clubId = first?.clubId || first?.id || Object.keys(data)[0];
+
+          // Handle array or key-value object responses
+          let firstMatch = null;
+          if (Array.isArray(data) && data.length > 0) {
+            firstMatch = data[0];
+          } else if (typeof data === 'object') {
+            const keys = Object.keys(data);
+            if (keys.length > 0) {
+              firstMatch = data[keys[0]];
+              if (!firstMatch.clubId && !firstMatch.id) {
+                firstMatch.clubId = keys[0];
+              }
+            }
+          }
+
+          clubId = firstMatch?.clubId || firstMatch?.id || firstMatch?.clubInfo?.clubId;
+
+          if (!clubId || clubId === '0' || clubId === 0) {
+            setStatus(`Club found, but missing numerical ID. Please search using Club ID directly.`, true);
+            return;
+          }
         } catch (e) {
           setStatus('Search lookup failed. Try using the numeric Club ID directly.', true);
           return;
@@ -158,7 +175,7 @@
         }
 
         renderClub(clubId, info, platform);
-        renderMembers(memData.members || memData);
+        renderMembers(memData);
         setStatus('');
       } catch (e) {
         setStatus(`Error loading stats: ${e.message}`, true);
@@ -166,42 +183,61 @@
     }
 
     function renderClub(clubId, info, platform) {
-      const name = info.name || info.clubName || 'Unknown Club';
-      const wins = info.record?.wins ?? info.wins ?? 0;
-      const ties = info.record?.ties ?? info.ties ?? 0;
-      const losses = info.record?.losses ?? info.losses ?? 0;
-      const goals = info.goals ?? info.record?.goals ?? 0;
-      const conceded = info.goalsAgainst ?? info.record?.goalsAgainst ?? 0;
+      // Safely access fields across SDK response formats
+      const clubObj = info[clubId] || info;
+      const name = clubObj.name || clubObj.clubName || 'Unknown Club';
+      const wins = clubObj.wins ?? clubObj.record?.wins ?? 0;
+      const ties = clubObj.ties ?? clubObj.record?.ties ?? 0;
+      const losses = clubObj.losses ?? clubObj.record?.losses ?? 0;
+      const goals = clubObj.goals ?? clubObj.record?.goals ?? 0;
+      const conceded = clubObj.goalsAgainst ?? clubObj.record?.goalsAgainst ?? 0;
+      const rating = clubObj.skillRating || clubObj.rating || '--';
 
       document.getElementById('clubName').innerText = name;
       document.getElementById('clubInitials').innerText = name.substring(0, 2).toUpperCase();
       document.getElementById('clubMeta').innerText = `Club ID: ${clubId} | Platform: ${platform}`;
       document.getElementById('clubRecord').innerText = `${wins} - ${ties} - ${losses}`;
-      document.getElementById('skillRating').innerText = info.skillRating || '--';
+      document.getElementById('skillRating').innerText = rating;
       document.getElementById('goalStats').innerText = `${goals} / ${conceded}`;
     }
 
-    function renderMembers(members) {
+    function renderMembers(data) {
       const tbody = document.getElementById('membersTable');
       tbody.innerHTML = '';
-      const list = Array.isArray(members) ? members : Object.values(members || {});
+
+      let list = [];
+      if (Array.isArray(data)) {
+        list = data;
+      } else if (data.members && Array.isArray(data.members)) {
+        list = data.members;
+      } else if (typeof data === 'object') {
+        list = Object.values(data.members || data);
+      }
 
       if (!list.length) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-500">No member records found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-500">No member records found for this club.</td></tr>';
         return;
       }
 
       list.forEach(m => {
+        const name = m.name || m.proName || m.gamertag || 'Unknown';
+        const games = m.gamesPlayed ?? m.games ?? 0;
+        const goals = m.goals ?? 0;
+        const assists = m.assists ?? 0;
+        const rating = parseFloat(m.ratingAve || m.rating || 0).toFixed(1);
+        const pass = m.passSuccessRate ?? m.passSuccess ?? 0;
+        const motm = m.manOfTheMatch ?? m.motm ?? 0;
+
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-gray-800/40 transition border-b border-gray-800/60';
         tr.innerHTML = `
-          <td class="py-3 px-2 font-medium text-white">${m.name || m.proName || 'Unknown'}</td>
-          <td class="py-3 px-2 text-center text-gray-300">${m.gamesPlayed || 0}</td>
-          <td class="py-3 px-2 text-center font-bold text-emerald-400">${m.goals || 0}</td>
-          <td class="py-3 px-2 text-center text-gray-300">${m.assists || 0}</td>
-          <td class="py-3 px-2 text-center text-yellow-400 font-semibold">${parseFloat(m.ratingAve || 0).toFixed(1)}</td>
-          <td class="py-3 px-2 text-center text-gray-300">${m.passSuccessRate || 0}%</td>
-          <td class="py-3 px-2 text-center text-purple-400">${m.manOfTheMatch || 0}</td>
+          <td class="py-3 px-2 font-medium text-white">${name}</td>
+          <td class="py-3 px-2 text-center text-gray-300">${games}</td>
+          <td class="py-3 px-2 text-center font-bold text-emerald-400">${goals}</td>
+          <td class="py-3 px-2 text-center text-gray-300">${assists}</td>
+          <td class="py-3 px-2 text-center text-yellow-400 font-semibold">${rating}</td>
+          <td class="py-3 px-2 text-center text-gray-300">${pass}%</td>
+          <td class="py-3 px-2 text-center text-purple-400">${motm}</td>
         `;
         tbody.appendChild(tr);
       });
