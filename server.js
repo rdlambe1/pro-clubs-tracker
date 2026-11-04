@@ -109,7 +109,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Match History
+// 4. Match History (EA's exact clubsMatches endpoint)
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -119,42 +119,40 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
     return res.status(400).json({ error: `Invalid clubId: ${clubId}` });
   }
 
-  const matchTypes = [
-    { type: 'gameType9', label: 'League' },
-    { type: 'gameType13', label: 'Playoff' },
-    { type: '', label: 'General' }
-  ];
-
   const allMatches = [];
   const logDetails = [];
 
-  for (const m of matchTypes) {
-    const queryParam = m.type ? `&matchType=${m.type}` : '';
-    const url = `https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numericId}&platform=${platform}${queryParam}`;
+  // Query clubsMatches directly using EA's valid query parameters
+  const targets = [
+    { url: `https://proclubs.ea.com/api/fc/clubsMatches?clubIds=${numericId}&platform=${platform}&matchType=gameType9`, label: 'League' },
+    { url: `https://proclubs.ea.com/api/fc/clubsMatches?clubIds=${numericId}&platform=${platform}&matchType=gameType13`, label: 'Playoff' },
+    { url: `https://proclubs.ea.com/api/fc/clubsMatches?clubIds=${numericId}&platform=${platform}`, label: 'Overall' }
+  ];
 
+  for (const t of targets) {
     try {
-      const response = await fetch(url, { headers: EA_HEADERS });
+      const response = await fetch(t.url, { headers: EA_HEADERS });
       const statusText = `HTTP ${response.status}`;
 
       if (response.ok) {
         const data = await response.json();
         const list = Array.isArray(data) ? data : (typeof data === 'object' && data !== null ? Object.values(data) : []);
-        logDetails.push(`${m.label}: ${list.length} matches (${statusText})`);
+        logDetails.push(`${t.label}: ${list.length} (${statusText})`);
 
         list.forEach(item => {
           if (item && typeof item === 'object') {
             const key = item.matchId || item.timestamp;
             if (key && !allMatches.some(x => (x.matchId || x.timestamp) === key)) {
-              item._inferredCategory = m.label;
+              item._inferredCategory = t.label;
               allMatches.push(item);
             }
           }
         });
       } else {
-        logDetails.push(`${m.label}: ${statusText}`);
+        logDetails.push(`${t.label}: ${statusText}`);
       }
     } catch (err) {
-      logDetails.push(`${m.label} Error: ${err.message}`);
+      logDetails.push(`${t.label} Error: ${err.message}`);
     }
   }
 
