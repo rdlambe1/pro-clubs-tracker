@@ -228,13 +228,11 @@
         return;
       }
 
-      // If user typed only numbers, load directly by ID
       if (/^\d+$/.test(input)) {
         loadClub(input, platform);
         return;
       }
 
-      // Otherwise search by name
       setStatus(`Searching EA for "${input}"...`);
       try {
         const res = await fetch(`${API_BASE}/search?clubName=${encodeURIComponent(input)}&platform=${platform}`);
@@ -245,14 +243,12 @@
           return;
         }
 
-        // If only 1 club matches, load immediately
         if (data.length === 1) {
           setStatus(`Found ${data[0].name} (ID: ${data[0].id}). Loading records...`);
           loadClub(data[0].id, platform);
           return;
         }
 
-        // Multiple clubs match - display clickable options
         setStatus(`Found ${data.length} matching clubs. Select yours:`);
         renderClubMatches(data, platform);
 
@@ -302,8 +298,8 @@
           return;
         }
 
-        renderClub(clubId, combined, platform);
         const membersList = renderMembers(memData);
+        renderClub(clubId, combined, platform, membersList);
         buildPitchXI(membersList);
         setStatus('');
       } catch (e) {
@@ -312,22 +308,38 @@
       }
     }
 
-    function renderClub(clubId, data, platform) {
+    function renderClub(clubId, data, platform, membersList = []) {
+      // Unpack all potential record sources
       const infoObj = data.info?.[clubId] || data.info || {};
-      const statsObj = data.stats?.[clubId] || data.stats || {};
-      const merged = { ...infoObj, ...statsObj, ...(data[clubId] || data) };
+      const seasonalObj = data.seasonal?.[clubId] || data.seasonal || (Array.isArray(data.seasonal) ? data.seasonal[0] : {});
+      const overallObj = data.overall?.[clubId] || data.overall || (Array.isArray(data.overall) ? data.overall[0] : {});
+      
+      const merged = { ...infoObj, ...seasonalObj, ...overallObj, ...(data[clubId] || data) };
 
       const name = merged.name || merged.clubName || 'Unknown Club';
 
-      // Pull W-D-L from whichever nested EA structure contains numbers
-      const wins = merged.wins ?? merged.overallWins ?? merged.record?.wins ?? merged.seasonalStats?.wins ?? 0;
-      const ties = merged.ties ?? merged.tiesCount ?? merged.overallTies ?? merged.record?.ties ?? merged.seasonalStats?.ties ?? 0;
-      const losses = merged.losses ?? merged.overallLosses ?? merged.record?.losses ?? merged.seasonalStats?.losses ?? 0;
+      // 1. Look for explicit match stats returned by EA endpoints
+      let wins = merged.wins ?? merged.overallWins ?? merged.seasonalStats?.wins ?? merged.record?.wins ?? null;
+      let ties = merged.ties ?? merged.overallTies ?? merged.tiesCount ?? merged.seasonalStats?.ties ?? merged.record?.ties ?? null;
+      let losses = merged.losses ?? merged.overallLosses ?? merged.seasonalStats?.losses ?? merged.record?.losses ?? null;
+      let goals = merged.goals ?? merged.overallGoals ?? merged.goalsScored ?? merged.record?.goals ?? null;
+      let conceded = merged.goalsAgainst ?? merged.overallGoalsAgainst ?? merged.record?.goalsAgainst ?? null;
 
-      const goals = merged.goals ?? merged.overallGoals ?? merged.record?.goals ?? merged.seasonalStats?.goals ?? 0;
-      const conceded = merged.goalsAgainst ?? merged.overallGoalsAgainst ?? merged.record?.goalsAgainst ?? merged.seasonalStats?.goalsAgainst ?? 0;
+      // 2. If EA returned zeroes or nulls (due to season transition), compute from members list
+      if ((wins === null || (Number(wins) === 0 && Number(losses) === 0)) && membersList.length > 0) {
+        const totalGoals = membersList.reduce((acc, m) => acc + (Number(m.goals) || 0), 0);
+        if (totalGoals > 0 && (goals === null || Number(goals) === 0)) {
+          goals = totalGoals;
+        }
+      }
 
-      const rating = merged.skillRating ?? merged.rating ?? merged.bestSkillRating ?? '--';
+      wins = wins ?? 0;
+      ties = ties ?? 0;
+      losses = losses ?? 0;
+      goals = goals ?? 0;
+      conceded = conceded ?? 0;
+
+      const rating = merged.skillRating || merged.rating || merged.bestSkillRating || '--';
 
       document.getElementById('clubName').innerText = name;
       document.getElementById('clubInitials').innerText = name.substring(0, 2).toUpperCase();
