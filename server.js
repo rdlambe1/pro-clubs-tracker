@@ -101,7 +101,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Recent Matches (Aggregates League + Playoff matches)
+// 4. Recent Matches (Multi-type query with parameter fallback)
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -111,44 +111,40 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
     return res.status(400).json({ error: `Invalid clubId: ${clubId}` });
   }
 
-  try {
-    const matchTypes = ['leagueMatch', 'playoffMatch'];
-    const results = await Promise.allSettled(
-      matchTypes.map(type => {
-        if (typeof proclubs.matches?.get === 'function') {
-          return proclubs.matches.get({ clubId: numericId, platform, matchType: type });
-        } else if (typeof proclubs.clubs?.matches === 'function') {
-          return proclubs.clubs.matches({ clubId: numericId, platform, matchType: type });
-        }
-        return Promise.resolve([]);
-      })
-    );
+  const matchTypes = ['leagueMatch', 'playoffMatch'];
+  const collectedMatches = [];
 
-    let allMatches = [];
-    results.forEach((r, idx) => {
-      if (r.status === 'fulfilled' && r.value) {
-        const raw = r.value;
-        const list = Array.isArray(raw) ? raw : Object.values(raw);
-        list.forEach(m => {
-          if (m && typeof m === 'object') {
-            m._inferredType = matchTypes[idx];
-            allMatches.push(m);
+  for (const mType of matchTypes) {
+    try {
+      let data = null;
+
+      // Try proclubs.matches.club first (standard sdk signature)
+      if (typeof proclubs.matches?.club === 'function') {
+        data = await proclubs.matches.club({ clubIds: numericId, platform, matchType: mType });
+      } else if (typeof proclubs.matches?.get === 'function') {
+        data = await proclubs.matches.get({ clubIds: numericId, platform, matchType: mType });
+      } else if (typeof proclubs.clubs?.matches === 'function') {
+        data = await proclubs.clubs.matches({ clubId: numericId, platform, matchType: mType });
+      }
+
+      if (data) {
+        const list = Array.isArray(data) ? data : Object.values(data);
+        list.forEach(item => {
+          if (item && typeof item === 'object') {
+            item._inferredType = mType;
+            collectedMatches.push(item);
           }
         });
       }
-    });
-
-    allMatches.sort((a, b) => {
-      const tA = Number(a.timestamp || 0);
-      const tB = Number(b.timestamp || 0);
-      return tB - tA;
-    });
-
-    res.json(allMatches.slice(0, 10));
-  } catch (error) {
-    console.error(`[Matches Error ${clubId}]:`, error);
-    res.json([]);
+    } catch (err) {
+      console.log(`[Matches ${mType} fetch skipped]:`, err.message);
+    }
   }
+
+  // Sort newest first
+  collectedMatches.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+
+  res.json(collectedMatches.slice(0, 10));
 });
 
 app.get('*', (req, res) => {
