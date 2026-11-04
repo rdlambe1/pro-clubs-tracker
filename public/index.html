@@ -97,7 +97,7 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Overview Card with Crest Next to Name -->
+    <!-- Active Club Overview Card with Dual Crest Displays -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
         <div id="mainCrestBox" class="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-gray-900 border-2 border-emerald-500/50 flex items-center justify-center shadow-lg shadow-emerald-950/40">
@@ -137,13 +137,13 @@
       </div>
     </section>
 
-    <!-- Recent Matches with Separate Skill Rating Column -->
+    <!-- Recent Matches with Chaos Tags, Opponent SR Column & Single-MVP -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
         </h3>
-        <span class="text-xs text-gray-400">Click any match to reveal box scores & single-MVP impact</span>
+        <span class="text-xs text-gray-400">Contextual match tags, opponent SR & single-MVP breakdown</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -233,7 +233,7 @@
       return rawPlatform.toUpperCase();
     }
 
-    // High quality inline CSS Shield Crest that never fails
+    // High quality inline vector shield crest
     function renderCrestShield(name, sizeClass = 'w-7 h-7 text-xs', bgClass = 'from-emerald-500/20 to-gray-900 border-emerald-500/40 text-emerald-400') {
       const initials = (name || 'FC').substring(0, 2).toUpperCase();
       return `
@@ -241,6 +241,39 @@
           ${initials}
         </div>
       `;
+    }
+
+    // Automated Banter & Chaos Tag Generator
+    function getChaosTag(myGoals, oppGoals, oppSR) {
+      const totalGoals = myGoals + oppGoals;
+      const srNum = Number(oppSR || 0);
+
+      // High-pressure opposition
+      if (srNum >= 1900) {
+        return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-fuchsia-300 bg-fuchsia-500/15 border border-fuchsia-500/30 px-1.5 py-0.5 rounded tracking-wide">🔥 SWEATFEST</span>`;
+      }
+      // Basketball game (8+ total goals, e.g. 5-5 or 4-4)
+      if (totalGoals >= 8) {
+        return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded tracking-wide">🏀 BASKETBALL MATCH</span>`;
+      }
+      // Defensive disasterclass (Conceded 3+ in a loss)
+      if (myGoals < oppGoals && oppGoals >= 3) {
+        return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-rose-300 bg-rose-500/15 border border-rose-500/30 px-1.5 py-0.5 rounded tracking-wide">🚨 DEFENSIVE DISASTERCLASS</span>`;
+      }
+      // Haramball Masterclass (Gritty low-scoring 1-goal win)
+      if (myGoals > oppGoals && totalGoals <= 3) {
+        return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded tracking-wide">🧱 HARAMBALL WIN</span>`;
+      }
+      // High goal routing (scored 4+)
+      if (myGoals >= 4 && myGoals > oppGoals) {
+        return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-sky-300 bg-sky-500/15 border border-sky-500/30 px-1.5 py-0.5 rounded tracking-wide">💥 GOAL CARNIVAL</span>`;
+      }
+      // Standard draw
+      if (myGoals === oppGoals) {
+        return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-yellow-300 bg-yellow-500/15 border border-yellow-500/30 px-1.5 py-0.5 rounded tracking-wide">🤝 POINTS SHARED</span>`;
+      }
+
+      return '';
     }
 
     function setStatus(msg, isErr = false) {
@@ -467,7 +500,7 @@
       return list;
     }
 
-    // Match Box Scores with Separate Opponent SR Column & Single MVP
+    // Match Box Scores with Chaos Tags, Separate Opponent SR Column & Single MVP
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
       const formContainer = document.getElementById('formBadges');
@@ -508,6 +541,9 @@
         const oppSRCell = oppSR 
           ? `<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/30">${oppSR}</span>` 
           : `<span class="inline-block font-mono text-xs text-gray-500 bg-gray-800/80 px-2.5 py-1 rounded">--</span>`;
+
+        // Contextual Chaos Tag
+        const chaosTag = getChaosTag(myGoals, oppGoals, oppSR);
 
         let resultLabel = 'DRAW';
         let resultClass = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
@@ -628,10 +664,13 @@
         tr.innerHTML = `
           <td class="py-3 px-2">${typeBadge}</td>
           <td class="py-3 px-2 font-medium text-white">
-            <div class="flex items-center gap-2.5">
-              ${opponentShieldHtml}
-              <span>vs ${oppName}</span>
-              <i class="fa-solid fa-chevron-down text-[10px] text-gray-500"></i>
+            <div class="flex flex-col gap-1">
+              <div class="flex items-center gap-2">
+                ${opponentShieldHtml}
+                <span>vs ${oppName}</span>
+                <i class="fa-solid fa-chevron-down text-[10px] text-gray-500"></i>
+              </div>
+              ${chaosTag ? `<div>${chaosTag}</div>` : ''}
             </div>
           </td>
           <td class="py-3 px-2 text-center">${oppSRCell}</td>
