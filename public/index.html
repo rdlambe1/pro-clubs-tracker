@@ -311,7 +311,7 @@
         const memData = await memRes.json();
         const matchesData = await matchesRes.json();
 
-        console.log('[MATCHES RAW RECEIVED]:', matchesData);
+        console.log('[DEBUG MATCHES RAW]:', matchesData);
 
         if (!infoRes.ok) {
           setStatus(`Failed to fetch stats: ${combined.error || 'Club not found'}`, true);
@@ -470,17 +470,10 @@
           resultClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
         }
 
-        const rawType = String(m.matchType || m.gameType || m._inferredType || '').toLowerCase();
+        const cat = m._inferredCategory || 'League';
         let typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-gray-800 text-gray-300 border border-gray-700">League</span>';
-
-        if (rawType.includes('playoff') || rawType.includes('13') || m.isPlayoff) {
+        if (cat === 'Playoff') {
           typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-purple-500/15 text-purple-400 border border-purple-500/30">Playoff</span>';
-        } else if (rawType.includes('promotion') || m.isPromotion) {
-          typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">Promotion</span>';
-        } else if (rawType.includes('relegation') || m.isRelegation) {
-          typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-rose-500/15 text-rose-300 border border-rose-500/30">Relegation</span>';
-        } else if (rawType.includes('friendly') || rawType.includes('practice')) {
-          typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30">Friendly</span>';
         }
 
         let dateText = 'Recent';
