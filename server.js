@@ -151,7 +151,7 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   allMatches.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
   const recent10 = allMatches.slice(0, 10);
 
-  // Extract distinct opponent club IDs from the 10 fixtures
+  // Extract distinct opponent club IDs from the fixtures
   const opponentIds = new Set();
   recent10.forEach(m => {
     const clubsData = m.clubs || m.aggregate || {};
