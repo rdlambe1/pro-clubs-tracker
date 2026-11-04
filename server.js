@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import axios from 'axios';
 import { ProClubsClient } from 'proclubs-sdk';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -13,15 +12,6 @@ app.use(cors());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const proclubs = new ProClubsClient({ cache: true });
-
-const EA_BASE_URL = 'https://proclubs.ea.com/api/fc';
-const HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-  'Accept': 'application/json, text/plain, */*',
-  'Accept-Language': 'en-GB,en;q=0.9',
-  'Referer': 'https://www.ea.com/',
-  'Origin': 'https://www.ea.com'
-};
 
 function extractClubId(obj, keyFallback = null) {
   if (!obj) return null;
@@ -66,7 +56,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Overall & Seasonal W-D-L Stats
+// 2. Club Info
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -77,29 +67,9 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 
   try {
-    // 1. Fetch metadata through the SDK
-    const infoPromise = proclubs.clubs.get({ clubId: numericId, platform }).catch(() => ({}));
-
-    // 2. Fetch overall stats directly from EA's endpoints
-    const statsUrls = [
-      `${EA_BASE_URL}/clubs/seasonalStats?clubIds=${numericId}&platform=${platform}`,
-      `${EA_BASE_URL}/clubs/overallStats?clubIds=${numericId}&platform=${platform}`
-    ];
-
-    const statsPromises = statsUrls.map(url =>
-      axios.get(url, { headers: HEADERS, timeout: 5000 }).then(r => r.data).catch(() => null)
-    );
-
-    const [info, seasonalData, overallData] = await Promise.all([
-      infoPromise,
-      ...statsPromises
-    ]);
-
-    res.json({
-      info: info || {},
-      seasonal: seasonalData || {},
-      overall: overallData || {}
-    });
+    const info = await proclubs.clubs.get({ clubId: numericId, platform });
+    console.log(`[RAW CLUB INFO ${clubId}]:`, JSON.stringify(info));
+    res.json(info);
   } catch (error) {
     console.error(`[Club Info Error ${clubId}]:`, error);
     res.status(500).json({ error: error.message || 'Failed to fetch club info' });
