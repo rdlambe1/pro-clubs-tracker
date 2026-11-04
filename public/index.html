@@ -80,7 +80,6 @@
           <option value="nx">Nintendo Switch</option>
         </select>
 
-        <!-- Clean, empty input ready for user entry -->
         <input id="searchInput" type="text" placeholder="Enter Club Name or Numeric ID..." value="" 
                class="bg-gray-800 border border-gray-700 px-4 py-2 rounded text-sm text-white focus:outline-none focus:border-emerald-500 flex-1 md:w-72"
                onkeydown="if(event.key === 'Enter') handleSearch()">
@@ -133,28 +132,27 @@
         <span class="text-xs font-semibold px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">4 - 3 - 3</span>
       </div>
 
-      <!-- Pitch Area -->
       <div class="pitch-bg w-full h-[540px] p-6 flex flex-col justify-between relative shadow-inner">
         <div class="pitch-penalty-top"></div>
         <div class="pitch-center-line"></div>
         <div class="pitch-center-circle"></div>
         <div class="pitch-penalty-bottom"></div>
 
-        <!-- Attack Row (LW, ST, RW) -->
+        <!-- Attack (LW, ST, RW) -->
         <div class="flex justify-around items-center z-10" id="pitchAttack">
           <div class="text-center" id="pos_LW"></div>
           <div class="text-center" id="pos_ST"></div>
           <div class="text-center" id="pos_RW"></div>
         </div>
 
-        <!-- Midfield Row (LCM, CAM/CM, RCM) -->
+        <!-- Midfield (LCM, CAM, RCM) -->
         <div class="flex justify-around items-center z-10 px-8" id="pitchMidfield">
           <div class="text-center" id="pos_LCM"></div>
           <div class="text-center" id="pos_CM"></div>
           <div class="text-center" id="pos_RCM"></div>
         </div>
 
-        <!-- Defense Row (LB, LCB, RCB, RB) -->
+        <!-- Defense (LB, LCB, RCB, RB) -->
         <div class="flex justify-around items-center z-10" id="pitchDefense">
           <div class="text-center" id="pos_LB"></div>
           <div class="text-center" id="pos_LCB"></div>
@@ -223,7 +221,6 @@
 
       let clubId = input;
 
-      // If text query, search EA by name
       if (!/^\d+$/.test(input)) {
         setStatus(`Searching EA for "${input}"...`);
         try {
@@ -271,15 +268,15 @@
           fetch(`${API_BASE}/club/${clubId}/members?platform=${platform}`)
         ]);
 
-        const info = await infoRes.json();
+        const combinedInfo = await infoRes.json();
         const memData = await memRes.json();
 
         if (!infoRes.ok) {
-          setStatus(`Failed to fetch stats: ${info.error || 'Club not found'}`, true);
+          setStatus(`Failed to fetch stats: ${combinedInfo.error || 'Club not found'}`, true);
           return;
         }
 
-        renderClub(clubId, info, platform);
+        renderClub(clubId, combinedInfo, platform);
         const membersList = renderMembers(memData);
         buildPitchXI(membersList);
         setStatus('');
@@ -289,19 +286,25 @@
       }
     }
 
-    function renderClub(clubId, info, platform) {
-      const c = info[clubId] || (info.clubs && info.clubs[clubId]) || info;
+    function renderClub(clubId, data, platform) {
+      // Unpack combined info and stats payloads
+      const infoObj = data.info?.[clubId] || data.info || {};
+      const statsObj = data.stats?.[clubId] || data.stats || {};
+      
+      // If data is still in older root format, fall back safely
+      const merged = { ...infoObj, ...statsObj, ...(data[clubId] || data) };
 
-      const name = c.name || c.clubName || 'Unknown Club';
-      
-      const wins = c.overallWins ?? c.wins ?? c.record?.wins ?? c.seasonalStats?.wins ?? 0;
-      const ties = c.overallTies ?? c.ties ?? c.record?.ties ?? c.seasonalStats?.ties ?? 0;
-      const losses = c.overallLosses ?? c.losses ?? c.record?.losses ?? c.seasonalStats?.losses ?? 0;
-      
-      const goals = c.overallGoals ?? c.goals ?? c.record?.goals ?? c.seasonalStats?.goals ?? 0;
-      const conceded = c.overallGoalsAgainst ?? c.goalsAgainst ?? c.record?.goalsAgainst ?? c.seasonalStats?.goalsAgainst ?? 0;
-      
-      const rating = c.skillRating ?? c.rating ?? c.bestSkillRating ?? '--';
+      const name = merged.name || merged.clubName || 'Unknown Club';
+
+      // EA puts total club match records inside stats or overallStats
+      const wins = merged.wins ?? merged.overallWins ?? merged.record?.wins ?? merged.seasonalStats?.wins ?? 0;
+      const ties = merged.ties ?? merged.tiesCount ?? merged.overallTies ?? merged.record?.ties ?? merged.seasonalStats?.ties ?? 0;
+      const losses = merged.losses ?? merged.overallLosses ?? merged.record?.losses ?? merged.seasonalStats?.losses ?? 0;
+
+      const goals = merged.goals ?? merged.overallGoals ?? merged.record?.goals ?? merged.seasonalStats?.goals ?? 0;
+      const conceded = merged.goalsAgainst ?? merged.overallGoalsAgainst ?? merged.record?.goalsAgainst ?? merged.seasonalStats?.goalsAgainst ?? 0;
+
+      const rating = merged.skillRating ?? merged.rating ?? merged.bestSkillRating ?? '--';
 
       document.getElementById('clubName').innerText = name;
       document.getElementById('clubInitials').innerText = name.substring(0, 2).toUpperCase();
@@ -405,7 +408,6 @@
       });
     }
 
-    // Set initial empty pitch diagram placeholders on load without firing any search
     window.onload = () => {
       buildPitchXI([]);
     };
