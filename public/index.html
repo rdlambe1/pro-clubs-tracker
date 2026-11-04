@@ -90,10 +90,8 @@
       </div>
     </header>
 
-    <!-- Status Message Banner -->
     <div id="statusBanner" class="hidden text-sm px-4 py-3 rounded"></div>
 
-    <!-- Multi-Match Disambiguation List -->
     <div id="matchesCard" class="hidden card p-4 space-y-3">
       <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select your club:</h3>
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
@@ -144,21 +142,18 @@
         <div class="pitch-center-circle"></div>
         <div class="pitch-penalty-bottom"></div>
 
-        <!-- Attack (LW, ST, RW) -->
         <div class="flex justify-around items-center z-10" id="pitchAttack">
           <div class="text-center" id="pos_LW"></div>
           <div class="text-center" id="pos_ST"></div>
           <div class="text-center" id="pos_RW"></div>
         </div>
 
-        <!-- Midfield (LCM, CAM, RCM) -->
         <div class="flex justify-around items-center z-10 px-8" id="pitchMidfield">
           <div class="text-center" id="pos_LCM"></div>
           <div class="text-center" id="pos_CM"></div>
           <div class="text-center" id="pos_RCM"></div>
         </div>
 
-        <!-- Defense (LB, LCB, RCB, RB) -->
         <div class="flex justify-around items-center z-10" id="pitchDefense">
           <div class="text-center" id="pos_LB"></div>
           <div class="text-center" id="pos_LCB"></div>
@@ -166,7 +161,6 @@
           <div class="text-center" id="pos_RB"></div>
         </div>
 
-        <!-- Goalkeeper (GK) -->
         <div class="flex justify-center items-center z-10" id="pitchGK">
           <div class="text-center" id="pos_GK"></div>
         </div>
@@ -290,18 +284,16 @@
           fetch(`${API_BASE}/club/${clubId}/members?platform=${platform}`)
         ]);
 
-        const rawClub = await infoRes.json();
+        const combined = await infoRes.json();
         const memData = await memRes.json();
 
-        console.log('[DEBUG RAW CLUB INFO RESPONSE]:', rawClub);
-
         if (!infoRes.ok) {
-          setStatus(`Failed to fetch stats: ${rawClub.error || 'Club not found'}`, true);
+          setStatus(`Failed to fetch stats: ${combined.error || 'Club not found'}`, true);
           return;
         }
 
         const membersList = renderMembers(memData);
-        renderClub(clubId, rawClub, platform, membersList);
+        renderClub(clubId, combined, platform, membersList);
         buildPitchXI(membersList);
         setStatus('');
       } catch (e) {
@@ -310,28 +302,32 @@
       }
     }
 
-    function renderClub(clubId, rawData, platform, membersList = []) {
-      // Find the inner record object if keyed under the club ID
-      const c = rawData[clubId] || rawData.clubInfo || rawData;
+    function renderClub(clubId, data, platform, membersList = []) {
+      const info = data.info || {};
+      const overall = data.overall || {};
 
-      console.log('[PARSING CLUB OBJECT]:', c);
+      // overall is returned as an object or array by the SDK
+      const statObj = Array.isArray(overall) ? (overall[0] || {}) : (overall[clubId] || overall);
+      const infoObj = info[clubId] || info;
 
-      const name = c.name || c.clubName || 'Doge Rovers';
+      const name = infoObj.name || infoObj.clubName || statObj.name || 'Doge Rovers';
 
-      // EA uses w/d/l, wins/ties/losses, or nested record properties
-      let wins = c.w ?? c.wins ?? c.overallWins ?? c.record?.wins ?? c.seasonalStats?.wins ?? null;
-      let ties = c.d ?? c.ties ?? c.tiesCount ?? c.overallTies ?? c.record?.ties ?? c.seasonalStats?.ties ?? null;
-      let losses = c.l ?? c.losses ?? c.overallLosses ?? c.record?.losses ?? c.seasonalStats?.losses ?? null;
+      // Parse matches, goals, and rating directly from overallStats
+      let wins = statObj.wins ?? statObj.w ?? statObj.overallWins ?? null;
+      let ties = statObj.ties ?? statObj.d ?? statObj.tiesCount ?? statObj.overallTies ?? null;
+      let losses = statObj.losses ?? statObj.l ?? statObj.overallLosses ?? null;
+      let goals = statObj.goals ?? statObj.gf ?? statObj.goalsScored ?? statObj.overallGoals ?? null;
+      let conceded = statObj.goalsAgainst ?? statObj.ga ?? statObj.overallGoalsAgainst ?? null;
+      let rating = statObj.skillRating ?? statObj.rating ?? statObj.sr ?? infoObj.skillRating ?? '--';
 
-      let goals = c.gf ?? c.goals ?? c.overallGoals ?? c.goalsScored ?? c.record?.goals ?? null;
-      let conceded = c.ga ?? c.goalsAgainst ?? c.overallGoalsAgainst ?? c.record?.goalsAgainst ?? null;
-
-      let rating = c.sr ?? c.skillRating ?? c.rating ?? c.bestSkillRating ?? c.reputationTier ?? '--';
-
-      // Fallback: If goals or matches are missing from club header, aggregate from squad data
-      if ((goals === null || Number(goals) === 0) && membersList.length > 0) {
-        const squadGoals = membersList.reduce((acc, m) => acc + (Number(m.goals) || 0), 0);
-        if (squadGoals > 0) goals = squadGoals;
+      // Aggregation fallback if club is in seasonal reset
+      if ((wins === null && losses === null) || (Number(wins) === 0 && Number(losses) === 0)) {
+        if (membersList.length > 0) {
+          const totalGoals = membersList.reduce((acc, m) => acc + (Number(m.goals) || 0), 0);
+          if (totalGoals > 0 && (goals === null || Number(goals) === 0)) {
+            goals = totalGoals;
+          }
+        }
       }
 
       document.getElementById('clubName').innerText = name;
