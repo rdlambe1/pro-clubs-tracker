@@ -101,7 +101,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Match History (Queries both leagueMatch and playoffMatch)
+// 4. Match History with EA GameType IDs and Multi-Method Strategy
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -111,68 +111,55 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
     return res.status(400).json({ error: `Invalid clubId: ${clubId}` });
   }
 
-  const allMatches = [];
-  const matchTypes = ['leagueMatch', 'playoffMatch'];
+  const collectedMatches = [];
 
-  for (const mType of matchTypes) {
+  // EA FC uses gameType9 for regular league matches and gameType13 for playoffs
+  const queries = [
+    { matchType: 'gameType9' },
+    { matchType: 'gameType13' },
+    { matchType: 'leagueMatch' },
+    {} // empty filter queries overall recent matches
+  ];
+
+  for (const q of queries) {
     try {
       let data = null;
 
-      // Method 1: proclubs.clubs.matches
       if (typeof proclubs.clubs?.matches === 'function') {
-        data = await proclubs.clubs.matches({ clubId: numericId, platform, matchType: mType });
-      } 
-      // Method 2: proclubs.matches.get
-      else if (typeof proclubs.matches?.get === 'function') {
-        data = await proclubs.matches.get({ clubId: numericId, clubIds: numericId, platform, matchType: mType });
-      }
-      // Method 3: Direct internal request
-      else if (typeof proclubs.request === 'function') {
+        data = await proclubs.clubs.matches({ clubId: numericId, platform, ...q });
+      } else if (typeof proclubs.matches?.get === 'function') {
+        data = await proclubs.matches.get({ clubIds: numericId, platform, ...q });
+      } else if (typeof proclubs.request === 'function') {
         data = await proclubs.request({
           endpoint: 'clubsMatches',
-          query: { clubIds: numericId, platform, matchType: mType }
+          query: { clubIds: String(numericId), platform, ...q }
         });
       }
 
       if (data) {
-        const matchesList = Array.isArray(data) ? data : Object.values(data);
-        matchesList.forEach(m => {
-          if (m && typeof m === 'object') {
-            m._inferredType = mType;
-            allMatches.push(m);
+        const list = Array.isArray(data) ? data : Object.values(data);
+        for (const item of list) {
+          if (item && typeof item === 'object') {
+            const mId = item.matchId || item.timestamp;
+            // Prevent duplicate matches across queries
+            if (!collectedMatches.some(existing => (existing.matchId || existing.timestamp) === mId)) {
+              item._inferredType = q.matchType || 'gameType9';
+              collectedMatches.push(item);
+            }
           }
-        });
-      }
-    } catch (err) {
-      console.log(`[Matches query failed for ${mType}]:`, err.message);
-    }
-  }
-
-  // Fallback: If no league/playoff matches returned, check overall match history without matchType filter
-  if (allMatches.length === 0) {
-    try {
-      if (typeof proclubs.clubs?.matches === 'function') {
-        const fallbackData = await proclubs.clubs.matches({ clubId: numericId, platform });
-        const list = Array.isArray(fallbackData) ? fallbackData : Object.values(fallbackData || {});
-        list.forEach(m => {
-          if (m && typeof m === 'object') allMatches.push(m);
-        });
+        }
       }
     } catch (e) {
-      console.log('[Matches generic fallback skipped]:', e.message);
+      // Continue to next query format
     }
   }
 
-  console.log(`[Matches found for ID ${numericId}]: ${allMatches.length}`);
+  console.log(`[Matches found for ID ${numericId}]: ${collectedMatches.length}`);
 
   // Sort newest first
-  allMatches.sort((a, b) => {
-    const tA = Number(a.timestamp || a.timeAgo?.number || 0);
-    const tB = Number(b.timestamp || b.timeAgo?.number || 0);
-    return tB - tA;
-  });
+  collectedMatches.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
 
-  res.json(allMatches.slice(0, 10));
+  res.json(collectedMatches.slice(0, 10));
 });
 
 app.get('*', (req, res) => {
