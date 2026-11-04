@@ -109,7 +109,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Match History
+// 4. Match History (Enriched with opponent live Skill Rating)
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -149,8 +149,53 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   }
 
   allMatches.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
+  const recent10 = allMatches.slice(0, 10);
 
-  res.json(allMatches.slice(0, 10));
+  // Extract distinct opponent club IDs from the 10 fixtures
+  const opponentIds = new Set();
+  recent10.forEach(m => {
+    const clubsData = m.clubs || m.aggregate || {};
+    Object.keys(clubsData).forEach(id => {
+      if (String(id) !== String(numericId) && Number(id) > 0) {
+        opponentIds.add(Number(id));
+      }
+    });
+  });
+
+  // Concurrently fetch opponent live skill ratings & crests
+  const opponentMap = new Map();
+  await Promise.allSettled(
+    Array.from(opponentIds).map(async (oppId) => {
+      try {
+        const stats = await proclubs.clubs.overallStats({ clubId: oppId, platform });
+        const statObj = Array.isArray(stats) ? stats[0] : (stats[oppId] || stats);
+        if (statObj) {
+          opponentMap.set(String(oppId), {
+            skillRating: statObj.skillRating || statObj.rating || statObj.sr || null,
+            crestId: statObj.crestId || statObj.teamId || null
+          });
+        }
+      } catch (_) {}
+    })
+  );
+
+  // Attach enriched opponent SR and crest back onto each match fixture
+  recent10.forEach(m => {
+    const clubsData = m.clubs || m.aggregate || {};
+    Object.keys(clubsData).forEach(id => {
+      if (String(id) !== String(numericId)) {
+        const enriched = opponentMap.get(String(id));
+        if (enriched) {
+          clubsData[id].skillRating = enriched.skillRating;
+          if (enriched.crestId && !clubsData[id].crestId) {
+            clubsData[id].crestId = enriched.crestId;
+          }
+        }
+      }
+    });
+  });
+
+  res.json(recent10);
 });
 
 app.get('*', (req, res) => {
