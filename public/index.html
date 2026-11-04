@@ -130,7 +130,9 @@
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
         </h3>
-        <span class="text-xs text-gray-400">Includes match category, scorelines, & outcomes</span>
+        <div class="flex items-center gap-2">
+          <span id="matchTelemetry" class="text-xs text-gray-400 font-mono"></span>
+        </div>
       </div>
 
       <div class="overflow-x-auto">
@@ -309,9 +311,7 @@
 
         const combined = await infoRes.json();
         const memData = await memRes.json();
-        const matchesData = await matchesRes.json();
-
-        console.log('[DEBUG MATCHES RAW]:', matchesData);
+        const matchesPayload = await matchesRes.json();
 
         if (!infoRes.ok) {
           setStatus(`Failed to fetch stats: ${combined.error || 'Club not found'}`, true);
@@ -321,7 +321,7 @@
         const membersList = renderMembers(memData);
         renderClub(clubId, combined, platform, membersList);
         buildDynamicPitchTactic(membersList);
-        renderRecentMatches(clubId, matchesData);
+        renderRecentMatches(clubId, matchesPayload);
         setStatus('');
       } catch (e) {
         console.error(e);
@@ -422,15 +422,16 @@
       return list;
     }
 
-    function renderRecentMatches(clubId, matches) {
+    function renderRecentMatches(clubId, payload) {
       const tbody = document.getElementById('recentMatchesTable');
+      const telemetryEl = document.getElementById('matchTelemetry');
       tbody.innerHTML = '';
 
-      let matchArr = [];
-      if (Array.isArray(matches)) {
-        matchArr = matches;
-      } else if (typeof matches === 'object' && matches !== null) {
-        matchArr = Object.values(matches);
+      const matchArr = Array.isArray(payload) ? payload : (payload?.matches || []);
+      const debugLogs = payload?.debugLogs || [];
+
+      if (telemetryEl && debugLogs.length) {
+        telemetryEl.innerText = debugLogs.join(' | ');
       }
 
       if (!matchArr || matchArr.length === 0) {
@@ -438,10 +439,7 @@
         return;
       }
 
-      const recent10 = matchArr.slice(0, 10);
-
-      recent10.forEach(m => {
-        // EA structures club data inside match.clubs or match.aggregate
+      matchArr.slice(0, 10).forEach(m => {
         const clubsData = m.clubs || m.aggregate || {};
         const clubIds = Object.keys(clubsData);
 
