@@ -311,6 +311,8 @@
         const memData = await memRes.json();
         const matchesData = await matchesRes.json();
 
+        console.log('[MATCHES RAW RECEIVED]:', matchesData);
+
         if (!infoRes.ok) {
           setStatus(`Failed to fetch stats: ${combined.error || 'Club not found'}`, true);
           return;
@@ -420,7 +422,6 @@
       return list;
     }
 
-    // Flexible Match Renderer supporting all EA match response schemas
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
       tbody.innerHTML = '';
@@ -440,7 +441,7 @@
       const recent10 = matchArr.slice(0, 10);
 
       recent10.forEach(m => {
-        // Resolve teams across clubs / aggregate / team keys
+        // EA structures club data inside match.clubs or match.aggregate
         const clubsData = m.clubs || m.aggregate || {};
         const clubIds = Object.keys(clubsData);
 
@@ -459,7 +460,6 @@
         const oppGoals = Number(oppClub.goals ?? oppClub.score ?? m.goalsAgainst ?? 0);
         const oppName = oppClub.details?.name || oppClub.name || 'Opponent FC';
 
-        // Determine outcome
         let resultLabel = 'DRAW';
         let resultClass = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
         if (myGoals > oppGoals) {
@@ -470,11 +470,10 @@
           resultClass = 'bg-rose-500/10 text-rose-400 border-rose-500/20';
         }
 
-        // Determine match category
         const rawType = String(m.matchType || m.gameType || m._inferredType || '').toLowerCase();
         let typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-gray-800 text-gray-300 border border-gray-700">League</span>';
 
-        if (rawType.includes('13') || rawType.includes('playoff') || m.isPlayoff) {
+        if (rawType.includes('playoff') || rawType.includes('13') || m.isPlayoff) {
           typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-purple-500/15 text-purple-400 border border-purple-500/30">Playoff</span>';
         } else if (rawType.includes('promotion') || m.isPromotion) {
           typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">Promotion</span>';
@@ -484,7 +483,6 @@
           typeBadge = '<span class="px-2 py-0.5 rounded text-xs font-semibold bg-sky-500/15 text-sky-300 border border-sky-500/30">Friendly</span>';
         }
 
-        // Timestamp calculation
         let dateText = 'Recent';
         const ts = Number(m.timestamp || m.timeAgo?.number || 0);
         if (ts > 0) {
