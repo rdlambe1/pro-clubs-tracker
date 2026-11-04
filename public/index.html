@@ -142,21 +142,14 @@
         <div class="pitch-center-circle"></div>
         <div class="pitch-penalty-bottom"></div>
 
-        <!-- Attack Line -->
         <div class="flex justify-around items-center z-10 w-full" id="rowAttack"></div>
-
-        <!-- Midfield Line -->
         <div class="flex justify-around items-center z-10 w-full px-4" id="rowMidfield"></div>
-
-        <!-- Defense Line -->
         <div class="flex justify-around items-center z-10 w-full" id="rowDefense"></div>
-
-        <!-- Goalkeeper Line -->
         <div class="flex justify-center items-center z-10 w-full" id="rowGK"></div>
       </div>
     </section>
 
-    <!-- Full Squad Performance Table -->
+    <!-- Full Squad Performance Table (with Tackles & Defensive Stats) -->
     <section class="card p-6 space-y-4">
       <h3 class="text-lg font-bold text-white flex items-center gap-2">
         <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
@@ -167,17 +160,19 @@
           <thead class="border-b border-gray-800 text-gray-400 uppercase text-xs">
             <tr>
               <th class="py-3 px-2">Player</th>
-              <th class="py-3 px-2 text-center">Primary Pos</th>
+              <th class="py-3 px-2 text-center">Pos</th>
               <th class="py-3 px-2 text-center">Matches</th>
               <th class="py-3 px-2 text-center">Goals</th>
               <th class="py-3 px-2 text-center">Assists</th>
-              <th class="py-3 px-2 text-center">Avg Rating</th>
+              <th class="py-3 px-2 text-center">Tackles (Win %)</th>
+              <th class="py-3 px-2 text-center">Intercepts</th>
+              <th class="py-3 px-2 text-center">Rating</th>
               <th class="py-3 px-2 text-center">Pass %</th>
               <th class="py-3 px-2 text-center">MoTM</th>
             </tr>
           </thead>
           <tbody id="membersTable" class="divide-y border-gray-800">
-            <tr><td colspan="8" class="py-6 text-center text-gray-500">Search for a club above to load squad.</td></tr>
+            <tr><td colspan="10" class="py-6 text-center text-gray-500">Search for a club above to load squad.</td></tr>
           </tbody>
         </table>
       </div>
@@ -201,7 +196,6 @@
         : 'text-sm px-4 py-3 rounded bg-gray-800 border border-gray-700 text-gray-300';
     }
 
-    // Categorize EA role strings into primary zones
     function normalizePosition(rawPos) {
       if (!rawPos) return 'MID';
       const p = String(rawPos).toLowerCase().trim();
@@ -349,7 +343,7 @@
       }
 
       if (!list || !list.length) {
-        tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-gray-500">No member records returned for this club.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="py-6 text-center text-gray-500">No member records returned for this club.</td></tr>';
         return [];
       }
 
@@ -364,6 +358,11 @@
         const rating = parseFloat(m.ratingAve || m.rating || 0).toFixed(1);
         const pass = m.passSuccessRate ?? m.passSuccess ?? 0;
         const motm = m.manOfTheMatch ?? m.motm ?? 0;
+
+        // Extract EA defensive telemetry
+        const tackles = m.tacklesmade ?? m.tackles ?? m.tacklesMade ?? 0;
+        const tackleWinRate = m.tacklesuccessrate ?? m.tackleSuccessRate ?? 0;
+        const intercepts = m.interceptions ?? m.intercepts ?? 0;
 
         m._normalizedPos = normPos;
         m._rawPos = rawPos;
@@ -380,6 +379,8 @@
           <td class="py-3 px-2 text-center text-gray-300">${games}</td>
           <td class="py-3 px-2 text-center font-bold text-emerald-400">${goals}</td>
           <td class="py-3 px-2 text-center text-gray-300">${assists}</td>
+          <td class="py-3 px-2 text-center text-sky-400 font-medium">${tackles} <span class="text-xs text-gray-400">(${tackleWinRate}%)</span></td>
+          <td class="py-3 px-2 text-center text-cyan-300">${intercepts}</td>
           <td class="py-3 px-2 text-center text-yellow-400 font-semibold">${rating}</td>
           <td class="py-3 px-2 text-center text-gray-300">${pass}%</td>
           <td class="py-3 px-2 text-center text-purple-400">${motm}</td>
@@ -390,7 +391,6 @@
       return list;
     }
 
-    // Build the dynamic pitch lineup reflecting the club's actual formation
     function buildDynamicPitchTactic(members) {
       const rowAtk = document.getElementById('rowAttack');
       const rowMid = document.getElementById('rowMidfield');
@@ -407,13 +407,11 @@
         return;
       }
 
-      // Group active players by their most-played position line
       const fwds = members.filter(m => m._normalizedPos === 'FWD').sort((a,b) => parseFloat(b.ratingAve||0) - parseFloat(a.ratingAve||0));
       const mids = members.filter(m => m._normalizedPos === 'MID').sort((a,b) => parseFloat(b.ratingAve||0) - parseFloat(a.ratingAve||0));
       const defs = members.filter(m => m._normalizedPos === 'DEF').sort((a,b) => parseFloat(b.ratingAve||0) - parseFloat(a.ratingAve||0));
       const gks = members.filter(m => m._normalizedPos === 'GK').sort((a,b) => parseFloat(b.ratingAve||0) - parseFloat(a.ratingAve||0));
 
-      // Calculate the squad's formation shape based on player distribution
       let defCount = Math.max(3, Math.min(5, defs.length || 4));
       let fwdCount = Math.max(1, Math.min(3, fwds.length || 2));
       let midCount = 10 - defCount - fwdCount;
@@ -455,25 +453,21 @@
         `;
       };
 
-      // 1. Populate Attack Line
       const atkRoles = fwdCount === 1 ? ['ST'] : (fwdCount === 2 ? ['LS', 'RS'] : ['LW', 'ST', 'RW']);
       for (let i = 0; i < fwdCount; i++) {
         rowAtk.innerHTML += createPlayerCard(fwds[i] || members[10 - i], atkRoles[i] || 'ST');
       }
 
-      // 2. Populate Midfield Line
       const midRoles = midCount === 3 ? ['LCM', 'CAM', 'RCM'] : (midCount === 4 ? ['LM', 'LCM', 'RCM', 'RM'] : ['CM', 'CAM']);
       for (let i = 0; i < midCount; i++) {
         rowMid.innerHTML += createPlayerCard(mids[i] || members[5 - i], midRoles[i] || 'CM');
       }
 
-      // 3. Populate Defense Line
       const defRoles = defCount === 3 ? ['LCB', 'CB', 'RCB'] : (defCount === 5 ? ['LWB', 'LCB', 'CB', 'RCB', 'RWB'] : ['LB', 'LCB', 'RCB', 'RB']);
       for (let i = 0; i < defCount; i++) {
         rowDef.innerHTML += createPlayerCard(defs[i] || members[i], defRoles[i] || 'CB');
       }
 
-      // 4. Populate Goalkeeper
       rowGk.innerHTML = createPlayerCard(gks[0] || (members.find(m => m._normalizedPos === 'GK')), 'GK');
     }
 
