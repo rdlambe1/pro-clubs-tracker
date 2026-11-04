@@ -109,7 +109,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Match History (Diagnostic Multi-probe)
+// 4. Match History (Verified working queries: leagueMatch & playoffMatch)
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -120,54 +120,38 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   }
 
   const allMatches = [];
-  const logDetails = [];
-
-  // Candidate query configurations to identify EA's supported schema
-  const probeConfigs = [
-    { name: 'clubIds-noType', url: `https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numericId}&platform=${platform}` },
-    { name: 'clubId-noType', url: `https://proclubs.ea.com/api/fc/clubs/matches?clubId=${numericId}&platform=${platform}` },
-    { name: 'clubIds-leagueMatch', url: `https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numericId}&platform=${platform}&matchType=leagueMatch` },
-    { name: 'clubIds-gameType9', url: `https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numericId}&platform=${platform}&matchType=gameType9` }
+  const matchTypes = [
+    { type: 'leagueMatch', label: 'League' },
+    { type: 'playoffMatch', label: 'Playoff' }
   ];
 
-  for (const probe of probeConfigs) {
+  for (const m of matchTypes) {
+    const url = `https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numericId}&platform=${platform}&matchType=${m.type}`;
     try {
-      const response = await fetch(probe.url, { headers: EA_HEADERS });
-      const rawText = await response.text();
-
+      const response = await fetch(url, { headers: EA_HEADERS });
       if (response.ok) {
-        let data = null;
-        try { data = JSON.parse(rawText); } catch (_) {}
+        const data = await response.json();
         const list = Array.isArray(data) ? data : (typeof data === 'object' && data !== null ? Object.values(data) : []);
-        logDetails.push(`${probe.name}: OK (${list.length})`);
 
         list.forEach(item => {
           if (item && typeof item === 'object') {
             const key = item.matchId || item.timestamp;
             if (key && !allMatches.some(x => (x.matchId || x.timestamp) === key)) {
+              item._inferredCategory = m.label;
               allMatches.push(item);
             }
           }
         });
-
-        // Stop on first matching probe if matches are found
-        if (allMatches.length > 0) break;
-      } else {
-        // Capture EA's exact error message snippet
-        const snippet = rawText.slice(0, 45).replace(/[\r\n]+/g, ' ');
-        logDetails.push(`${probe.name}: ${response.status} [${snippet}]`);
       }
     } catch (err) {
-      logDetails.push(`${probe.name}: Err (${err.message})`);
+      console.log(`[Matches fetch error for ${m.label}]:`, err.message);
     }
   }
 
+  // Sort newest first
   allMatches.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
 
-  res.json({
-    debugLogs: logDetails,
-    matches: allMatches.slice(0, 10)
-  });
+  res.json(allMatches.slice(0, 10));
 });
 
 app.get('*', (req, res) => {
