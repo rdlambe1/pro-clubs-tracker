@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FC Pro Clubs Live Tracker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    body { background-color: #0d1117; color: #c9d1d9; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    .card { background-color: #161b22; border: 1px solid #30363d; border-radius: 8px; }
+  </style>
+</head>
+<body class="p-6">
+  <div class="max-w-6xl mx-auto space-y-6">
+    <header class="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-gray-800 pb-5">
+      <div class="flex items-center gap-3">
+        <i class="fa-solid fa-shield-halved text-emerald-400 text-3xl"></i>
+        <h1 class="text-2xl font-bold text-white tracking-wide">CLUBS<span class="text-emerald-400">TRACKER</span></h1>
+      </div>
+      <div class="flex gap-2 w-full md:w-auto">
+        <input id="clubIdInput" type="text" placeholder="Club ID" value="28268" 
+               class="bg-gray-800 border border-gray-700 px-4 py-2 rounded text-sm text-white focus:outline-none focus:border-emerald-500 w-full md:w-64">
+        <button onclick="fetchClubData()" class="bg-emerald-500 hover:bg-emerald-600 text-black font-semibold px-4 py-2 rounded text-sm transition">
+          Track
+        </button>
+      </div>
+    </header>
+
+    <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
+      <div class="flex items-center gap-5">
+        <div class="w-20 h-20 bg-gray-800 rounded-full flex items-center justify-center border-2 border-emerald-500 text-2xl font-black text-white" id="clubInitials">FC</div>
+        <div>
+          <h2 id="clubName" class="text-3xl font-extrabold text-white">Loading Club...</h2>
+          <p id="clubMeta" class="text-gray-400 text-sm mt-1">Platform: Common Gen5 | ID: 28268</p>
+        </div>
+      </div>
+      <div class="grid grid-cols-3 gap-6 text-center border-t md:border-t-0 md:border-l border-gray-800 pt-4 md:pt-0 md:pl-8">
+        <div>
+          <div class="text-gray-400 text-xs uppercase tracking-wider">Record (W-D-L)</div>
+          <div id="clubRecord" class="text-xl font-bold text-white mt-1">-- - -- - --</div>
+        </div>
+        <div>
+          <div class="text-gray-400 text-xs uppercase tracking-wider">Skill Rating</div>
+          <div id="skillRating" class="text-xl font-bold text-emerald-400 mt-1">--</div>
+        </div>
+        <div>
+          <div class="text-gray-400 text-xs uppercase tracking-wider">Goals (Scored/Con)</div>
+          <div id="goalStats" class="text-xl font-bold text-white mt-1">-- / --</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card p-6">
+      <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
+        <i class="fa-solid fa-users text-emerald-400"></i> Squad Performance
+      </h3>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm">
+          <thead class="border-b border-gray-800 text-gray-400 uppercase text-xs">
+            <tr>
+              <th class="py-3 px-2">Player</th>
+              <th class="py-3 px-2 text-center">Matches</th>
+              <th class="py-3 px-2 text-center">Goals</th>
+              <th class="py-3 px-2 text-center">Assists</th>
+              <th class="py-3 px-2 text-center">Avg Rating</th>
+              <th class="py-3 px-2 text-center">Pass %</th>
+              <th class="py-3 px-2 text-center">MoTM</th>
+            </tr>
+          </thead>
+          <tbody id="membersTable" class="divide-y border-gray-800">
+            <tr><td colspan="7" class="py-4 text-center text-gray-500">Loading squad...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const API_BASE = '/api';
+
+    async function fetchClubData() {
+      const clubId = document.getElementById('clubIdInput').value.trim();
+      if (!clubId) return;
+
+      document.getElementById('clubName').innerText = 'Loading Club...';
+      document.getElementById('membersTable').innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-500">Loading squad...</td></tr>';
+
+      try {
+        const [infoRes, membersRes] = await Promise.all([
+          fetch(`${API_BASE}/club/${clubId}/info`),
+          fetch(`${API_BASE}/club/${clubId}/members`)
+        ]);
+
+        const infoData = await infoRes.json();
+        const membersData = await membersRes.json();
+
+        renderClubInfo(clubId, infoData);
+        renderMembers(membersData);
+      } catch (err) {
+        console.error('Fetch error:', err);
+        alert('Failed to retrieve live stats. EA servers may be throttling or the Club ID is invalid.');
+      }
+    }
+
+    function renderClubInfo(clubId, data) {
+      const club = data[clubId] || Object.values(data)[0];
+      if (!club) return;
+
+      document.getElementById('clubName').innerText = club.name || 'Unknown Club';
+      document.getElementById('clubInitials').innerText = (club.name || 'FC').substring(0, 2).toUpperCase();
+      document.getElementById('clubMeta').innerText = `Club ID: ${clubId} | Current Season`;
+      document.getElementById('clubRecord').innerText = `${club.wins || 0} - ${club.ties || 0} - ${club.losses || 0}`;
+      document.getElementById('skillRating').innerText = club.skillRating || '--';
+      document.getElementById('goalStats').innerText = `${club.goals || 0} / ${club.goalsAgainst || 0}`;
+    }
+
+    function renderMembers(data) {
+      const tbody = document.getElementById('membersTable');
+      tbody.innerHTML = '';
+      
+      const members = data.members || Object.values(data);
+      if (!members.length) {
+        tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-500">No member data recorded.</td></tr>';
+        return;
+      }
+
+      members.forEach(m => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-gray-800/50 transition border-b border-gray-800/60';
+        tr.innerHTML = `
+          <td class="py-3 px-2 font-medium text-white">${m.name || m.proName || 'Unknown'}</td>
+          <td class="py-3 px-2 text-center text-gray-300">${m.gamesPlayed || 0}</td>
+          <td class="py-3 px-2 text-center font-bold text-emerald-400">${m.goals || 0}</td>
+          <td class="py-3 px-2 text-center text-gray-300">${m.assists || 0}</td>
+          <td class="py-3 px-2 text-center text-yellow-400 font-semibold">${parseFloat(m.ratingAve || 0).toFixed(1)}</td>
+          <td class="py-3 px-2 text-center text-gray-300">${m.passSuccessRate || 0}%</td>
+          <td class="py-3 px-2 text-center text-purple-400">${m.manOfTheMatch || 0}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    window.onload = fetchClubData;
+  </script>
+</body>
+</html>
