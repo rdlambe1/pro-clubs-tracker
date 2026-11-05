@@ -70,7 +70,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Overall W-D-L, Skill Rating & Division
+// 2. Club Info + Overall W-D-L, Skill Rating, Division & Badge ID
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -93,6 +93,7 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     const infoObj = info[clubId] || info;
     const division = parseDivision(statObj, infoObj);
 
+    // Resolve team badge ID
     const crestId = infoObj.crestId || statObj.crestId || infoObj.teamId || statObj.teamId || infoObj.customKit?.crestId || statObj.customKit?.crestId || null;
 
     res.json({ info, overall, division, crestId });
@@ -214,33 +215,30 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   res.json(recent10);
 });
 
-// 5. Backend Crest Image Proxy (Bypasses EA/ProClubsHead CDN Hotlink blocks)
+// 5. Backend Crest Image Proxy with Multiple Resilient CDNs
 app.get('/api/crest/:crestId', async (req, res) => {
   const { crestId } = req.params;
   if (!crestId || crestId === 'undefined' || crestId === 'null') {
     return res.status(404).send('No crest ID');
   }
 
+  // Known high-availability EA FC logo CDNs
   const sources = [
     {
-      url: `https://proclubshead.com/assets/img/club-crests/light/crest_${crestId}.png`,
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Referer': 'https://proclubshead.com/' }
-    },
-    {
-      url: `https://proclubshead.com/assets/img/club-crests/crest_${crestId}.png`,
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Referer': 'https://proclubshead.com/' }
+      url: `https://images.fotmob.com/image_resources/logo/teamlogo/${crestId}.png`,
+      headers: { 'User-Agent': 'Mozilla/5.0' }
     },
     {
       url: `https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2024/fc/crests/light/previews/crest_${crestId}.png`,
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Referer': 'https://www.ea.com/' }
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.ea.com/' }
     },
     {
-      url: `https://eafc24.content.easports.com/fifa/fltOnlineAssets/24B947F1-9C4E-481A-B474-04F69B8E6962/2024/fc/crests/light/previews/crest_${crestId}.png`,
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Referer': 'https://www.ea.com/' }
+      url: `https://cdn.sofifa.net/meta/team/${crestId}/60.png`,
+      headers: { 'User-Agent': 'Mozilla/5.0' }
     },
     {
-      url: `https://cdn.sofifa.net/teams/${crestId}/light_60.png`,
-      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+      url: `https://proclubshead.com/assets/img/club-crests/light/crest_${crestId}.png`,
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://proclubshead.com/' }
     }
   ];
 
