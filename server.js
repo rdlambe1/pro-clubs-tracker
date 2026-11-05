@@ -51,7 +51,6 @@ function resolveCrestId(infoObj = {}, statObj = {}) {
 }
 
 function parseDivisionFromPayload(seasonData, statObj, infoObj) {
-  // EA seasonal stats can be an array, object, or keyed by clubId
   let seasonItem = null;
   if (Array.isArray(seasonData)) {
     seasonItem = seasonData[0];
@@ -102,7 +101,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Overall W-D-L, Skill Rating & Accurate Seasonal Division
+// 2. Club Info + Overall W-D-L, Skill Rating & Division
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -113,7 +112,6 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 
   try {
-    // 1. Core club info and overall stats via SDK
     const [infoRes, statsRes] = await Promise.allSettled([
       proclubs.clubs.get({ clubId: numericId, platform }),
       proclubs.clubs.overallStats({ clubId: numericId, platform })
@@ -125,7 +123,7 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     const statObj = Array.isArray(overall) ? (overall[0] || {}) : (overall[clubId] || overall);
     const infoObj = info[clubId] || info;
 
-    // 2. Safe native fetch directly to EA for seasonal stats (Division)
+    // Query EA directly for seasonal stats (Division) without relying on missing SDK method
     let seasonalPayload = null;
     try {
       const seasonUrl = `https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${numericId}&platform=${platform}`;
@@ -133,14 +131,10 @@ app.get('/api/club/:clubId/info', async (req, res) => {
       if (seasonResp.ok) {
         seasonalPayload = await seasonResp.json();
       }
-    } catch (e) {
-      console.log(`[Seasonal stats fetch failed for ${numericId}]:`, e.message);
-    }
+    } catch (_) {}
 
     const division = parseDivisionFromPayload(seasonalPayload, statObj, infoObj) || 'Div 2';
     const crestId = resolveCrestId(infoObj, statObj);
-
-    console.log(`[Club ${numericId}]: Division="${division}" | CrestId="${crestId}"`);
 
     res.json({ info, overall, division, crestId });
   } catch (error) {
@@ -168,7 +162,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Match History (Enriched with opponent live Skill Rating, Division & Crest IDs)
+// 4. Match History
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -202,9 +196,7 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
           }
         });
       }
-    } catch (err) {
-      console.log(`[Matches fetch error for ${m.label}]:`, err.message);
-    }
+    } catch (_) {}
   }
 
   allMatches.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
@@ -263,15 +255,18 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   res.json(recent10);
 });
 
-// 5. Backend Crest Image Proxy with EA FC 24/25 CDN Endpoints
+// 5. Backend Crest Image Proxy
 app.get('/api/crest/:crestId', async (req, res) => {
   const { crestId } = req.params;
   if (!crestId || crestId === 'undefined' || crestId === 'null') {
     return res.status(404).send('No crest ID');
   }
 
-  // Exact endpoints utilized by active Pro Clubs trackers
   const sources = [
+    {
+      url: `https://images.fotmob.com/image_resources/logo/teamlogo/${crestId}.png`,
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    },
     {
       url: `https://proclubshead.com/assets/img/club-crests/light/crest_${crestId}.png`,
       headers: { 'User-Agent': EA_HEADERS['User-Agent'], 'Referer': 'https://proclubshead.com/' }
@@ -279,14 +274,6 @@ app.get('/api/crest/:crestId', async (req, res) => {
     {
       url: `https://proclubshead.com/assets/img/club-crests/crest_${crestId}.png`,
       headers: { 'User-Agent': EA_HEADERS['User-Agent'], 'Referer': 'https://proclubshead.com/' }
-    },
-    {
-      url: `https://images.fotmob.com/image_resources/logo/teamlogo/${crestId}.png`,
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    },
-    {
-      url: `https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2024/fc/crests/light/previews/crest_${crestId}.png`,
-      headers: { 'User-Agent': EA_HEADERS['User-Agent'], 'Referer': 'https://www.ea.com/' }
     },
     {
       url: `https://cdn.sofifa.net/meta/team/${crestId}/60.png`,
