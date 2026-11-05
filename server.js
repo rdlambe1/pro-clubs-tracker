@@ -30,18 +30,17 @@ function extractClubId(obj, keyFallback = null) {
   return null;
 }
 
-function resolveCrestId(infoObj, statObj) {
-  if (!infoObj && !statObj) return null;
+function resolveCrestId(infoObj = {}, statObj = {}) {
   const customKit = infoObj?.customKit || statObj?.customKit || {};
   const candidates = [
     customKit.crestAssetId,
     customKit.crestId,
-    infoObj?.crestAssetId,
-    infoObj?.crestId,
-    statObj?.crestAssetId,
-    statObj?.crestId,
-    infoObj?.teamId,
-    statObj?.teamId
+    infoObj.crestAssetId,
+    infoObj.crestId,
+    statObj.crestAssetId,
+    statObj.crestId,
+    infoObj.teamId,
+    statObj.teamId
   ];
   for (const c of candidates) {
     if (c !== undefined && c !== null && String(c) !== '' && String(c) !== '0') {
@@ -51,10 +50,20 @@ function resolveCrestId(infoObj, statObj) {
   return null;
 }
 
-function formatDivision(rawDiv) {
-  if (rawDiv === undefined || rawDiv === null || rawDiv === '') return null;
-  const num = parseInt(rawDiv, 10);
-  if (isNaN(num)) return String(rawDiv);
+function parseDivisionFromPayload(seasonData, statObj, infoObj) {
+  // EA seasonal stats can be an array, object, or keyed by clubId
+  let seasonItem = null;
+  if (Array.isArray(seasonData)) {
+    seasonItem = seasonData[0];
+  } else if (seasonData && typeof seasonData === 'object') {
+    seasonItem = Object.values(seasonData)[0] || seasonData;
+  }
+
+  const raw = seasonItem?.currentDivision ?? seasonItem?.division ?? statObj?.currentDivision ?? infoObj?.currentDivision ?? null;
+  if (raw === undefined || raw === null || raw === '') return null;
+  
+  const num = parseInt(raw, 10);
+  if (isNaN(num)) return String(raw);
   if (num === 0) return 'Elite';
   return `Div ${num}`;
 }
@@ -93,7 +102,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Overall Stats + Seasonal Division
+// 2. Club Info + Overall W-D-L, Skill Rating & Accurate Seasonal Division
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -104,27 +113,34 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 
   try {
-    const [infoRes, statsRes, seasonRes] = await Promise.allSettled([
+    // 1. Core club info and overall stats via SDK
+    const [infoRes, statsRes] = await Promise.allSettled([
       proclubs.clubs.get({ clubId: numericId, platform }),
-      proclubs.clubs.overallStats({ clubId: numericId, platform }),
-      proclubs.clubs.seasonalStats({ clubId: numericId, platform })
+      proclubs.clubs.overallStats({ clubId: numericId, platform })
     ]);
 
     const info = infoRes.status === 'fulfilled' ? infoRes.value : {};
     const overall = statsRes.status === 'fulfilled' ? statsRes.value : {};
-    const season = seasonRes.status === 'fulfilled' ? seasonRes.value : {};
 
     const statObj = Array.isArray(overall) ? (overall[0] || {}) : (overall[clubId] || overall);
     const infoObj = info[clubId] || info;
-    const seasonObj = Array.isArray(season) ? (season[0] || {}) : (season[clubId] || season);
 
-    // Extract exact division from seasonal stats
-    const rawDivision = seasonObj?.currentDivision ?? seasonObj?.division ?? statObj?.currentDivision ?? infoObj?.currentDivision ?? null;
-    const division = formatDivision(rawDivision) || 'Div 2';
+    // 2. Safe native fetch directly to EA for seasonal stats (Division)
+    let seasonalPayload = null;
+    try {
+      const seasonUrl = `https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${numericId}&platform=${platform}`;
+      const seasonResp = await fetch(seasonUrl, { headers: EA_HEADERS });
+      if (seasonResp.ok) {
+        seasonalPayload = await seasonResp.json();
+      }
+    } catch (e) {
+      console.log(`[Seasonal stats fetch failed for ${numericId}]:`, e.message);
+    }
 
+    const division = parseDivisionFromPayload(seasonalPayload, statObj, infoObj) || 'Div 2';
     const crestId = resolveCrestId(infoObj, statObj);
 
-    console.log(`[Club ${numericId} Info]: Division=${division}, CrestId=${crestId}`);
+    console.log(`[Club ${numericId}]: Division="${division}" | CrestId="${crestId}"`);
 
     res.json({ info, overall, division, crestId });
   } catch (error) {
@@ -208,19 +224,18 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   await Promise.allSettled(
     Array.from(opponentIds).map(async (oppId) => {
       try {
-        const [stats, info, season] = await Promise.allSettled([
+        const [stats, info, seasonResp] = await Promise.allSettled([
           proclubs.clubs.overallStats({ clubId: oppId, platform }),
           proclubs.clubs.get({ clubId: oppId, platform }),
-          proclubs.clubs.seasonalStats({ clubId: oppId, platform })
+          fetch(`https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${oppId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null)
         ]);
 
         const statObj = stats.status === 'fulfilled' ? (Array.isArray(stats.value) ? stats.value[0] : (stats.value[oppId] || stats.value)) : {};
         const infoObj = info.status === 'fulfilled' ? (info.value[oppId] || info.value) : {};
-        const seasonObj = season.status === 'fulfilled' ? (Array.isArray(season.value) ? season.value[0] : (season.value[oppId] || season.value)) : {};
+        const seasonData = seasonResp.status === 'fulfilled' ? seasonResp.value : null;
 
         const skillRating = statObj.skillRating || statObj.rating || statObj.sr || null;
-        const rawDiv = seasonObj?.currentDivision ?? seasonObj?.division ?? statObj?.currentDivision ?? infoObj?.currentDivision ?? null;
-        const division = formatDivision(rawDiv) || 'Div 2';
+        const division = parseDivisionFromPayload(seasonData, statObj, infoObj) || 'Div 2';
         const crestId = resolveCrestId(infoObj, statObj);
 
         opponentMap.set(String(oppId), { skillRating, division, crestId });
@@ -248,33 +263,34 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   res.json(recent10);
 });
 
-// 5. Backend Crest Image Proxy
+// 5. Backend Crest Image Proxy with EA FC 24/25 CDN Endpoints
 app.get('/api/crest/:crestId', async (req, res) => {
   const { crestId } = req.params;
   if (!crestId || crestId === 'undefined' || crestId === 'null') {
     return res.status(404).send('No crest ID');
   }
 
+  // Exact endpoints utilized by active Pro Clubs trackers
   const sources = [
+    {
+      url: `https://proclubshead.com/assets/img/club-crests/light/crest_${crestId}.png`,
+      headers: { 'User-Agent': EA_HEADERS['User-Agent'], 'Referer': 'https://proclubshead.com/' }
+    },
+    {
+      url: `https://proclubshead.com/assets/img/club-crests/crest_${crestId}.png`,
+      headers: { 'User-Agent': EA_HEADERS['User-Agent'], 'Referer': 'https://proclubshead.com/' }
+    },
     {
       url: `https://images.fotmob.com/image_resources/logo/teamlogo/${crestId}.png`,
       headers: { 'User-Agent': 'Mozilla/5.0' }
     },
     {
       url: `https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2024/fc/crests/light/previews/crest_${crestId}.png`,
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.ea.com/' }
-    },
-    {
-      url: `https://eafc24.content.easports.com/fifa/fltOnlineAssets/24B947F1-9C4E-481A-B474-04F69B8E6962/2024/fc/crests/light/previews/crest_${crestId}.png`,
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.ea.com/' }
+      headers: { 'User-Agent': EA_HEADERS['User-Agent'], 'Referer': 'https://www.ea.com/' }
     },
     {
       url: `https://cdn.sofifa.net/meta/team/${crestId}/60.png`,
       headers: { 'User-Agent': 'Mozilla/5.0' }
-    },
-    {
-      url: `https://proclubshead.com/assets/img/club-crests/light/crest_${crestId}.png`,
-      headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://proclubshead.com/' }
     }
   ];
 
