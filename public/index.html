@@ -97,18 +97,18 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Overview Card with High-Res Crest Next to Name -->
+    <!-- Active Club Overview Card -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
-        <div id="mainCrestBox" class="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-gray-900 border-2 border-emerald-500/50 flex items-center justify-center p-2 shadow-lg shadow-emerald-950/40">
-          <i class="fa-solid fa-shield text-emerald-400 text-3xl"></i>
+        <div id="mainCrestBox" class="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0">
+          <div class="w-16 h-16 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-500">
+            <i class="fa-solid fa-shield text-2xl"></i>
+          </div>
         </div>
 
         <div>
           <div class="flex items-center gap-3">
-            <div id="nameBadgeCrest" class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center overflow-hidden flex-shrink-0 shadow">
-              <span class="text-xs font-black text-emerald-400">DO</span>
-            </div>
+            <div id="nameBadgeCrest" class="flex-shrink-0"></div>
             <h2 id="clubName" class="text-3xl font-extrabold text-white">No Club Loaded</h2>
           </div>
           <p id="clubMeta" class="text-gray-400 text-sm mt-1">Enter a club name or ID above to get started</p>
@@ -137,13 +137,13 @@
       </div>
     </section>
 
-    <!-- Recent Matches with Chaos Tags, Opponent SR Column, & Official Crests -->
+    <!-- Recent Matches with Separate Opponent SR Column -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
         </h3>
-        <span class="text-xs text-gray-400">Official club badges, chaos tags, opponent SR & single-MVP impact</span>
+        <span class="text-xs text-gray-400">Contextual match tags, opponent SR & single-MVP breakdown</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -233,24 +233,49 @@
       return rawPlatform.toUpperCase();
     }
 
-    // Creates the crest image element with automatic monogram shield fallback
-    function createCrestElement(name, crestId, sizeClass = 'w-7 h-7') {
-      const initials = (name || 'FC').substring(0, 2).toUpperCase();
-      const wrap = document.createElement('div');
-      wrap.className = `${sizeClass} rounded-lg bg-gradient-to-br from-emerald-500/20 to-gray-900 border border-emerald-500/30 flex items-center justify-center overflow-hidden flex-shrink-0 shadow`;
-
-      if (crestId) {
-        const img = document.createElement('img');
-        img.className = 'w-full h-full object-contain p-0.5';
-        img.src = `https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2024/fc/crests/light/previews/crest_${crestId}.png`;
-        img.onerror = () => {
-          wrap.innerHTML = `<span class="text-[10px] font-black text-emerald-400">${initials}</span>`;
-        };
-        wrap.appendChild(img);
-      } else {
-        wrap.innerHTML = `<span class="text-[10px] font-black text-emerald-400">${initials}</span>`;
+    // Palette generator based on team name hash
+    function getClubPalette(name) {
+      const palettes = [
+        { gradA: '#10b981', gradB: '#064e3b', stroke: '#34d399', text: '#ffffff' }, // Emerald
+        { gradA: '#3b82f6', gradB: '#1e3a8a', stroke: '#60a5fa', text: '#ffffff' }, // Blue
+        { gradA: '#f59e0b', gradB: '#78350f', stroke: '#fbbf24', text: '#ffffff' }, // Amber
+        { gradA: '#8b5cf6', gradB: '#4c1d95', stroke: '#a78bfa', text: '#ffffff' }, // Purple
+        { gradA: '#ec4899', gradB: '#831843', stroke: '#f472b6', text: '#ffffff' }, // Rose
+        { gradA: '#06b6d4', gradB: '#164e63', stroke: '#22d3ee', text: '#ffffff' }, // Cyan
+        { gradA: '#ef4444', gradB: '#7f1d1d', stroke: '#f87171', text: '#ffffff' }  // Red
+      ];
+      let hash = 0;
+      for (let i = 0; i < (name || '').length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
       }
-      return wrap.outerHTML;
+      return palettes[Math.abs(hash) % palettes.length];
+    }
+
+    // High quality SVG Vector Shield Crest
+    function generateSvgCrest(name, size = 28, isMain = false) {
+      const initials = (name || 'FC').substring(0, 2).toUpperCase();
+      const p = isMain 
+        ? { gradA: '#10b981', gradB: '#064e3b', stroke: '#34d399', text: '#ffffff' }
+        : getClubPalette(name);
+
+      const uid = 'crest_' + Math.abs(name.split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a }, 0));
+
+      return `
+        <svg width="${size}" height="${size * 1.15}" viewBox="0 0 100 115" class="drop-shadow filter flex-shrink-0">
+          <defs>
+            <linearGradient id="${uid}" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="${p.gradA}" />
+              <stop offset="100%" stop-color="${p.gradB}" />
+            </linearGradient>
+          </defs>
+          <path d="M 50 4 C 80 4 96 14 96 35 C 96 75 50 110 50 110 C 50 110 4 75 4 35 C 4 14 20 4 50 4 Z" 
+                fill="url(#${uid})" stroke="${p.stroke}" stroke-width="5" stroke-linejoin="round" />
+          <path d="M 50 12 C 74 12 86 19 86 36 C 86 68 50 98 50 98 C 50 98 14 68 14 36 C 14 19 26 12 50 12 Z" 
+                fill="#0b0f19" opacity="0.45" />
+          <text x="50" y="64" font-family="-apple-system, sans-serif" font-size="30" font-weight="900" fill="${p.text}" text-anchor="middle" letter-spacing="1">${initials}</text>
+          <path d="M 32 78 Q 50 88 68 78" stroke="${p.stroke}" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.8" />
+        </svg>
+      `;
     }
 
     // Contextual Match Tags
@@ -423,36 +448,12 @@
 
       const gDiff = (Number(goals || 0) - Number(conceded || 0));
       const diffLabel = gDiff > 0 ? `+${gDiff}` : `${gDiff}`;
-      const initials = name.substring(0, 2).toUpperCase();
 
-      const crestId = infoObj.crestId || statObj.crestId || infoObj.teamId || statObj.teamId || infoObj.customKit?.crestId;
+      // 1. Render Big Crest in Overview Card
+      document.getElementById('mainCrestBox').innerHTML = generateSvgCrest(name, 64, true);
 
-      // 1. Render Big Crest in Overview Box
-      const mainBox = document.getElementById('mainCrestBox');
-      if (crestId) {
-        mainBox.innerHTML = `
-          <img src="https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2024/fc/crests/light/previews/crest_${crestId}.png" 
-               class="w-full h-full object-contain p-1 drop-shadow" 
-               onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-shield text-emerald-400 text-3xl\\'></i><span class=\\'text-[11px] font-black text-white mt-0.5\\'>${initials}</span>'">
-        `;
-      } else {
-        mainBox.innerHTML = `
-          <i class="fa-solid fa-shield text-emerald-400 text-3xl"></i>
-          <span class="text-[11px] font-black text-white mt-0.5">${initials}</span>
-        `;
-      }
-
-      // 2. Render Crest Icon beside the Team Name Header
-      const nameBadge = document.getElementById('nameBadgeCrest');
-      if (crestId) {
-        nameBadge.innerHTML = `
-          <img src="https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2024/fc/crests/light/previews/crest_${crestId}.png" 
-               class="w-full h-full object-contain p-0.5" 
-               onerror="this.parentElement.innerHTML='<span class=\\'text-xs font-black text-emerald-400\\'>${initials}</span>'">
-        `;
-      } else {
-        nameBadge.innerHTML = `<span class="text-xs font-black text-emerald-400">${initials}</span>`;
-      }
+      // 2. Render Matching Crest beside the Club Name
+      document.getElementById('nameBadgeCrest').innerHTML = generateSvgCrest(name, 28, true);
 
       document.getElementById('clubName').innerText = name;
 
@@ -524,7 +525,7 @@
       return list;
     }
 
-    // Match Box Scores without "vs", with True Crests & Dedicated Opponent SR
+    // Match Box Scores without "vs", with Dynamic Vector Crests & Dedicated Opponent SR
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
       const formContainer = document.getElementById('formBadges');
@@ -560,17 +561,12 @@
         const oppGoals = Number(oppClub.goals ?? oppClub.score ?? m.goalsAgainst ?? 0);
         const oppName = oppClub.details?.name || oppClub.name || 'Opponent FC';
 
-        // Opponent Skill Rating in distinct column
         const oppSR = oppClub.skillRating || oppClub.details?.skillRating || oppClub.rating || null;
         const oppSRCell = oppSR 
           ? `<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/30">${oppSR}</span>` 
           : `<span class="inline-block font-mono text-xs text-gray-500 bg-gray-800/80 px-2.5 py-1 rounded">--</span>`;
 
-        // Opponent Crest Element
-        const oppCrestId = oppClub.crestId || oppClub.details?.crestId || oppClub.teamId || oppClub.details?.teamId;
-        const oppCrestHtml = createCrestElement(oppName, oppCrestId, 'w-6 h-6');
-
-        // Contextual Chaos Tag
+        const oppCrestSvg = generateSvgCrest(oppName, 26, false);
         const chaosTag = getChaosTag(myGoals, oppGoals, oppSR);
 
         let resultLabel = 'DRAW';
@@ -607,7 +603,7 @@
           }
         }
 
-        // 1. Parse individual players in this match & determine strictly ONE MVP
+        // Parse individual players in this match & determine strictly ONE MVP
         const playersData = m.players?.[thisId] || {};
         const playerStats = Object.values(playersData);
 
@@ -638,7 +634,6 @@
           }
         });
 
-        // 2. Build Box Score rows with single MVP guarantee
         let boxScoreRows = '';
         let crownGiven = false;
 
@@ -691,8 +686,8 @@
           <td class="py-3 px-2">${typeBadge}</td>
           <td class="py-3 px-2 font-medium text-white">
             <div class="flex flex-col gap-1">
-              <div class="flex items-center gap-2">
-                ${oppCrestHtml}
+              <div class="flex items-center gap-2.5">
+                ${oppCrestSvg}
                 <span class="tracking-wide">${oppName}</span>
                 <i class="fa-solid fa-chevron-down text-[10px] text-gray-500"></i>
               </div>
