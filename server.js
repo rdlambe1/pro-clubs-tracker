@@ -109,7 +109,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Match History (Enriched with opponent live Skill Rating)
+// 4. Match History (Enriched with opponent live Skill Rating and Crest IDs)
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -162,30 +162,36 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
     });
   });
 
-  // Concurrently fetch opponent live skill ratings
+  // Concurrently fetch opponent live skill ratings & crest IDs
   const opponentMap = new Map();
   await Promise.allSettled(
     Array.from(opponentIds).map(async (oppId) => {
       try {
-        const stats = await proclubs.clubs.overallStats({ clubId: oppId, platform });
-        const statObj = Array.isArray(stats) ? stats[0] : (stats[oppId] || stats);
-        if (statObj) {
-          opponentMap.set(String(oppId), {
-            skillRating: statObj.skillRating || statObj.rating || statObj.sr || null
-          });
-        }
+        const [stats, info] = await Promise.allSettled([
+          proclubs.clubs.overallStats({ clubId: oppId, platform }),
+          proclubs.clubs.get({ clubId: oppId, platform })
+        ]);
+
+        const statObj = stats.status === 'fulfilled' ? (Array.isArray(stats.value) ? stats.value[0] : (stats.value[oppId] || stats.value)) : {};
+        const infoObj = info.status === 'fulfilled' ? (info.value[oppId] || info.value) : {};
+
+        const crestId = infoObj.crestId || statObj.crestId || infoObj.teamId || statObj.teamId || infoObj.customKit?.crestId || null;
+        const skillRating = statObj.skillRating || statObj.rating || statObj.sr || null;
+
+        opponentMap.set(String(oppId), { skillRating, crestId });
       } catch (_) {}
     })
   );
 
-  // Attach enriched opponent SR back onto each match fixture
+  // Attach enriched opponent SR and crest back onto each match fixture
   recent10.forEach(m => {
     const clubsData = m.clubs || m.aggregate || {};
     Object.keys(clubsData).forEach(id => {
       if (String(id) !== String(numericId)) {
         const enriched = opponentMap.get(String(id));
         if (enriched) {
-          clubsData[id].skillRating = enriched.skillRating;
+          if (enriched.skillRating) clubsData[id].skillRating = enriched.skillRating;
+          if (enriched.crestId) clubsData[id].crestId = enriched.crestId;
         }
       }
     });
