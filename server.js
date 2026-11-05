@@ -30,10 +30,33 @@ function extractClubId(obj, keyFallback = null) {
   return null;
 }
 
-function parseDivision(statObj, infoObj) {
-  const rawDiv = statObj?.currentDivision ?? infoObj?.currentDivision ?? statObj?.division ?? infoObj?.division ?? null;
-  if (!rawDiv || rawDiv === '0' || rawDiv === 0) return 'Elite';
-  return `Div ${rawDiv}`;
+function resolveCrestId(infoObj, statObj) {
+  if (!infoObj && !statObj) return null;
+  const customKit = infoObj?.customKit || statObj?.customKit || {};
+  const candidates = [
+    customKit.crestAssetId,
+    customKit.crestId,
+    infoObj?.crestAssetId,
+    infoObj?.crestId,
+    statObj?.crestAssetId,
+    statObj?.crestId,
+    infoObj?.teamId,
+    statObj?.teamId
+  ];
+  for (const c of candidates) {
+    if (c !== undefined && c !== null && String(c) !== '' && String(c) !== '0') {
+      return String(c);
+    }
+  }
+  return null;
+}
+
+function formatDivision(rawDiv) {
+  if (rawDiv === undefined || rawDiv === null || rawDiv === '') return null;
+  const num = parseInt(rawDiv, 10);
+  if (isNaN(num)) return String(rawDiv);
+  if (num === 0) return 'Elite';
+  return `Div ${num}`;
 }
 
 // 1. Search clubs by name
@@ -70,7 +93,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Overall W-D-L, Skill Rating, Division & Badge ID
+// 2. Club Info + Overall Stats + Seasonal Division
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -81,20 +104,27 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 
   try {
-    const [infoRes, statsRes] = await Promise.allSettled([
+    const [infoRes, statsRes, seasonRes] = await Promise.allSettled([
       proclubs.clubs.get({ clubId: numericId, platform }),
-      proclubs.clubs.overallStats({ clubId: numericId, platform })
+      proclubs.clubs.overallStats({ clubId: numericId, platform }),
+      proclubs.clubs.seasonalStats({ clubId: numericId, platform })
     ]);
 
     const info = infoRes.status === 'fulfilled' ? infoRes.value : {};
     const overall = statsRes.status === 'fulfilled' ? statsRes.value : {};
+    const season = seasonRes.status === 'fulfilled' ? seasonRes.value : {};
 
     const statObj = Array.isArray(overall) ? (overall[0] || {}) : (overall[clubId] || overall);
     const infoObj = info[clubId] || info;
-    const division = parseDivision(statObj, infoObj);
+    const seasonObj = Array.isArray(season) ? (season[0] || {}) : (season[clubId] || season);
 
-    // Resolve team badge ID
-    const crestId = infoObj.crestId || statObj.crestId || infoObj.teamId || statObj.teamId || infoObj.customKit?.crestId || statObj.customKit?.crestId || null;
+    // Extract exact division from seasonal stats
+    const rawDivision = seasonObj?.currentDivision ?? seasonObj?.division ?? statObj?.currentDivision ?? infoObj?.currentDivision ?? null;
+    const division = formatDivision(rawDivision) || 'Div 2';
+
+    const crestId = resolveCrestId(infoObj, statObj);
+
+    console.log(`[Club ${numericId} Info]: Division=${division}, CrestId=${crestId}`);
 
     res.json({ info, overall, division, crestId });
   } catch (error) {
@@ -178,17 +208,20 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   await Promise.allSettled(
     Array.from(opponentIds).map(async (oppId) => {
       try {
-        const [stats, info] = await Promise.allSettled([
+        const [stats, info, season] = await Promise.allSettled([
           proclubs.clubs.overallStats({ clubId: oppId, platform }),
-          proclubs.clubs.get({ clubId: oppId, platform })
+          proclubs.clubs.get({ clubId: oppId, platform }),
+          proclubs.clubs.seasonalStats({ clubId: oppId, platform })
         ]);
 
         const statObj = stats.status === 'fulfilled' ? (Array.isArray(stats.value) ? stats.value[0] : (stats.value[oppId] || stats.value)) : {};
         const infoObj = info.status === 'fulfilled' ? (info.value[oppId] || info.value) : {};
+        const seasonObj = season.status === 'fulfilled' ? (Array.isArray(season.value) ? season.value[0] : (season.value[oppId] || season.value)) : {};
 
         const skillRating = statObj.skillRating || statObj.rating || statObj.sr || null;
-        const division = parseDivision(statObj, infoObj);
-        const crestId = infoObj.crestId || statObj.crestId || infoObj.teamId || statObj.teamId || infoObj.customKit?.crestId || statObj.customKit?.crestId || null;
+        const rawDiv = seasonObj?.currentDivision ?? seasonObj?.division ?? statObj?.currentDivision ?? infoObj?.currentDivision ?? null;
+        const division = formatDivision(rawDiv) || 'Div 2';
+        const crestId = resolveCrestId(infoObj, statObj);
 
         opponentMap.set(String(oppId), { skillRating, division, crestId });
       } catch (_) {}
@@ -206,7 +239,7 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
           if (enriched.crestId) clubsData[id].crestId = enriched.crestId;
         }
         if (!clubsData[id].crestId) {
-          clubsData[id].crestId = clubsData[id].details?.crestId || clubsData[id].teamId || clubsData[id].details?.teamId || null;
+          clubsData[id].crestId = resolveCrestId(clubsData[id], clubsData[id].details);
         }
       }
     });
@@ -215,14 +248,13 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   res.json(recent10);
 });
 
-// 5. Backend Crest Image Proxy with Multiple Resilient CDNs
+// 5. Backend Crest Image Proxy
 app.get('/api/crest/:crestId', async (req, res) => {
   const { crestId } = req.params;
   if (!crestId || crestId === 'undefined' || crestId === 'null') {
     return res.status(404).send('No crest ID');
   }
 
-  // Known high-availability EA FC logo CDNs
   const sources = [
     {
       url: `https://images.fotmob.com/image_resources/logo/teamlogo/${crestId}.png`,
@@ -230,6 +262,10 @@ app.get('/api/crest/:crestId', async (req, res) => {
     },
     {
       url: `https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2024/fc/crests/light/previews/crest_${crestId}.png`,
+      headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.ea.com/' }
+    },
+    {
+      url: `https://eafc24.content.easports.com/fifa/fltOnlineAssets/24B947F1-9C4E-481A-B474-04F69B8E6962/2024/fc/crests/light/previews/crest_${crestId}.png`,
       headers: { 'User-Agent': 'Mozilla/5.0', 'Referer': 'https://www.ea.com/' }
     },
     {
