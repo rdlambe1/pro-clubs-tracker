@@ -97,18 +97,18 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Overview Card with Dual Crest Displays -->
+    <!-- Active Club Overview Card with High-Res Crest Next to Name -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
-        <div id="mainCrestBox" class="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-gray-900 border-2 border-emerald-500/50 flex items-center justify-center shadow-lg shadow-emerald-950/40">
+        <div id="mainCrestBox" class="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-gray-900 border-2 border-emerald-500/50 flex items-center justify-center p-2 shadow-lg shadow-emerald-950/40">
           <i class="fa-solid fa-shield text-emerald-400 text-3xl"></i>
         </div>
 
         <div>
           <div class="flex items-center gap-3">
-            <span id="nameBadgeCrest" class="w-7 h-7 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-xs font-black text-emerald-400 shadow">
-              DO
-            </span>
+            <div id="nameBadgeCrest" class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center overflow-hidden flex-shrink-0 shadow">
+              <span class="text-xs font-black text-emerald-400">DO</span>
+            </div>
             <h2 id="clubName" class="text-3xl font-extrabold text-white">No Club Loaded</h2>
           </div>
           <p id="clubMeta" class="text-gray-400 text-sm mt-1">Enter a club name or ID above to get started</p>
@@ -137,13 +137,13 @@
       </div>
     </section>
 
-    <!-- Recent Matches with Chaos Tags, Opponent SR Column & Single-MVP -->
+    <!-- Recent Matches with Chaos Tags, Opponent SR Column, & Official Crests -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
         </h3>
-        <span class="text-xs text-gray-400">Contextual match tags, opponent SR & single-MVP breakdown</span>
+        <span class="text-xs text-gray-400">Official club badges, chaos tags, opponent SR & single-MVP impact</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -233,42 +233,46 @@
       return rawPlatform.toUpperCase();
     }
 
-    // High quality inline vector shield crest
-    function renderCrestShield(name, sizeClass = 'w-7 h-7 text-xs', bgClass = 'from-emerald-500/20 to-gray-900 border-emerald-500/40 text-emerald-400') {
+    // Creates the crest image element with automatic monogram shield fallback
+    function createCrestElement(name, crestId, sizeClass = 'w-7 h-7') {
       const initials = (name || 'FC').substring(0, 2).toUpperCase();
-      return `
-        <div class="${sizeClass} rounded-lg bg-gradient-to-br ${bgClass} border flex items-center justify-center font-black shadow select-none flex-shrink-0">
-          ${initials}
-        </div>
-      `;
+      const wrap = document.createElement('div');
+      wrap.className = `${sizeClass} rounded-lg bg-gradient-to-br from-emerald-500/20 to-gray-900 border border-emerald-500/30 flex items-center justify-center overflow-hidden flex-shrink-0 shadow`;
+
+      if (crestId) {
+        const img = document.createElement('img');
+        img.className = 'w-full h-full object-contain p-0.5';
+        img.src = `https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2024/fc/crests/light/previews/crest_${crestId}.png`;
+        img.onerror = () => {
+          wrap.innerHTML = `<span class="text-[10px] font-black text-emerald-400">${initials}</span>`;
+        };
+        wrap.appendChild(img);
+      } else {
+        wrap.innerHTML = `<span class="text-[10px] font-black text-emerald-400">${initials}</span>`;
+      }
+      return wrap.outerHTML;
     }
 
-    // Automated Banter & Chaos Tag Generator
+    // Contextual Match Tags
     function getChaosTag(myGoals, oppGoals, oppSR) {
       const totalGoals = myGoals + oppGoals;
       const srNum = Number(oppSR || 0);
 
-      // High-pressure opposition
       if (srNum >= 1900) {
         return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-fuchsia-300 bg-fuchsia-500/15 border border-fuchsia-500/30 px-1.5 py-0.5 rounded tracking-wide">🔥 SWEATFEST</span>`;
       }
-      // Basketball game (8+ total goals, e.g. 5-5 or 4-4)
       if (totalGoals >= 8) {
         return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded tracking-wide">🏀 BASKETBALL MATCH</span>`;
       }
-      // Defensive disasterclass (Conceded 3+ in a loss)
       if (myGoals < oppGoals && oppGoals >= 3) {
         return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-rose-300 bg-rose-500/15 border border-rose-500/30 px-1.5 py-0.5 rounded tracking-wide">🚨 DEFENSIVE DISASTERCLASS</span>`;
       }
-      // Haramball Masterclass (Gritty low-scoring 1-goal win)
       if (myGoals > oppGoals && totalGoals <= 3) {
         return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded tracking-wide">🧱 HARAMBALL WIN</span>`;
       }
-      // High goal routing (scored 4+)
       if (myGoals >= 4 && myGoals > oppGoals) {
         return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-sky-300 bg-sky-500/15 border border-sky-500/30 px-1.5 py-0.5 rounded tracking-wide">💥 GOAL CARNIVAL</span>`;
       }
-      // Standard draw
       if (myGoals === oppGoals) {
         return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-yellow-300 bg-yellow-500/15 border border-yellow-500/30 px-1.5 py-0.5 rounded tracking-wide">🤝 POINTS SHARED</span>`;
       }
@@ -421,15 +425,35 @@
       const diffLabel = gDiff > 0 ? `+${gDiff}` : `${gDiff}`;
       const initials = name.substring(0, 2).toUpperCase();
 
-      // Render prominent shield crests in both locations
-      document.getElementById('mainCrestBox').innerHTML = `
-        <div class="w-full h-full rounded-2xl bg-gradient-to-br from-emerald-500/25 via-emerald-950/40 to-gray-950 flex flex-col items-center justify-center border border-emerald-500/40 shadow-inner">
-          <i class="fa-solid fa-shield text-emerald-400 text-3xl"></i>
-          <span class="text-[11px] font-black text-white mt-0.5 tracking-wider">${initials}</span>
-        </div>
-      `;
+      const crestId = infoObj.crestId || statObj.crestId || infoObj.teamId || statObj.teamId || infoObj.customKit?.crestId;
 
-      document.getElementById('nameBadgeCrest').innerText = initials;
+      // 1. Render Big Crest in Overview Box
+      const mainBox = document.getElementById('mainCrestBox');
+      if (crestId) {
+        mainBox.innerHTML = `
+          <img src="https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2024/fc/crests/light/previews/crest_${crestId}.png" 
+               class="w-full h-full object-contain p-1 drop-shadow" 
+               onerror="this.parentElement.innerHTML='<i class=\\'fa-solid fa-shield text-emerald-400 text-3xl\\'></i><span class=\\'text-[11px] font-black text-white mt-0.5\\'>${initials}</span>'">
+        `;
+      } else {
+        mainBox.innerHTML = `
+          <i class="fa-solid fa-shield text-emerald-400 text-3xl"></i>
+          <span class="text-[11px] font-black text-white mt-0.5">${initials}</span>
+        `;
+      }
+
+      // 2. Render Crest Icon beside the Team Name Header
+      const nameBadge = document.getElementById('nameBadgeCrest');
+      if (crestId) {
+        nameBadge.innerHTML = `
+          <img src="https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2024/fc/crests/light/previews/crest_${crestId}.png" 
+               class="w-full h-full object-contain p-0.5" 
+               onerror="this.parentElement.innerHTML='<span class=\\'text-xs font-black text-emerald-400\\'>${initials}</span>'">
+        `;
+      } else {
+        nameBadge.innerHTML = `<span class="text-xs font-black text-emerald-400">${initials}</span>`;
+      }
+
       document.getElementById('clubName').innerText = name;
 
       const friendlyPlatform = formatPlatformLabel(platform);
@@ -500,7 +524,7 @@
       return list;
     }
 
-    // Match Box Scores with Chaos Tags, Separate Opponent SR Column & Single MVP
+    // Match Box Scores without "vs", with True Crests & Dedicated Opponent SR
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
       const formContainer = document.getElementById('formBadges');
@@ -541,6 +565,10 @@
         const oppSRCell = oppSR 
           ? `<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/30">${oppSR}</span>` 
           : `<span class="inline-block font-mono text-xs text-gray-500 bg-gray-800/80 px-2.5 py-1 rounded">--</span>`;
+
+        // Opponent Crest Element
+        const oppCrestId = oppClub.crestId || oppClub.details?.crestId || oppClub.teamId || oppClub.details?.teamId;
+        const oppCrestHtml = createCrestElement(oppName, oppCrestId, 'w-6 h-6');
 
         // Contextual Chaos Tag
         const chaosTag = getChaosTag(myGoals, oppGoals, oppSR);
@@ -652,8 +680,6 @@
           boxScoreRows = '<div class="text-xs text-gray-500 italic py-1">Detailed player telemetry unavailable for this session.</div>';
         }
 
-        const opponentShieldHtml = renderCrestShield(oppName, 'w-6 h-6 text-[10px]', 'from-blue-500/20 to-gray-900 border-blue-500/30 text-blue-300');
-
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-gray-800/40 transition border-b border-gray-800/60 cursor-pointer';
         tr.onclick = () => {
@@ -666,8 +692,8 @@
           <td class="py-3 px-2 font-medium text-white">
             <div class="flex flex-col gap-1">
               <div class="flex items-center gap-2">
-                ${opponentShieldHtml}
-                <span>vs ${oppName}</span>
+                ${oppCrestHtml}
+                <span class="tracking-wide">${oppName}</span>
                 <i class="fa-solid fa-chevron-down text-[10px] text-gray-500"></i>
               </div>
               ${chaosTag ? `<div>${chaosTag}</div>` : ''}
