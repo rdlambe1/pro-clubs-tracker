@@ -97,10 +97,10 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Overview Card (Single Primary Shield Crest on Left) -->
+    <!-- Active Club Overview Card (Single Primary Crest on Left) -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
-        <div id="heroCrestBox" class="w-20 h-20 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center p-2 shadow-lg shadow-emerald-950/20 flex-shrink-0">
+        <div id="heroCrestBox" class="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-gray-900 border border-gray-800 flex items-center justify-center p-2 shadow-lg shadow-emerald-950/20 flex-shrink-0">
           <i class="fa-solid fa-shield text-emerald-400 text-3xl"></i>
         </div>
 
@@ -135,13 +135,13 @@
       </div>
     </section>
 
-    <!-- Recent Matches with Hover-Only Chaos Tooltips & Dedicated Opponent SR -->
+    <!-- Recent Matches with Dedicated Chaos Vibe Column -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
         </h3>
-        <span class="text-xs text-gray-400">Hover emoji for chaos tags • Click row for match breakdown</span>
+        <span class="text-xs text-gray-400">Hover emoji in Vibe column for details • Click row for match breakdown</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -150,6 +150,7 @@
             <tr>
               <th class="py-3 px-2">Type</th>
               <th class="py-3 px-2">Matchup</th>
+              <th class="py-3 px-2 text-center">Vibe</th>
               <th class="py-3 px-2 text-center">Division</th>
               <th class="py-3 px-2 text-center">Opponent SR</th>
               <th class="py-3 px-2 text-center">Score</th>
@@ -158,7 +159,7 @@
             </tr>
           </thead>
           <tbody id="recentMatchesTable" class="divide-y border-gray-800">
-            <tr><td colspan="7" class="py-6 text-center text-gray-500">Search for a club to view match history.</td></tr>
+            <tr><td colspan="8" class="py-6 text-center text-gray-500">Search for a club to view match history.</td></tr>
           </tbody>
         </table>
       </div>
@@ -232,7 +233,7 @@
       return rawPlatform.toUpperCase();
     }
 
-    // Returns an image element connected to our proxy, with a clean monogram fallback
+    // Direct, reliable badge renderer that displays the real crest PNG
     function renderCrestHtml(name, crestId, sizeClass = 'w-7 h-7') {
       const initials = (name || 'FC').substring(0, 2).toUpperCase();
 
@@ -242,7 +243,7 @@
             <img src="${API_BASE}/crest/${crestId}" 
                  class="w-full h-full object-contain" 
                  alt="${name}" 
-                 onerror="this.parentElement.outerHTML='<div class=\\'${sizeClass} rounded-lg bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center text-[10px] font-black text-emerald-400 flex-shrink-0 shadow\\'>${initials}</div>'">
+                 onerror="this.onerror=null; this.src='https://images.fotmob.com/image_resources/logo/teamlogo/${crestId}.png'; this.onerror=function(){ this.parentElement.innerHTML='<span class=\\'text-[10px] font-black text-emerald-400\\'>${initials}</span>'; };">
           </div>
         `;
       }
@@ -254,7 +255,7 @@
       `;
     }
 
-    // Contextual Match Chaos Emoji + Hover Tooltip
+    // Contextual Match Chaos Emoji + Label for Tooltip
     function getChaosEmoji(myGoals, oppGoals, oppSR) {
       const totalGoals = myGoals + oppGoals;
       const srNum = Number(oppSR || 0);
@@ -277,7 +278,7 @@
       if (myGoals === oppGoals) {
         return { emoji: '🤝', label: 'POINTS SHARED' };
       }
-      return null;
+      return { emoji: '⚽', label: 'COMPETITIVE FIXTURE' };
     }
 
     function setStatus(msg, isErr = false) {
@@ -523,7 +524,7 @@
       return list;
     }
 
-    // Match Box Scores with Hover-Only Chaos Tooltip, Division, Opponent SR & Single MVP
+    // Match Box Scores with Dedicated "Vibe" Column & Single MVP
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
       const formContainer = document.getElementById('formBadges');
@@ -533,7 +534,7 @@
       const matchArr = Array.isArray(matches) ? matches : (matches?.matches || []);
 
       if (!matchArr || matchArr.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-500">No recent match history found for this club.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="py-6 text-center text-gray-500">No recent match history found for this club.</td></tr>';
         formContainer.innerHTML = '<span class="text-xs text-gray-500 font-mono">--</span>';
         return;
       }
@@ -567,20 +568,20 @@
           ? `<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/30">${oppSR}</span>` 
           : `<span class="inline-block font-mono text-xs text-gray-500 bg-gray-800/80 px-2.5 py-1 rounded">--</span>`;
 
-        // Render crest via backend proxy
+        // Opponent badge via backend proxy
         const oppCrestId = oppClub.crestId || oppClub.details?.crestId || oppClub.teamId || oppClub.details?.teamId;
         const oppCrestHtml = renderCrestHtml(oppName, oppCrestId, 'w-6 h-6');
 
-        // Hover-Only Chaos Tooltip Badge
+        // Dedicated Vibe column with hover tooltip
         const chaos = getChaosEmoji(myGoals, oppGoals, oppSR);
-        const chaosHoverBadge = chaos ? `
-          <span class="group relative inline-flex items-center justify-center cursor-pointer ml-1" title="${chaos.label}">
-            <span class="text-sm transition-transform duration-150 group-hover:scale-125 select-none">${chaos.emoji}</span>
+        const vibeCell = `
+          <div class="group relative inline-flex items-center justify-center cursor-pointer select-none">
+            <span class="text-base transition-transform duration-150 group-hover:scale-125">${chaos.emoji}</span>
             <span class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex items-center px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-200 bg-gray-950 border border-amber-500/40 rounded shadow-2xl whitespace-nowrap z-30">
               ${chaos.label}
             </span>
-          </span>
-        ` : '';
+          </div>
+        `;
 
         let resultLabel = 'DRAW';
         let resultClass = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
@@ -698,13 +699,13 @@
         tr.innerHTML = `
           <td class="py-3 px-2">${typeBadge}</td>
           <td class="py-3 px-2 font-medium text-white">
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-2.5">
               ${oppCrestHtml}
               <span class="tracking-wide">${oppName}</span>
-              ${chaosHoverBadge}
-              <i class="fa-solid fa-chevron-down text-[10px] text-gray-500 ml-1"></i>
+              <i class="fa-solid fa-chevron-down text-[10px] text-gray-500"></i>
             </div>
           </td>
+          <td class="py-3 px-2 text-center">${vibeCell}</td>
           <td class="py-3 px-2 text-center">${oppDivBadge}</td>
           <td class="py-3 px-2 text-center">${oppSRCell}</td>
           <td class="py-3 px-2 text-center font-bold text-white">${myGoals} - ${oppGoals}</td>
@@ -718,7 +719,7 @@
         detailTr.id = `boxScore_${idx}`;
         detailTr.className = 'hidden bg-gray-900/60 border-b border-gray-800';
         detailTr.innerHTML = `
-          <td colspan="7" class="p-4">
+          <td colspan="8" class="p-4">
             <div class="text-xs uppercase font-bold text-gray-400 tracking-wider mb-2 flex items-center justify-between">
               <span class="flex items-center gap-2">
                 <i class="fa-solid fa-chart-simple text-emerald-400"></i> Match Influence & Box Score
