@@ -97,11 +97,11 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Overview Card (Single Clean Hero Badge) -->
+    <!-- Active Club Overview Card (Single Primary Shield Crest on Left) -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
-        <div id="heroCrestContainer" class="w-20 h-20 flex items-center justify-center flex-shrink-0">
-          <!-- Rendered by renderClub -->
+        <div id="heroCrestBox" class="w-20 h-20 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center p-2 shadow-lg shadow-emerald-950/20 flex-shrink-0">
+          <i class="fa-solid fa-shield text-emerald-400 text-3xl"></i>
         </div>
 
         <div>
@@ -135,13 +135,13 @@
       </div>
     </section>
 
-    <!-- Recent Matches with Opponent Division, SR & Guaranteed Crest Shields -->
+    <!-- Recent Matches with Hover-Only Chaos Tooltips & Dedicated Opponent SR -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
         </h3>
-        <span class="text-xs text-gray-400">Contextual match tags, opponent SR & single-MVP breakdown</span>
+        <span class="text-xs text-gray-400">Hover emoji for chaos tags • Click row for match breakdown</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -232,80 +232,52 @@
       return rawPlatform.toUpperCase();
     }
 
-    // Hash algorithm generating EA FC badge palettes
-    function getClubCrestTheme(name) {
-      const themes = [
-        { primary: '#10b981', dark: '#064e3b', border: '#34d399', accent: '#6ee7b7' }, // Emerald
-        { primary: '#3b82f6', dark: '#1e3a8a', border: '#60a5fa', accent: '#93c5fd' }, // Cobalt
-        { primary: '#f59e0b', dark: '#78350f', border: '#fbbf24', accent: '#fde68a' }, // Amber
-        { primary: '#8b5cf6', dark: '#4c1d95', border: '#a78bfa', accent: '#c4b5fd' }, // Purple
-        { primary: '#ef4444', dark: '#7f1d1d', border: '#f87171', accent: '#fca5a5' }, // Crimson
-        { primary: '#06b6d4', dark: '#164e63', border: '#22d3ee', accent: '#a5f3fc' }, // Cyan
-        { primary: '#ec4899', dark: '#831843', border: '#f472b6', accent: '#fbcfe8' }  // Rose
-      ];
-      let hash = 0;
-      for (let i = 0; i < (name || '').length; i++) {
-        hash = name.charCodeAt(i) + ((hash << 5) - hash);
-      }
-      return themes[Math.abs(hash) % themes.length];
-    }
-
-    // Dynamic Vector Shield Crest (Renders without broken images or hotlink blocks)
-    function buildVectorShieldCrest(name, size = 28, isMain = false) {
+    // Returns an image element connected to our proxy, with a clean monogram fallback
+    function renderCrestHtml(name, crestId, sizeClass = 'w-7 h-7') {
       const initials = (name || 'FC').substring(0, 2).toUpperCase();
-      const theme = isMain 
-        ? { primary: '#10b981', dark: '#064e3b', border: '#34d399', accent: '#6ee7b7' }
-        : getClubCrestTheme(name);
 
-      const gradId = 'crest_grad_' + Math.abs((name || '').split('').reduce((a, b) => { a = ((a << 5) - a) + b.charCodeAt(0); return a & a }, 0));
+      if (crestId && Number(crestId) > 0) {
+        return `
+          <div class="${sizeClass} rounded-lg bg-gray-900 border border-gray-800 flex items-center justify-center p-0.5 overflow-hidden flex-shrink-0 shadow">
+            <img src="${API_BASE}/crest/${crestId}" 
+                 class="w-full h-full object-contain" 
+                 alt="${name}" 
+                 onerror="this.parentElement.outerHTML='<div class=\\'${sizeClass} rounded-lg bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center text-[10px] font-black text-emerald-400 flex-shrink-0 shadow\\'>${initials}</div>'">
+          </div>
+        `;
+      }
 
       return `
-        <svg width="${size}" height="${size}" viewBox="0 0 100 115" class="drop-shadow-md filter flex-shrink-0" style="overflow: visible;">
-          <defs>
-            <linearGradient id="${gradId}" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="${theme.primary}" />
-              <stop offset="100%" stop-color="${theme.dark}" />
-            </linearGradient>
-          </defs>
-          <!-- Outer Heraldic Shield Outline -->
-          <path d="M 50 4 C 82 4 96 14 96 36 C 96 76 50 110 50 110 C 50 110 4 76 4 36 C 4 14 18 4 50 4 Z" 
-                fill="url(#${gradId})" stroke="${theme.border}" stroke-width="4.5" stroke-linejoin="round" />
-          <!-- Inner Metallic Inset -->
-          <path d="M 50 12 C 75 12 87 19 87 36 C 87 69 50 99 50 99 C 50 99 13 69 13 36 C 13 19 25 12 50 12 Z" 
-                fill="#0b0f19" opacity="0.65" />
-          <!-- Chevron Chevron Banner Accent -->
-          <path d="M 30 76 Q 50 86 70 76" stroke="${theme.accent}" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.8" />
-          <!-- Monogram Insignia -->
-          <text x="50" y="62" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="31" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="1">${initials}</text>
-        </svg>
+        <div class="${sizeClass} rounded-lg bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center text-[10px] font-black text-emerald-400 flex-shrink-0 shadow">
+          ${initials}
+        </div>
       `;
     }
 
-    // Contextual Match Tags
-    function getChaosTag(myGoals, oppGoals, oppSR) {
+    // Contextual Match Chaos Emoji + Hover Tooltip
+    function getChaosEmoji(myGoals, oppGoals, oppSR) {
       const totalGoals = myGoals + oppGoals;
       const srNum = Number(oppSR || 0);
 
       if (srNum >= 1900) {
-        return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-fuchsia-300 bg-fuchsia-500/15 border border-fuchsia-500/30 px-1.5 py-0.5 rounded tracking-wide">🔥 SWEATFEST</span>`;
+        return { emoji: '🔥', label: 'SWEATFEST (1900+ SR)' };
       }
       if (totalGoals >= 8) {
-        return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-300 bg-amber-500/15 border border-amber-500/30 px-1.5 py-0.5 rounded tracking-wide">🏀 BASKETBALL MATCH</span>`;
+        return { emoji: '🏀', label: 'BASKETBALL MATCH (8+ Goals)' };
       }
       if (myGoals < oppGoals && oppGoals >= 3) {
-        return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-rose-300 bg-rose-500/15 border border-rose-500/30 px-1.5 py-0.5 rounded tracking-wide">🚨 DEFENSIVE DISASTERCLASS</span>`;
+        return { emoji: '🚨', label: 'DEFENSIVE DISASTERCLASS' };
       }
       if (myGoals > oppGoals && totalGoals <= 3) {
-        return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-300 bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 rounded tracking-wide">🧱 HARAMBALL WIN</span>`;
+        return { emoji: '🧱', label: 'HARAMBALL WIN (Defensive Masterclass)' };
       }
       if (myGoals >= 4 && myGoals > oppGoals) {
-        return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-sky-300 bg-sky-500/15 border border-sky-500/30 px-1.5 py-0.5 rounded tracking-wide">💥 GOAL CARNIVAL</span>`;
+        return { emoji: '💥', label: 'GOAL CARNIVAL (4+ Scored)' };
       }
       if (myGoals === oppGoals) {
-        return `<span class="inline-flex items-center gap-1 text-[10px] font-bold text-yellow-300 bg-yellow-500/15 border border-yellow-500/30 px-1.5 py-0.5 rounded tracking-wide">🤝 POINTS SHARED</span>`;
+        return { emoji: '🤝', label: 'POINTS SHARED' };
       }
-
-      return '';
+      return null;
     }
 
     function setStatus(msg, isErr = false) {
@@ -451,12 +423,30 @@
 
       const gDiff = (Number(goals || 0) - Number(conceded || 0));
       const diffLabel = gDiff > 0 ? `+${gDiff}` : `${gDiff}`;
+      const initials = name.substring(0, 2).toUpperCase();
 
-      // Single Crest Display in Overview Box
-      document.getElementById('heroCrestContainer').innerHTML = buildVectorShieldCrest(name, 72, true);
+      const crestId = data.crestId || infoObj.crestId || statObj.crestId || infoObj.teamId || statObj.teamId;
+
+      // Render Single Primary Crest on Left
+      const heroBox = document.getElementById('heroCrestBox');
+      if (crestId && Number(crestId) > 0) {
+        heroBox.innerHTML = `
+          <img src="${API_BASE}/crest/${crestId}" 
+               class="w-full h-full object-contain p-1 drop-shadow" 
+               alt="${name}" 
+               onerror="this.parentElement.innerHTML='<div class=\\'flex flex-col items-center justify-center\\'><i class=\\'fa-solid fa-shield text-emerald-400 text-3xl\\'></i><span class=\\'text-[11px] font-black text-white mt-0.5\\'>${initials}</span></div>'">
+        `;
+      } else {
+        heroBox.innerHTML = `
+          <div class="flex flex-col items-center justify-center">
+            <i class="fa-solid fa-shield text-emerald-400 text-3xl"></i>
+            <span class="text-[11px] font-black text-white mt-0.5">${initials}</span>
+          </div>
+        `;
+      }
+
       document.getElementById('clubName').innerText = name;
 
-      // Division Badge next to main name
       const divBadge = document.getElementById('clubDivBadge');
       if (data.division) {
         divBadge.innerText = data.division;
@@ -533,7 +523,7 @@
       return list;
     }
 
-    // Match Box Scores with Opponent Division, SR & Guaranteed Crest Shields
+    // Match Box Scores with Hover-Only Chaos Tooltip, Division, Opponent SR & Single MVP
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
       const formContainer = document.getElementById('formBadges');
@@ -569,19 +559,28 @@
         const oppGoals = Number(oppClub.goals ?? oppClub.score ?? m.goalsAgainst ?? 0);
         const oppName = oppClub.details?.name || oppClub.name || 'Opponent FC';
 
-        // Opponent Division
-        const oppDiv = oppClub.division || 'Div 1';
+        const oppDiv = oppClub.division || 'Elite';
         const oppDivBadge = `<span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-gray-800 text-gray-300 border border-gray-700">${oppDiv}</span>`;
 
-        // Opponent Skill Rating
         const oppSR = oppClub.skillRating || oppClub.details?.skillRating || oppClub.rating || null;
         const oppSRCell = oppSR 
           ? `<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/30">${oppSR}</span>` 
           : `<span class="inline-block font-mono text-xs text-gray-500 bg-gray-800/80 px-2.5 py-1 rounded">--</span>`;
 
-        // Guaranteed Opponent Vector Crest Shield
-        const oppCrestShield = buildVectorShieldCrest(oppName, 26, false);
-        const chaosTag = getChaosTag(myGoals, oppGoals, oppSR);
+        // Render crest via backend proxy
+        const oppCrestId = oppClub.crestId || oppClub.details?.crestId || oppClub.teamId || oppClub.details?.teamId;
+        const oppCrestHtml = renderCrestHtml(oppName, oppCrestId, 'w-6 h-6');
+
+        // Hover-Only Chaos Tooltip Badge
+        const chaos = getChaosEmoji(myGoals, oppGoals, oppSR);
+        const chaosHoverBadge = chaos ? `
+          <span class="group relative inline-flex items-center justify-center cursor-pointer ml-1" title="${chaos.label}">
+            <span class="text-sm transition-transform duration-150 group-hover:scale-125 select-none">${chaos.emoji}</span>
+            <span class="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 hidden group-hover:flex items-center px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-200 bg-gray-950 border border-amber-500/40 rounded shadow-2xl whitespace-nowrap z-30">
+              ${chaos.label}
+            </span>
+          </span>
+        ` : '';
 
         let resultLabel = 'DRAW';
         let resultClass = 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
@@ -699,13 +698,11 @@
         tr.innerHTML = `
           <td class="py-3 px-2">${typeBadge}</td>
           <td class="py-3 px-2 font-medium text-white">
-            <div class="flex flex-col gap-1">
-              <div class="flex items-center gap-2.5">
-                ${oppCrestShield}
-                <span class="tracking-wide">${oppName}</span>
-                <i class="fa-solid fa-chevron-down text-[10px] text-gray-500"></i>
-              </div>
-              ${chaosTag ? `<div>${chaosTag}</div>` : ''}
+            <div class="flex items-center gap-2">
+              ${oppCrestHtml}
+              <span class="tracking-wide">${oppName}</span>
+              ${chaosHoverBadge}
+              <i class="fa-solid fa-chevron-down text-[10px] text-gray-500 ml-1"></i>
             </div>
           </td>
           <td class="py-3 px-2 text-center">${oppDivBadge}</td>
