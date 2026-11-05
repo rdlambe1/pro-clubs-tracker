@@ -97,7 +97,7 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Overview Card (Single Primary Crest on Left) -->
+    <!-- Active Club Overview Card (Single Primary Crest Display) -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
         <div id="heroCrestBox" class="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-gray-900 border border-gray-800 flex items-center justify-center p-2 shadow-lg shadow-emerald-950/20 flex-shrink-0">
@@ -233,7 +233,7 @@
       return rawPlatform.toUpperCase();
     }
 
-    // Direct, reliable badge renderer that displays the real crest PNG
+    // Direct badge renderer connecting through proxy with FotMob and EA CDN fallbacks
     function renderCrestHtml(name, crestId, sizeClass = 'w-7 h-7') {
       const initials = (name || 'FC').substring(0, 2).toUpperCase();
 
@@ -255,7 +255,7 @@
       `;
     }
 
-    // Contextual Match Chaos Emoji + Label for Tooltip
+    // Contextual Match Chaos Emoji + Tooltip
     function getChaosEmoji(myGoals, oppGoals, oppSR) {
       const totalGoals = myGoals + oppGoals;
       const srNum = Number(oppSR || 0);
@@ -270,7 +270,7 @@
         return { emoji: '🚨', label: 'DEFENSIVE DISASTERCLASS' };
       }
       if (myGoals > oppGoals && totalGoals <= 3) {
-        return { emoji: '🧱', label: 'HARAMBALL WIN (Defensive Masterclass)' };
+        return { emoji: '🧱', label: 'HARAMBALL WIN (Gritty Defense)' };
       }
       if (myGoals >= 4 && myGoals > oppGoals) {
         return { emoji: '💥', label: 'GOAL CARNIVAL (4+ Scored)' };
@@ -428,14 +428,14 @@
 
       const crestId = data.crestId || infoObj.crestId || statObj.crestId || infoObj.teamId || statObj.teamId;
 
-      // Render Single Primary Crest on Left
+      // Single Primary Crest on Left
       const heroBox = document.getElementById('heroCrestBox');
       if (crestId && Number(crestId) > 0) {
         heroBox.innerHTML = `
           <img src="${API_BASE}/crest/${crestId}" 
                class="w-full h-full object-contain p-1 drop-shadow" 
                alt="${name}" 
-               onerror="this.parentElement.innerHTML='<div class=\\'flex flex-col items-center justify-center\\'><i class=\\'fa-solid fa-shield text-emerald-400 text-3xl\\'></i><span class=\\'text-[11px] font-black text-white mt-0.5\\'>${initials}</span></div>'">
+               onerror="this.onerror=null; this.src='https://images.fotmob.com/image_resources/logo/teamlogo/${crestId}.png'; this.onerror=function(){ this.parentElement.innerHTML='<div class=\\'flex flex-col items-center justify-center\\'><i class=\\'fa-solid fa-shield text-emerald-400 text-3xl\\'></i><span class=\\'text-[11px] font-black text-white mt-0.5\\'>${initials}</span></div>'; };">
         `;
       } else {
         heroBox.innerHTML = `
@@ -448,6 +448,7 @@
 
       document.getElementById('clubName').innerText = name;
 
+      // Division Badge next to main name
       const divBadge = document.getElementById('clubDivBadge');
       if (data.division) {
         divBadge.innerText = data.division;
@@ -560,7 +561,7 @@
         const oppGoals = Number(oppClub.goals ?? oppClub.score ?? m.goalsAgainst ?? 0);
         const oppName = oppClub.details?.name || oppClub.name || 'Opponent FC';
 
-        const oppDiv = oppClub.division || 'Elite';
+        const oppDiv = oppClub.division || 'Div 2';
         const oppDivBadge = `<span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-gray-800 text-gray-300 border border-gray-700">${oppDiv}</span>`;
 
         const oppSR = oppClub.skillRating || oppClub.details?.skillRating || oppClub.rating || null;
@@ -568,7 +569,6 @@
           ? `<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/30">${oppSR}</span>` 
           : `<span class="inline-block font-mono text-xs text-gray-500 bg-gray-800/80 px-2.5 py-1 rounded">--</span>`;
 
-        // Opponent badge via backend proxy
         const oppCrestId = oppClub.crestId || oppClub.details?.crestId || oppClub.teamId || oppClub.details?.teamId;
         const oppCrestHtml = renderCrestHtml(oppName, oppCrestId, 'w-6 h-6');
 
