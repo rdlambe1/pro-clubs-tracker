@@ -93,7 +93,9 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     const infoObj = info[clubId] || info;
     const division = parseDivision(statObj, infoObj);
 
-    res.json({ info, overall, division });
+    const crestId = infoObj.crestId || statObj.crestId || infoObj.teamId || statObj.teamId || infoObj.customKit?.crestId || statObj.customKit?.crestId || null;
+
+    res.json({ info, overall, division, crestId });
   } catch (error) {
     console.error(`[Club Info Error ${clubId}]:`, error);
     res.status(500).json({ error: error.message || 'Failed to fetch club info' });
@@ -119,7 +121,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Match History (Enriched with opponent live Skill Rating & Division)
+// 4. Match History (Enriched with opponent live Skill Rating, Division & Crest IDs)
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -185,8 +187,9 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
 
         const skillRating = statObj.skillRating || statObj.rating || statObj.sr || null;
         const division = parseDivision(statObj, infoObj);
+        const crestId = infoObj.crestId || statObj.crestId || infoObj.teamId || statObj.teamId || infoObj.customKit?.crestId || statObj.customKit?.crestId || null;
 
-        opponentMap.set(String(oppId), { skillRating, division });
+        opponentMap.set(String(oppId), { skillRating, division, crestId });
       } catch (_) {}
     })
   );
@@ -199,12 +202,62 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
         if (enriched) {
           if (enriched.skillRating) clubsData[id].skillRating = enriched.skillRating;
           if (enriched.division) clubsData[id].division = enriched.division;
+          if (enriched.crestId) clubsData[id].crestId = enriched.crestId;
+        }
+        if (!clubsData[id].crestId) {
+          clubsData[id].crestId = clubsData[id].details?.crestId || clubsData[id].teamId || clubsData[id].details?.teamId || null;
         }
       }
     });
   });
 
   res.json(recent10);
+});
+
+// 5. Backend Crest Image Proxy (Bypasses EA/ProClubsHead CDN Hotlink blocks)
+app.get('/api/crest/:crestId', async (req, res) => {
+  const { crestId } = req.params;
+  if (!crestId || crestId === 'undefined' || crestId === 'null') {
+    return res.status(404).send('No crest ID');
+  }
+
+  const sources = [
+    {
+      url: `https://proclubshead.com/assets/img/club-crests/light/crest_${crestId}.png`,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Referer': 'https://proclubshead.com/' }
+    },
+    {
+      url: `https://proclubshead.com/assets/img/club-crests/crest_${crestId}.png`,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Referer': 'https://proclubshead.com/' }
+    },
+    {
+      url: `https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2024/fc/crests/light/previews/crest_${crestId}.png`,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Referer': 'https://www.ea.com/' }
+    },
+    {
+      url: `https://eafc24.content.easports.com/fifa/fltOnlineAssets/24B947F1-9C4E-481A-B474-04F69B8E6962/2024/fc/crests/light/previews/crest_${crestId}.png`,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)', 'Referer': 'https://www.ea.com/' }
+    },
+    {
+      url: `https://cdn.sofifa.net/teams/${crestId}/light_60.png`,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+    }
+  ];
+
+  for (const src of sources) {
+    try {
+      const resp = await fetch(src.url, { headers: src.headers });
+      if (resp.ok) {
+        const contentType = resp.headers.get('content-type') || 'image/png';
+        const buffer = await resp.arrayBuffer();
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=86400');
+        return res.send(Buffer.from(buffer));
+      }
+    } catch (_) {}
+  }
+
+  res.status(404).send('Crest not found');
 });
 
 app.get('*', (req, res) => {
