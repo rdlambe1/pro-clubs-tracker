@@ -30,6 +30,12 @@ function extractClubId(obj, keyFallback = null) {
   return null;
 }
 
+function parseDivision(statObj, infoObj) {
+  const rawDiv = statObj?.currentDivision ?? infoObj?.currentDivision ?? statObj?.division ?? infoObj?.division ?? null;
+  if (!rawDiv || rawDiv === '0' || rawDiv === 0) return 'Elite';
+  return `Div ${rawDiv}`;
+}
+
 // 1. Search clubs by name
 app.get('/api/search', async (req, res) => {
   const { clubName, platform = 'common-gen5' } = req.query;
@@ -64,7 +70,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Overall W-D-L & Skill Rating
+// 2. Club Info + Overall W-D-L, Skill Rating & Division
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -83,7 +89,11 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     const info = infoRes.status === 'fulfilled' ? infoRes.value : {};
     const overall = statsRes.status === 'fulfilled' ? statsRes.value : {};
 
-    res.json({ info, overall });
+    const statObj = Array.isArray(overall) ? (overall[0] || {}) : (overall[clubId] || overall);
+    const infoObj = info[clubId] || info;
+    const division = parseDivision(statObj, infoObj);
+
+    res.json({ info, overall, division });
   } catch (error) {
     console.error(`[Club Info Error ${clubId}]:`, error);
     res.status(500).json({ error: error.message || 'Failed to fetch club info' });
@@ -109,7 +119,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Match History (Enriched with opponent live Skill Rating & real crest IDs)
+// 4. Match History (Enriched with opponent live Skill Rating & Division)
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -151,7 +161,6 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   allMatches.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
   const recent10 = allMatches.slice(0, 10);
 
-  // Extract distinct opponent club IDs from the 10 fixtures
   const opponentIds = new Set();
   recent10.forEach(m => {
     const clubsData = m.clubs || m.aggregate || {};
@@ -162,7 +171,6 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
     });
   });
 
-  // Concurrently fetch opponent live skill ratings and crest info
   const opponentMap = new Map();
   await Promise.allSettled(
     Array.from(opponentIds).map(async (oppId) => {
@@ -175,10 +183,10 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
         const statObj = stats.status === 'fulfilled' ? (Array.isArray(stats.value) ? stats.value[0] : (stats.value[oppId] || stats.value)) : {};
         const infoObj = info.status === 'fulfilled' ? (info.value[oppId] || info.value) : {};
 
-        const crestId = infoObj.crestId || statObj.crestId || infoObj.teamId || statObj.teamId || infoObj.customKit?.crestId || null;
         const skillRating = statObj.skillRating || statObj.rating || statObj.sr || null;
+        const division = parseDivision(statObj, infoObj);
 
-        opponentMap.set(String(oppId), { skillRating, crestId });
+        opponentMap.set(String(oppId), { skillRating, division });
       } catch (_) {}
     })
   );
@@ -190,50 +198,13 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
         const enriched = opponentMap.get(String(id));
         if (enriched) {
           if (enriched.skillRating) clubsData[id].skillRating = enriched.skillRating;
-          if (enriched.crestId) clubsData[id].crestId = enriched.crestId;
+          if (enriched.division) clubsData[id].division = enriched.division;
         }
       }
     });
   });
 
   res.json(recent10);
-});
-
-// 5. Backend Crest Image Proxy (Bypasses EA/ProClubsHead CDN Hotlink and CORS restrictions)
-app.get('/api/crest/:crestId', async (req, res) => {
-  const { crestId } = req.params;
-  if (!crestId || !/^\d+$/.test(crestId)) {
-    return res.status(400).send('Invalid crest ID');
-  }
-
-  // CDN endpoints in fallback priority order
-  const sources = [
-    `https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2024/fc/crests/light/previews/crest_${crestId}.png`,
-    `https://proclubshead.com/assets/img/club-crests/light/crest_${crestId}.png`,
-    `https://eafc24.content.easports.com/fifa/fltOnlineAssets/24B947F1-9C4E-481A-B474-04F69B8E6962/2024/fc/crests/light/previews/crest_${crestId}.png`,
-    `https://media.contentapi.ea.com/content/dam/ea/ea-sports-fc/club-crests/${crestId}.png`
-  ];
-
-  for (const url of sources) {
-    try {
-      const response = await fetch(url, {
-        headers: {
-          'User-Agent': EA_HEADERS['User-Agent'],
-          'Referer': 'https://www.ea.com/'
-        }
-      });
-
-      if (response.ok) {
-        const contentType = response.headers.get('content-type') || 'image/png';
-        const buffer = await response.arrayBuffer();
-        res.setHeader('Content-Type', contentType);
-        res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
-        return res.send(Buffer.from(buffer));
-      }
-    } catch (_) {}
-  }
-
-  res.status(404).send('Crest not found');
 });
 
 app.get('*', (req, res) => {
