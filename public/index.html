@@ -97,15 +97,19 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Overview Card (Single Primary Crest on Left) -->
+    <!-- Active Club Overview Card (Single Primary Shield Crest on Left) -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
-        <div id="mainCrestBox" class="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-gray-900 border border-gray-800 flex items-center justify-center p-2 shadow-lg shadow-emerald-950/20 flex-shrink-0">
+        <div id="mainCrestBox" class="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/20 via-emerald-950/40 to-gray-950 border-2 border-emerald-500/40 flex flex-col items-center justify-center p-2 shadow-lg shadow-emerald-950/40 flex-shrink-0">
           <i class="fa-solid fa-shield text-emerald-400 text-3xl"></i>
+          <span class="text-[11px] font-black text-white mt-0.5 tracking-wider" id="heroMonogram">--</span>
         </div>
 
         <div>
-          <h2 id="clubName" class="text-3xl font-extrabold text-white">No Club Loaded</h2>
+          <div class="flex items-center gap-3">
+            <h2 id="clubName" class="text-3xl font-extrabold text-white">No Club Loaded</h2>
+            <span id="clubDivBadge" class="hidden px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">--</span>
+          </div>
           <p id="clubMeta" class="text-gray-400 text-sm mt-1">Enter a club name or ID above to get started</p>
           <div class="flex items-center gap-2 mt-3" id="formGuideContainer">
             <span class="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">Form:</span>
@@ -132,13 +136,13 @@
       </div>
     </section>
 
-    <!-- Recent Matches with Proxied Badges & Clean Team Names -->
+    <!-- Recent Matches with Division, Chaos Tags & Dedicated Opponent SR -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
         </h3>
-        <span class="text-xs text-gray-400">Official club badges, chaos tags, opponent SR & single-MVP breakdown</span>
+        <span class="text-xs text-gray-400">Division tiers, chaos tags, opponent SR & single-MVP impact</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -147,6 +151,7 @@
             <tr>
               <th class="py-3 px-2">Type</th>
               <th class="py-3 px-2">Matchup</th>
+              <th class="py-3 px-2 text-center">Division</th>
               <th class="py-3 px-2 text-center">Opponent SR</th>
               <th class="py-3 px-2 text-center">Score</th>
               <th class="py-3 px-2 text-center">Result</th>
@@ -154,7 +159,7 @@
             </tr>
           </thead>
           <tbody id="recentMatchesTable" class="divide-y border-gray-800">
-            <tr><td colspan="6" class="py-6 text-center text-gray-500">Search for a club to view match history.</td></tr>
+            <tr><td colspan="7" class="py-6 text-center text-gray-500">Search for a club to view match history.</td></tr>
           </tbody>
         </table>
       </div>
@@ -228,23 +233,11 @@
       return rawPlatform.toUpperCase();
     }
 
-    // Helper: Build reliable crest markup using the backend image proxy
-    function renderCrestHtml(name, crestId, sizeClass = 'w-7 h-7') {
+    // Clean inline SVG Shield Badge for opponents
+    function getOpponentShieldSvg(name) {
       const initials = (name || 'FC').substring(0, 2).toUpperCase();
-
-      if (crestId && Number(crestId) > 0) {
-        return `
-          <div class="${sizeClass} rounded-lg bg-gray-900/90 border border-gray-800 flex items-center justify-center p-0.5 overflow-hidden flex-shrink-0 shadow">
-            <img src="${API_BASE}/crest/${crestId}" 
-                 class="w-full h-full object-contain" 
-                 alt="${name}" 
-                 onerror="this.parentElement.outerHTML='<div class=\\'${sizeClass} rounded-lg bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center text-[10px] font-black text-emerald-400 flex-shrink-0 shadow\\'>${initials}</div>'">
-          </div>
-        `;
-      }
-
       return `
-        <div class="${sizeClass} rounded-lg bg-emerald-950/40 border border-emerald-500/30 flex items-center justify-center text-[10px] font-black text-emerald-400 flex-shrink-0 shadow">
+        <div class="w-6 h-6 rounded-md bg-gradient-to-br from-blue-500/20 to-gray-900 border border-blue-500/30 flex items-center justify-center text-[10px] font-black text-blue-300 flex-shrink-0 shadow">
           ${initials}
         </div>
       `;
@@ -422,27 +415,18 @@
       const diffLabel = gDiff > 0 ? `+${gDiff}` : `${gDiff}`;
       const initials = name.substring(0, 2).toUpperCase();
 
-      const crestId = infoObj.crestId || statObj.crestId || infoObj.teamId || statObj.teamId || infoObj.customKit?.crestId;
-
-      // Render Single Primary Crest on the Left
-      const mainBox = document.getElementById('mainCrestBox');
-      if (crestId && Number(crestId) > 0) {
-        mainBox.innerHTML = `
-          <img src="${API_BASE}/crest/${crestId}" 
-               class="w-full h-full object-contain p-1 drop-shadow" 
-               alt="${name}" 
-               onerror="this.parentElement.innerHTML='<div class=\\'flex flex-col items-center justify-center\\'><i class=\\'fa-solid fa-shield text-emerald-400 text-3xl\\'></i><span class=\\'text-[11px] font-black text-white mt-0.5\\'>${initials}</span></div>'">
-        `;
-      } else {
-        mainBox.innerHTML = `
-          <div class="flex flex-col items-center justify-center">
-            <i class="fa-solid fa-shield text-emerald-400 text-3xl"></i>
-            <span class="text-[11px] font-black text-white mt-0.5">${initials}</span>
-          </div>
-        `;
-      }
-
+      // Single Crest on Left
+      document.getElementById('heroMonogram').innerText = initials;
       document.getElementById('clubName').innerText = name;
+
+      // Division Badge next to main name
+      const divBadge = document.getElementById('clubDivBadge');
+      if (data.division) {
+        divBadge.innerText = data.division;
+        divBadge.classList.remove('hidden');
+      } else {
+        divBadge.classList.add('hidden');
+      }
 
       const friendlyPlatform = formatPlatformLabel(platform);
       document.getElementById('clubMeta').innerText = `Club ID: ${clubId} | ${friendlyPlatform}`;
@@ -512,7 +496,7 @@
       return list;
     }
 
-    // Match Box Scores without "vs", with Proxied Crests & Dedicated Opponent SR
+    // Match Box Scores with Division column, Opponent SR & Single MVP
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
       const formContainer = document.getElementById('formBadges');
@@ -522,7 +506,7 @@
       const matchArr = Array.isArray(matches) ? matches : (matches?.matches || []);
 
       if (!matchArr || matchArr.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" class="py-6 text-center text-gray-500">No recent match history found for this club.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" class="py-6 text-center text-gray-500">No recent match history found for this club.</td></tr>';
         formContainer.innerHTML = '<span class="text-xs text-gray-500 font-mono">--</span>';
         return;
       }
@@ -548,13 +532,17 @@
         const oppGoals = Number(oppClub.goals ?? oppClub.score ?? m.goalsAgainst ?? 0);
         const oppName = oppClub.details?.name || oppClub.name || 'Opponent FC';
 
+        // Opponent Division
+        const oppDiv = oppClub.division || 'Div 1';
+        const oppDivBadge = `<span class="inline-block px-2 py-0.5 rounded text-[11px] font-bold bg-gray-800 text-gray-300 border border-gray-700">${oppDiv}</span>`;
+
+        // Opponent Skill Rating in distinct column
         const oppSR = oppClub.skillRating || oppClub.details?.skillRating || oppClub.rating || null;
         const oppSRCell = oppSR 
           ? `<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/30">${oppSR}</span>` 
           : `<span class="inline-block font-mono text-xs text-gray-500 bg-gray-800/80 px-2.5 py-1 rounded">--</span>`;
 
-        const oppCrestId = oppClub.crestId || oppClub.details?.crestId || oppClub.teamId || oppClub.details?.teamId;
-        const oppCrestHtml = renderCrestHtml(oppName, oppCrestId, 'w-6 h-6');
+        const oppShield = getOpponentShieldSvg(oppName);
         const chaosTag = getChaosTag(myGoals, oppGoals, oppSR);
 
         let resultLabel = 'DRAW';
@@ -674,14 +662,15 @@
           <td class="py-3 px-2">${typeBadge}</td>
           <td class="py-3 px-2 font-medium text-white">
             <div class="flex flex-col gap-1">
-              <div class="flex items-center gap-2.5">
-                ${oppCrestHtml}
+              <div class="flex items-center gap-2">
+                ${oppShield}
                 <span class="tracking-wide">${oppName}</span>
                 <i class="fa-solid fa-chevron-down text-[10px] text-gray-500"></i>
               </div>
               ${chaosTag ? `<div>${chaosTag}</div>` : ''}
             </div>
           </td>
+          <td class="py-3 px-2 text-center">${oppDivBadge}</td>
           <td class="py-3 px-2 text-center">${oppSRCell}</td>
           <td class="py-3 px-2 text-center font-bold text-white">${myGoals} - ${oppGoals}</td>
           <td class="py-3 px-2 text-center">
@@ -694,7 +683,7 @@
         detailTr.id = `boxScore_${idx}`;
         detailTr.className = 'hidden bg-gray-900/60 border-b border-gray-800';
         detailTr.innerHTML = `
-          <td colspan="6" class="p-4">
+          <td colspan="7" class="p-4">
             <div class="text-xs uppercase font-bold text-gray-400 tracking-wider mb-2 flex items-center justify-between">
               <span class="flex items-center gap-2">
                 <i class="fa-solid fa-chart-simple text-emerald-400"></i> Match Influence & Box Score
