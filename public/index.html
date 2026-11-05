@@ -97,7 +97,7 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Overview Card (Single Clean Hero Badge) -->
+    <!-- Active Club Overview Card (Single Primary Crest Display) -->
     <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
       <div class="flex items-center gap-5">
         <div id="heroCrestBox" class="w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500/10 to-gray-900 border border-gray-800 flex items-center justify-center p-2 shadow-lg shadow-emerald-950/20 flex-shrink-0">
@@ -135,7 +135,7 @@
       </div>
     </section>
 
-    <!-- Recent Matches with Dedicated Vibe Column & Opponent SR -->
+    <!-- Recent Matches with Dedicated Chaos Vibe Column -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
@@ -233,7 +233,6 @@
       return rawPlatform.toUpperCase();
     }
 
-    // Direct badge renderer connecting through proxy with FotMob and EA CDN fallbacks
     function renderCrestHtml(name, crestId, sizeClass = 'w-7 h-7') {
       const initials = (name || 'FC').substring(0, 2).toUpperCase();
 
@@ -255,7 +254,6 @@
       `;
     }
 
-    // Contextual Match Chaos Emoji + Tooltip
     function getChaosEmoji(myGoals, oppGoals, oppSR) {
       const totalGoals = myGoals + oppGoals;
       const srNum = Number(oppSR || 0);
@@ -428,7 +426,6 @@
 
       const crestId = data.crestId || infoObj.crestId || statObj.crestId || infoObj.teamId || statObj.teamId;
 
-      // Render Single Primary Crest on Left
       const heroBox = document.getElementById('heroCrestBox');
       if (crestId && Number(crestId) > 0) {
         heroBox.innerHTML = `
@@ -448,7 +445,6 @@
 
       document.getElementById('clubName').innerText = name;
 
-      // Division Badge next to main name
       const divBadge = document.getElementById('clubDivBadge');
       if (data.division) {
         divBadge.innerText = data.division;
@@ -572,7 +568,6 @@
         const oppCrestId = oppClub.crestId || oppClub.details?.crestId || oppClub.teamId || oppClub.details?.teamId;
         const oppCrestHtml = renderCrestHtml(oppName, oppCrestId, 'w-6 h-6');
 
-        // Dedicated Vibe column with hover tooltip
         const chaos = getChaosEmoji(myGoals, oppGoals, oppSR);
         const vibeCell = `
           <div class="group relative inline-flex items-center justify-center cursor-pointer select-none">
@@ -617,7 +612,6 @@
           }
         }
 
-        // Parse individual players in this match & determine strictly ONE MVP
         const playersData = m.players?.[thisId] || {};
         const playerStats = Object.values(playersData);
 
