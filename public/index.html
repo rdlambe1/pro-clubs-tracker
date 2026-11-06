@@ -63,33 +63,44 @@
       pointer-events: none;
     }
 
-    /* Authentic FC27 Gold Rare Ultimate Team Shield Card */
+    /* Authentic FC27 Ultimate Team Shield Card (Gold / Silver / Bronze) */
     .fc27-card-wrapper {
       width: 345px;
-      height: 510px;
+      height: 495px;
       position: relative;
-      filter: drop-shadow(0 25px 40px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 25px rgba(234, 179, 8, 0.28));
+      filter: drop-shadow(0 25px 40px rgba(0, 0, 0, 0.85));
       user-select: none;
     }
     .fc27-font {
       font-family: 'Oswald', sans-serif;
-      color: #2b2108;
     }
-    .playstyle-plus-diamond {
+
+    /* Official FUTBIN / EA FC27 PlayStyle Pentagon-Diamond Badge */
+    .ps-plus-badge {
       width: 44px;
       height: 44px;
-      background: linear-gradient(135deg, #fef08a 0%, #eab308 50%, #a16207 100%);
-      border: 2.5px solid #2b2108;
-      transform: rotate(45deg);
-      box-shadow: 0 6px 14px rgba(0,0,0,0.45), inset 0 0 6px #ffffff;
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.55));
+      transition: transform 0.15s ease;
     }
-    .playstyle-plus-diamond i {
-      transform: rotate(-45deg);
-      color: #1f1705;
-      font-size: 18px;
+    .ps-plus-badge:hover {
+      transform: scale(1.15);
+    }
+    .ps-silver-badge {
+      width: 34px;
+      height: 34px;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.45));
+      transition: transform 0.15s ease;
+    }
+    .ps-silver-badge:hover {
+      transform: scale(1.15);
     }
   </style>
 </head>
@@ -261,7 +272,7 @@
           <h3 class="text-lg font-bold text-white flex items-center gap-2">
             <i class="fa-solid fa-chess-board text-emerald-400"></i> Most Used Formation & Tactic
           </h3>
-          <p id="formationSubtitle" class="text-xs text-gray-400 mt-0.5">Click any player on the pitch to inspect their FC27 Ultimate Team Card, Archetype & PlayStyles</p>
+          <p id="formationSubtitle" class="text-xs text-gray-400 mt-0.5">Click any player on the pitch to inspect their FC27 Card (Gold >84, Silver <85, Bronze <76) & PlayStyles</p>
         </div>
         <span id="formationBadge" class="text-xs font-semibold px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">--</span>
       </div>
@@ -286,7 +297,7 @@
           <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
         </h3>
         <span class="text-xs text-gray-400">
-          Click player row for <b class="text-yellow-400">FC27 UT Card</b> • Click <span class="text-blue-400 font-bold">♂</span>/<span class="text-pink-400 font-bold">♀</span> icon to toggle gender
+          Click row for <b class="text-yellow-400">FC27 UT Card</b> • Click <span class="text-blue-400 font-bold">♂</span>/<span class="text-pink-400 font-bold">♀</span> to flip gender • Click <i class="fa-solid fa-palette text-emerald-400"></i> inside card to set skin & hair
         </span>
       </div>
 
@@ -295,7 +306,7 @@
           <thead class="border-b border-gray-800 text-gray-400 uppercase text-xs">
             <tr>
               <th class="py-3 px-2">Player</th>
-              <th class="py-3 px-2 text-center">OVR</th>
+              <th class="py-3 px-2 text-center">OVR (Tier)</th>
               <th class="py-3 px-2 text-center">Pos</th>
               <th class="py-3 px-2 text-center">Matches</th>
               <th class="py-3 px-2 text-center">Goals</th>
@@ -316,147 +327,177 @@
 
   </div>
 
-  <!-- Authentic FC27 Gold Rare Ultimate Team Card Modal with Archetype & Active PlayStyles -->
+  <!-- Authentic FC27 Ultimate Team Card Modal (Dynamic Bronze / Silver / Gold + Left-Edge PlayStyle Badges + Appearance Editor) -->
   <div id="futModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center z-50 p-4" onclick="closeFutModal(event)">
-    <div class="fc27-card-wrapper" onclick="event.stopPropagation()">
+    <div class="flex flex-col items-center gap-3" onclick="event.stopPropagation()">
       
-      <!-- Close Button -->
-      <button onclick="closeFutModal()" class="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gray-900 border border-yellow-500/60 text-yellow-400 hover:bg-yellow-500 hover:text-black transition flex items-center justify-center z-40 shadow-lg">
-        <i class="fa-solid fa-xmark"></i>
-      </button>
+      <div class="fc27-card-wrapper">
+        <!-- Close Button -->
+        <button onclick="closeFutModal()" class="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gray-900 border border-yellow-500/60 text-yellow-400 hover:bg-yellow-500 hover:text-black transition flex items-center justify-center z-40 shadow-lg">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
 
-      <!-- SVG Gold Rare FC27 Shield Background -->
-      <svg viewBox="0 0 345 510" class="w-full h-full absolute inset-0 pointer-events-none">
-        <defs>
-          <linearGradient id="fc27GoldBase" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#fef08a" />
-            <stop offset="25%" stop-color="#facc15" />
-            <stop offset="55%" stop-color="#eab308" />
-            <stop offset="80%" stop-color="#ca8a04" />
-            <stop offset="100%" stop-color="#854d0e" />
-          </linearGradient>
-          <linearGradient id="fc27LowerPlate" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="#fde047" stop-opacity="0.94" />
-            <stop offset="65%" stop-color="#eab308" stop-opacity="0.96" />
-            <stop offset="100%" stop-color="#a16207" stop-opacity="0.99" />
-          </linearGradient>
-          <linearGradient id="fc27BorderRim" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#ffffff" />
-            <stop offset="30%" stop-color="#fde047" />
-            <stop offset="70%" stop-color="#a16207" />
-            <stop offset="100%" stop-color="#fef08a" />
-          </linearGradient>
-          <linearGradient id="foilBeam" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stop-color="#ffffff" stop-opacity="0" />
-            <stop offset="45%" stop-color="#fef9c3" stop-opacity="0.55" />
-            <stop offset="55%" stop-color="#ffffff" stop-opacity="0.8" />
-            <stop offset="70%" stop-color="#ca8a04" stop-opacity="0.25" />
-            <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
-          </linearGradient>
-          <clipPath id="fc27ShieldClip">
-            <path d="M 58 24 Q 172.5 -2 287 24 C 300 40 316 48 330 54 L 330 398 C 330 450 248 482 172.5 502 C 97 482 15 450 15 398 L 15 54 C 29 48 45 40 58 24 Z" />
-          </clipPath>
-        </defs>
+        <!-- Dynamic SVG Shield Background (Gold >84, Silver <85, Bronze <76) -->
+        <svg viewBox="0 0 345 495" class="w-full h-full absolute inset-0 pointer-events-none">
+          <defs>
+            <linearGradient id="fc27CardBase" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop id="stopBase1" offset="0%" stop-color="#fef08a" />
+              <stop id="stopBase2" offset="25%" stop-color="#facc15" />
+              <stop id="stopBase3" offset="55%" stop-color="#eab308" />
+              <stop id="stopBase4" offset="80%" stop-color="#ca8a04" />
+              <stop id="stopBase5" offset="100%" stop-color="#854d0e" />
+            </linearGradient>
+            <linearGradient id="fc27LowerPlate" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop id="stopPlate1" offset="0%" stop-color="#fde047" stop-opacity="0.94" />
+              <stop id="stopPlate2" offset="65%" stop-color="#eab308" stop-opacity="0.96" />
+              <stop id="stopPlate3" offset="100%" stop-color="#a16207" stop-opacity="0.99" />
+            </linearGradient>
+            <linearGradient id="fc27BorderRim" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop id="stopRim1" offset="0%" stop-color="#ffffff" />
+              <stop id="stopRim2" offset="30%" stop-color="#fde047" />
+              <stop id="stopRim3" offset="70%" stop-color="#a16207" />
+              <stop id="stopRim4" offset="100%" stop-color="#fef08a" />
+            </linearGradient>
+            <linearGradient id="foilBeam" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#ffffff" stop-opacity="0" />
+              <stop id="stopBeamMid" offset="45%" stop-color="#fef9c3" stop-opacity="0.55" />
+              <stop offset="55%" stop-color="#ffffff" stop-opacity="0.8" />
+              <stop id="stopBeamDark" offset="70%" stop-color="#ca8a04" stop-opacity="0.25" />
+              <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+            </linearGradient>
+            <clipPath id="fc27ShieldClip">
+              <path d="M 58 24 Q 172.5 -2 287 24 C 300 40 316 48 330 54 L 330 385 C 330 437 248 469 172.5 488 C 97 469 15 437 15 385 L 15 54 C 29 48 45 40 58 24 Z" />
+            </clipPath>
+          </defs>
 
-        <g clip-path="url(#fc27ShieldClip)">
-          <rect width="345" height="510" fill="url(#fc27GoldBase)" />
+          <g clip-path="url(#fc27ShieldClip)">
+            <rect width="345" height="495" fill="url(#fc27CardBase)" />
+            
+            <!-- 3D Diagonal Crystal Foil Streaks (Like Messi / Manzambi / Lukic Cards) -->
+            <polygon points="-20,255 360,25 360,90 -20,305" fill="url(#foilBeam)" />
+            <polygon points="30,285 365,80 365,150 30,335" fill="url(#foilBeam)" opacity="0.65" />
+            <line id="foilLine1" x1="-10" y1="240" x2="355" y2="20" stroke="#fef9c3" stroke-width="2" opacity="0.7" />
+            <line id="foilLine2" x1="20" y1="270" x2="355" y2="70" stroke="#854d0e" stroke-width="3" opacity="0.45" />
+            <line id="foilLine3" x1="25" y1="275" x2="355" y2="75" stroke="#fef08a" stroke-width="1.5" opacity="0.8" />
+
+            <!-- Lower Stat Plate -->
+            <rect x="0" y="268" width="345" height="227" fill="url(#fc27LowerPlate)" />
+            <line id="plateDividerLine" x1="15" y1="268" x2="330" y2="268" stroke="#fef9c3" stroke-width="2" opacity="0.9" />
+          </g>
+
+          <!-- Outer Metallic Shield Border -->
+          <path d="M 58 24 Q 172.5 -2 287 24 C 300 40 316 48 330 54 L 330 385 C 330 437 248 469 172.5 488 C 97 469 15 437 15 385 L 15 54 C 29 48 45 40 58 24 Z" 
+                fill="none" stroke="url(#fc27BorderRim)" stroke-width="4.5" />
+          <path d="M 62 30 Q 172.5 6 283 30 C 295 44 309 51 322 57 L 322 382 C 322 430 244 461 172.5 479 C 101 461 23 430 23 382 L 23 57 C 36 51 50 44 62 30 Z" 
+                fill="none" stroke="#ffffff" stroke-width="1" opacity="0.55" />
+        </svg>
+
+        <!-- Left-Edge PlayStyle+ & Silver PlayStyle Pentagon-Diamonds (Positioned like Messi Card) -->
+        <div id="futLeftPlaystylesStack" class="absolute left-[-6px] top-[148px] z-30 flex flex-col items-center gap-1.5">
+          <!-- Populated dynamically with official vector PlayStyle diamonds -->
+        </div>
+
+        <!-- Top Left: OVR + Position + Gender Badge -->
+        <div id="futTopLeftText" class="absolute top-[46px] left-[38px] z-20 flex flex-col items-center leading-none text-[#2b2108]">
+          <div id="futOvr" class="fc27-font text-[56px] font-extrabold tracking-tighter leading-none">85</div>
+          <div id="futPos" class="fc27-font text-[22px] font-bold uppercase tracking-wider mt-0.5">CAM</div>
+          <div id="futGenderBadge" class="mt-1 px-2 py-0.5 rounded-full bg-black/15 text-xs font-black">♂</div>
+        </div>
+
+        <!-- Center Player Headshot / Avatar -->
+        <div class="absolute top-[36px] right-[24px] w-[205px] h-[232px] z-10 flex items-end justify-center overflow-hidden pointer-events-none">
+          <img id="futAvatar" src="" class="w-[195px] h-[195px] object-contain drop-shadow-[0_12px_12px_rgba(0,0,0,0.45)] transform translate-y-2" alt="Pro">
+        </div>
+
+        <!-- Lower Section: Archetype, Name, 6-Column Stats & Bottom Crest Trio -->
+        <div id="futLowerTextContainer" class="absolute top-[272px] inset-x-[24px] bottom-[18px] z-20 flex flex-col justify-between items-center text-[#2b2108]">
           
-          <!-- 3D Diagonal Gold Crystal Foil Streaks -->
-          <polygon points="-20,255 360,25 360,90 -20,305" fill="url(#foilBeam)" />
-          <polygon points="30,285 365,80 365,150 30,335" fill="url(#foilBeam)" opacity="0.65" />
-          <line x1="-10" y1="240" x2="355" y2="20" stroke="#fef9c3" stroke-width="2" opacity="0.7" />
-          <line x1="20" y1="270" x2="355" y2="70" stroke="#854d0e" stroke-width="3" opacity="0.45" />
-          <line x1="25" y1="275" x2="355" y2="75" stroke="#fef08a" stroke-width="1.5" opacity="0.8" />
+          <!-- Archetype Pill + Player Name -->
+          <div class="w-full text-center border-b border-current/25 pb-1">
+            <div id="futArchetypeBadge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/75 text-yellow-300 text-[9px] font-black uppercase tracking-widest shadow-sm">
+              <i class="fa-solid fa-crown text-[8px]"></i> MAESTRO ARCHETYPE
+            </div>
+            <div id="futName" class="text-[26px] font-black tracking-tight truncate px-2 leading-tight mt-0.5">MESSI</div>
+          </div>
 
-          <!-- Lower Stat Plate -->
-          <rect x="0" y="268" width="345" height="242" fill="url(#fc27LowerPlate)" />
-          <line x1="15" y1="268" x2="330" y2="268" stroke="#fef9c3" stroke-width="2" opacity="0.9" />
-        </g>
+          <!-- 6-Column Vertical Stats (PAC | SHO | PAS | DRI | DEF | PHY) -->
+          <div class="w-full grid grid-cols-6 gap-1 px-1 text-center fc27-font my-0.5">
+            <div class="flex flex-col items-center">
+              <span class="text-[13px] font-bold tracking-wider opacity-85">PAC</span>
+              <span id="futPac" class="text-[25px] font-extrabold leading-tight">75</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <span class="text-[13px] font-bold tracking-wider opacity-85">SHO</span>
+              <span id="futSho" class="text-[25px] font-extrabold leading-tight">84</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <span class="text-[13px] font-bold tracking-wider opacity-85">PAS</span>
+              <span id="futPas" class="text-[25px] font-extrabold leading-tight">85</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <span class="text-[13px] font-bold tracking-wider opacity-85">DRI</span>
+              <span id="futDri" class="text-[25px] font-extrabold leading-tight">89</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <span class="text-[13px] font-bold tracking-wider opacity-85">DEF</span>
+              <span id="futDef" class="text-[25px] font-extrabold leading-tight">32</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <span class="text-[13px] font-bold tracking-wider opacity-85">PHY</span>
+              <span id="futPhy" class="text-[25px] font-extrabold leading-tight">62</span>
+            </div>
+          </div>
 
-        <!-- Outer Metallic Shield Border -->
-        <path d="M 58 24 Q 172.5 -2 287 24 C 300 40 316 48 330 54 L 330 398 C 330 450 248 482 172.5 502 C 97 482 15 450 15 398 L 15 54 C 29 48 45 40 58 24 Z" 
-              fill="none" stroke="url(#fc27BorderRim)" stroke-width="4.5" />
-        <path d="M 62 30 Q 172.5 6 283 30 C 295 44 309 51 322 57 L 322 395 C 322 443 244 474 172.5 493 C 101 474 23 443 23 395 L 23 57 C 36 51 50 44 62 30 Z" 
-              fill="none" stroke="#fef9c3" stroke-width="1" opacity="0.55" />
-      </svg>
+          <!-- Bottom Trio: Nation Flag | Pro Clubs League Emblem | Club Crest -->
+          <div class="flex items-center justify-center gap-5 pb-1 pt-0.5">
+            <img id="futFlag" src="" class="w-7 h-4.5 object-cover rounded-[2px] shadow-sm border border-current/30" alt="Nation">
+            <div class="flex flex-col items-center opacity-90" title="EA Sports FC Pro Clubs">
+              <i class="fa-solid fa-shield-halved text-lg leading-none"></i>
+              <span class="text-[6px] font-black tracking-widest uppercase mt-0.5">CLUBS</span>
+            </div>
+            <img id="futClubCrest" src="" class="w-7 h-7 object-contain drop-shadow-sm" alt="Club Crest">
+          </div>
 
-      <!-- PlayStyle+ Signature Diamond Badge on Left Edge -->
-      <div class="group absolute left-[-4px] top-[222px] z-30 cursor-pointer">
-        <div class="playstyle-plus-diamond">
-          <i id="futPlaystylePlusIcon" class="fa-solid fa-crosshairs"></i>
         </div>
-        <span id="futPlaystylePlusLabel" class="pointer-events-none absolute left-14 top-1/2 -translate-y-1/2 hidden group-hover:inline-block bg-gray-950 text-yellow-300 border border-yellow-400/50 text-[10px] font-black uppercase px-2 py-0.5 rounded shadow-xl whitespace-nowrap">
-          FINESSE SHOT+
-        </span>
       </div>
 
-      <!-- Top Left: OVR + Position + Gender Badge -->
-      <div class="absolute top-[48px] left-[38px] z-20 flex flex-col items-center leading-none">
-        <div id="futOvr" class="fc27-font text-[56px] font-extrabold tracking-tighter leading-none">91</div>
-        <div id="futPos" class="fc27-font text-[22px] font-bold uppercase tracking-wider mt-0.5">ST</div>
-        <div id="futGenderBadge" class="mt-1.5 px-2 py-0.5 rounded-full bg-black/15 text-[#2b2108] text-xs font-black">♂</div>
+      <!-- Pro Appearance Customizer Bar (Gender, Skin Tone & Hair Color) -->
+      <div class="bg-gray-900/95 border border-gray-700 rounded-xl px-4 py-3 w-[345px] shadow-2xl space-y-2.5">
+        <div class="flex items-center justify-between border-b border-gray-800 pb-1.5">
+          <span class="text-[11px] font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-palette"></i> Customize Pro Appearance
+          </span>
+          <button id="modalGenderToggleBtn" class="text-[11px] font-bold px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-white border border-gray-600 transition">
+            Flip Gender (♂/♀)
+          </button>
+        </div>
+
+        <!-- Skin Tone Swatches -->
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] uppercase font-bold text-gray-400">Skin Tone:</span>
+          <div class="flex items-center gap-2" id="skinSwatches">
+            <button onclick="updateProLook('skin', 'f2d3b1')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#f2d3b1" title="Light / Fair"></button>
+            <button onclick="updateProLook('skin', 'ecad80')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#ecad80" title="Warm / Tan"></button>
+            <button onclick="updateProLook('skin', 'd08b5b')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#d08b5b" title="Olive / Medium"></button>
+            <button onclick="updateProLook('skin', '9e5622')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#9e5622" title="Brown"></button>
+            <button onclick="updateProLook('skin', '763900')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#763900" title="Dark"></button>
+          </div>
+        </div>
+
+        <!-- Hair Color Swatches -->
+        <div class="flex items-center justify-between">
+          <span class="text-[10px] uppercase font-bold text-gray-400">Hair Colour:</span>
+          <div class="flex items-center gap-2" id="hairSwatches">
+            <button onclick="updateProLook('hair', '0e0e0e')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#0e0e0e" title="Black"></button>
+            <button onclick="updateProLook('hair', '562306')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#562306" title="Dark Brown"></button>
+            <button onclick="updateProLook('hair', '6a4e35')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#6a4e35" title="Light Brown"></button>
+            <button onclick="updateProLook('hair', 'e5d05c')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#e5d05c" title="Blonde"></button>
+            <button onclick="updateProLook('hair', 'cb6820')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#cb6820" title="Ginger / Red"></button>
+            <button onclick="updateProLook('hair', 'afafaf')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#afafaf" title="Silver / Grey"></button>
+          </div>
+        </div>
       </div>
 
-      <!-- Center Player Headshot / Avatar -->
-      <div class="absolute top-[36px] right-[26px] w-[205px] h-[232px] z-10 flex items-end justify-center overflow-hidden pointer-events-none">
-        <img id="futAvatar" src="" class="w-[190px] h-[190px] object-contain drop-shadow-[0_12px_12px_rgba(0,0,0,0.45)] transform translate-y-2" alt="Pro">
-      </div>
-
-      <!-- Lower Section: Archetype, Name, 6-Column Stats, PlayStyles & Crest Trio -->
-      <div class="absolute top-[271px] inset-x-[24px] bottom-[16px] z-20 flex flex-col justify-between items-center">
-        
-        <!-- Archetype Banner + Player Name -->
-        <div class="w-full text-center border-b border-[#2b2108]/25 pb-1">
-          <div id="futArchetypeBadge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#2b2108] text-yellow-300 text-[9px] font-black uppercase tracking-widest shadow-sm">
-            <i class="fa-solid fa-bolt text-[8px]"></i> FINISHER ARCHETYPE
-          </div>
-          <div id="futName" class="text-[24px] font-black text-[#2b2108] tracking-tight truncate px-2 leading-tight mt-0.5">PLAYER</div>
-        </div>
-
-        <!-- 6-Column Vertical Stats (PAC | SHO | PAS | DRI | DEF | PHY) -->
-        <div class="w-full grid grid-cols-6 gap-1 px-1 text-center fc27-font">
-          <div class="flex flex-col items-center">
-            <span class="text-[12px] font-bold tracking-wider opacity-85">PAC</span>
-            <span id="futPac" class="text-[23px] font-extrabold leading-tight">96</span>
-          </div>
-          <div class="flex flex-col items-center">
-            <span class="text-[12px] font-bold tracking-wider opacity-85">SHO</span>
-            <span id="futSho" class="text-[23px] font-extrabold leading-tight">91</span>
-          </div>
-          <div class="flex flex-col items-center">
-            <span class="text-[12px] font-bold tracking-wider opacity-85">PAS</span>
-            <span id="futPas" class="text-[23px] font-extrabold leading-tight">80</span>
-          </div>
-          <div class="flex flex-col items-center">
-            <span class="text-[12px] font-bold tracking-wider opacity-85">DRI</span>
-            <span id="futDri" class="text-[23px] font-extrabold leading-tight">92</span>
-          </div>
-          <div class="flex flex-col items-center">
-            <span class="text-[12px] font-bold tracking-wider opacity-85">DEF</span>
-            <span id="futDef" class="text-[23px] font-extrabold leading-tight">29</span>
-          </div>
-          <div class="flex flex-col items-center">
-            <span class="text-[12px] font-bold tracking-wider opacity-85">PHY</span>
-            <span id="futPhy" class="text-[23px] font-extrabold leading-tight">76</span>
-          </div>
-        </div>
-
-        <!-- Active PlayStyles Row -->
-        <div id="futPlaystylesRow" class="flex flex-wrap items-center justify-center gap-1 px-1">
-          <!-- Populated dynamically -->
-        </div>
-
-        <!-- Bottom Trio: Nation Flag | Pro Clubs Shield | Club Crest -->
-        <div class="flex items-center justify-center gap-5 pb-1">
-          <img id="futFlag" src="" class="w-6 h-4 object-cover rounded-[2px] shadow-sm border border-[#2b2108]/30" alt="Nation">
-          <div class="flex flex-col items-center text-[#2b2108]" title="EA Sports FC Pro Clubs">
-            <i class="fa-solid fa-shield-halved text-base leading-none"></i>
-            <span class="text-[6px] font-black tracking-widest uppercase mt-0.5">CLUBS</span>
-          </div>
-          <img id="futClubCrest" src="" class="w-6 h-6 object-contain drop-shadow-sm" alt="Club Crest">
-        </div>
-
-      </div>
     </div>
   </div>
 
@@ -465,41 +506,66 @@
     let GLOBAL_MEMBERS = [];
     let RECENT_FORM_MAP = {};
     let CURRENT_CLUB_CREST_URL = '';
+    let ACTIVE_MODAL_PLAYER = null;
 
-    // Universal Gender Storage (No hardcoded usernames)
-    function getGenderOverrides() {
+    // Universal Player Appearance Store (Gender, Skin Color, Hair Color)
+    function getAppearanceMap() {
       try {
-        return JSON.parse(localStorage.getItem('proClubsGenderMap') || '{}');
+        return JSON.parse(localStorage.getItem('proClubsAppearanceV2') || '{}');
       } catch (_) {
         return {};
       }
     }
 
-    function resolvePlayerGender(playerObj) {
+    function getPlayerAppearance(playerObj) {
       const rawName = typeof playerObj === 'string' ? playerObj : (playerObj?.name || playerObj?.proName || '');
       const key = String(rawName).toLowerCase().trim();
-      const overrides = getGenderOverrides();
+      const map = getAppearanceMap();
+      const saved = map[key] || {};
 
-      if (overrides[key]) return overrides[key];
-      if (playerObj && typeof playerObj === 'object' && playerObj.inferredGender === 'female') return 'female';
-      return 'male';
+      //Deterministic default skin and hair from gamertag hash if not customized
+      const skinOptions = ['f2d3b1', 'ecad80', 'd08b5b', '9e5622', '763900'];
+      const hairOptions = ['0e0e0e', '562306', '6a4e35', 'e5d05c', 'cb6820', 'afafaf'];
+      let hash = 0;
+      for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash);
+
+      const defaultGender = (playerObj && typeof playerObj === 'object' && playerObj.inferredGender === 'female') ? 'female' : 'male';
+
+      return {
+        gender: saved.gender || defaultGender,
+        skin: saved.skin || skinOptions[Math.abs(hash) % skinOptions.length],
+        hair: saved.hair || hairOptions[Math.abs(hash >> 3) % hairOptions.length]
+      };
+    }
+
+    function savePlayerAppearance(playerName, updates) {
+      const key = String(playerName || '').toLowerCase().trim();
+      if (!key) return;
+      const map = getAppearanceMap();
+      const memberObj = GLOBAL_MEMBERS.find(m => String(m.name || m.proName || '').toLowerCase().trim() === key);
+      const current = getPlayerAppearance(memberObj || playerName);
+      map[key] = { ...current, ...updates };
+      localStorage.setItem('proClubsAppearanceV2', JSON.stringify(map));
     }
 
     function togglePlayerGender(event, playerName) {
       if (event) event.stopPropagation();
-      const key = String(playerName || '').toLowerCase().trim();
-      if (!key) return;
-
-      const memberObj = GLOBAL_MEMBERS.find(m => String(m.name || m.proName || '').toLowerCase().trim() === key);
-      const current = resolvePlayerGender(memberObj || playerName);
-      const next = current === 'female' ? 'male' : 'female';
-
-      const overrides = getGenderOverrides();
-      overrides[key] = next;
-      localStorage.setItem('proClubsGenderMap', JSON.stringify(overrides));
+      const memberObj = GLOBAL_MEMBERS.find(m => (m.name || m.proName) === playerName);
+      const current = getPlayerAppearance(memberObj || playerName);
+      const nextGender = current.gender === 'female' ? 'male' : 'female';
+      savePlayerAppearance(playerName, { gender: nextGender });
 
       renderMembers(GLOBAL_MEMBERS);
       buildDynamicPitchTactic(GLOBAL_MEMBERS);
+      if (ACTIVE_MODAL_PLAYER === playerName) openFutModal(playerName);
+    }
+
+    function updateProLook(type, hexValue) {
+      if (!ACTIVE_MODAL_PLAYER) return;
+      savePlayerAppearance(ACTIVE_MODAL_PLAYER, { [type]: hexValue });
+      renderMembers(GLOBAL_MEMBERS);
+      buildDynamicPitchTactic(GLOBAL_MEMBERS);
+      openFutModal(ACTIVE_MODAL_PLAYER);
     }
 
     const EA_NATION_TO_ISO = {
@@ -514,30 +580,147 @@
       return `https://flagcdn.com/w40/${code}.png`;
     }
 
-    // Reliable Avatar Generator using DiceBear v9 valid hair presets for both genders
-    function getPlayerAvatarUrl(playerName, genderOverride = null) {
+    // Builds Avatar URL with exact Gender, Skin Tone & Hair Color
+    function getPlayerAvatarUrl(playerName) {
       const seed = encodeURIComponent(String(playerName || 'Pro').trim());
       const memberObj = GLOBAL_MEMBERS.find(m => (m.name || m.proName) === playerName);
-      const gender = genderOverride || resolvePlayerGender(memberObj || playerName);
+      const look = getPlayerAppearance(memberObj || playerName);
 
-      if (gender === 'female') {
-        return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&hair=long01,long02,long03,long04,long05,long06,long07,long08,long09,long10,long11,long12,long13,long14,long15,long16&backgroundColor=831843,4c1d95,1e3a8a,064e3b`;
-      }
-      return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&hair=short01,short02,short03,short04,short05,short06,short07,short08,short09,short10,short11,short12,short13,short14,short15,short16&backgroundColor=064e3b,1e3a8a,4c1d95,78350f,111827`;
+      const hairStyles = look.gender === 'female'
+        ? 'long01,long02,long03,long04,long05,long06,long07,long08,long09,long10,long11,long12,long13,long14,long15,long16'
+        : 'short01,short02,short03,short04,short05,short06,short07,short08,short09,short10,short11,short12,short13,short14,short15,short16';
+
+      return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&hair=${hairStyles}&skinColor=${look.skin}&hairColor=${look.hair}`;
     }
 
     function getGenderSymbolHtml(playerObj) {
       const name = typeof playerObj === 'string' ? playerObj : (playerObj?.name || playerObj?.proName || '');
       const safeJsName = String(name).replace(/'/g, "\\'");
-      const isFemale = resolvePlayerGender(playerObj) === 'female';
+      const look = getPlayerAppearance(playerObj);
 
-      if (isFemale) {
+      if (look.gender === 'female') {
         return `<button onclick="togglePlayerGender(event, '${safeJsName}')" class="text-pink-400 hover:text-pink-300 font-black text-sm px-1 rounded hover:bg-pink-500/10 transition" title="Female Pro (Click to toggle)">♀</button>`;
       }
       return `<button onclick="togglePlayerGender(event, '${safeJsName}')" class="text-blue-400 hover:text-blue-300 font-black text-sm px-1 rounded hover:bg-blue-500/10 transition" title="Male Pro (Click to toggle)">♂</button>`;
     }
 
-    // Derives Pro Archetype & Active PlayStyles from EA proStyle and live performance telemetry
+    // Card Tier Resolver: Bronze <76, Silver <85, Gold >84
+    function getCardTierTheme(ovr) {
+      const rating = Number(ovr || 75);
+      if (rating < 76) {
+        return {
+          tier: 'BRONZE',
+          badgeClass: 'bg-amber-900/40 text-amber-300 border-amber-600/50',
+          textColor: '#271406',
+          baseStops: ['#f7d4b6', '#e29e6b', '#c67a43', '#9c5525', '#5e2d0d'],
+          plateStops: ['#f2c29b', '#c87d48', '#85461b'],
+          rimStops: ['#ffffff', '#f5cba7', '#7c3f19', '#f7d4b6'],
+          beamMid: '#fae5d3',
+          beamDark: '#7c3f19'
+        };
+      }
+      if (rating < 85) {
+        return {
+          tier: 'SILVER',
+          badgeClass: 'bg-slate-700/50 text-slate-200 border-slate-400/50',
+          textColor: '#1e293b',
+          baseStops: ['#ffffff', '#e2e8f0', '#cbd5e1', '#94a3b8', '#475569'],
+          plateStops: ['#f1f5f9', '#cbd5e1', '#64748b'],
+          rimStops: ['#ffffff', '#e2e8f0', '#475569', '#f8fafc'],
+          beamMid: '#ffffff',
+          beamDark: '#475569'
+        };
+      }
+      return {
+        tier: 'GOLD',
+        badgeClass: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50',
+        textColor: '#2b2108',
+        baseStops: ['#fef08a', '#facc15', '#eab308', '#ca8a04', '#854d0e'],
+        plateStops: ['#fde047', '#eab308', '#a16207'],
+        rimStops: ['#ffffff', '#fde047', '#a16207', '#fef08a'],
+        beamMid: '#fef9c3',
+        beamDark: '#ca8a04'
+      };
+    }
+
+    function applyCardTierColors(ovr) {
+      const theme = getCardTierTheme(ovr);
+      document.getElementById('stopBase1').setAttribute('stop-color', theme.baseStops[0]);
+      document.getElementById('stopBase2').setAttribute('stop-color', theme.baseStops[1]);
+      document.getElementById('stopBase3').setAttribute('stop-color', theme.baseStops[2]);
+      document.getElementById('stopBase4').setAttribute('stop-color', theme.baseStops[3]);
+      document.getElementById('stopBase5').setAttribute('stop-color', theme.baseStops[4]);
+
+      document.getElementById('stopPlate1').setAttribute('stop-color', theme.plateStops[0]);
+      document.getElementById('stopPlate2').setAttribute('stop-color', theme.plateStops[1]);
+      document.getElementById('stopPlate3').setAttribute('stop-color', theme.plateStops[2]);
+
+      document.getElementById('stopRim1').setAttribute('stop-color', theme.rimStops[0]);
+      document.getElementById('stopRim2').setAttribute('stop-color', theme.rimStops[1]);
+      document.getElementById('stopRim3').setAttribute('stop-color', theme.rimStops[2]);
+      document.getElementById('stopRim4').setAttribute('stop-color', theme.rimStops[3]);
+
+      document.getElementById('stopBeamMid').setAttribute('stop-color', theme.beamMid);
+      document.getElementById('stopBeamDark').setAttribute('stop-color', theme.beamDark);
+
+      document.getElementById('foilLine1').setAttribute('stroke', theme.beamMid);
+      document.getElementById('foilLine2').setAttribute('stroke', theme.beamDark);
+      document.getElementById('foilLine3').setAttribute('stroke', theme.baseStops[0]);
+      document.getElementById('plateDividerLine').setAttribute('stroke', theme.beamMid);
+
+      document.getElementById('futTopLeftText').style.color = theme.textColor;
+      document.getElementById('futLowerTextContainer').style.color = theme.textColor;
+    }
+
+    // Renders an Authentic FUTBIN / EA FC27 PlayStyle Pentagon-Diamond SVG Badge (Gold PlayStyle+ or Silver PlayStyle)
+    function renderPlaystyleDiamondHtml(ps, isPlus = false) {
+      if (isPlus) {
+        return `
+          <div class="group ps-plus-badge cursor-pointer">
+            <svg viewBox="0 0 100 100" class="w-full h-full">
+              <defs>
+                <linearGradient id="psGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#fef08a"/>
+                  <stop offset="50%" stop-color="#eab308"/>
+                  <stop offset="100%" stop-color="#a16207"/>
+                </linearGradient>
+              </defs>
+              <!-- Authentic EA PlayStyle Pentagon-Diamond Outline -->
+              <polygon points="50,4 94,38 78,92 22,92 6,38" fill="url(#psGoldGrad)" stroke="#2b2108" stroke-width="5" stroke-linejoin="round"/>
+              <polygon points="50,12 86,40 73,85 27,85 14,40" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.7"/>
+            </svg>
+            <i class="fa-solid ${ps.icon} absolute text-[#2b2108] text-[15px] mt-0.5"></i>
+            <span class="absolute -top-1 -right-1 bg-[#2b2108] text-yellow-300 font-black text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center border border-yellow-400">+</span>
+            <div class="pointer-events-none absolute left-12 top-1/2 -translate-y-1/2 hidden group-hover:flex flex-col bg-gray-950/95 text-white border border-yellow-400/60 px-2.5 py-1.5 rounded-lg shadow-2xl w-44 z-50">
+              <span class="text-[10px] font-black text-yellow-400 uppercase tracking-wider">${ps.name}+ (PlayStyle+)</span>
+              <span class="text-[9px] text-gray-300 leading-tight mt-0.5">${ps.desc}</span>
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="group ps-silver-badge cursor-pointer">
+          <svg viewBox="0 0 100 100" class="w-full h-full">
+            <defs>
+              <linearGradient id="psSilverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff"/>
+                <stop offset="55%" stop-color="#cbd5e1"/>
+                <stop offset="100%" stop-color="#64748b"/>
+              </linearGradient>
+            </defs>
+            <polygon points="50,6 94,38 78,92 22,92 6,38" fill="url(#psSilverGrad)" stroke="#1e293b" stroke-width="5" stroke-linejoin="round"/>
+          </svg>
+          <i class="fa-solid ${ps.icon} absolute text-[#1e293b] text-[11px] mt-0.5"></i>
+          <div class="pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 hidden group-hover:flex flex-col bg-gray-950/95 text-white border border-slate-400/60 px-2.5 py-1.5 rounded-lg shadow-2xl w-40 z-50">
+            <span class="text-[10px] font-black text-slate-200 uppercase tracking-wider">${ps.name}</span>
+            <span class="text-[9px] text-gray-300 leading-tight mt-0.5">${ps.desc}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    // Maps Player Stats & Role to Official FUTBIN FC27 PlayStyles & Archetypes
     function computeArchetypeAndPlaystyles(player) {
       const pos = player._normalizedPos || 'MID';
       const rawPos = String(player._rawPos || '').toUpperCase();
@@ -548,15 +731,14 @@
       const passPct = Number(player.passSuccessRate || 75);
       const height = parseInt(player.proHeight || 180, 10);
 
-      // 1. Determine Archetype
       let archetype = 'Maestro';
       if (pos === 'FWD') {
         if (height >= 188) archetype = 'Target';
-        else if (goalsPerGame >= 0.65) archetype = 'Finisher';
-        else if (assistsPerGame >= 0.45) archetype = 'Creator';
+        else if (goalsPerGame >= 0.6) archetype = 'Finisher';
+        else if (assistsPerGame >= 0.4) archetype = 'Creator';
         else archetype = 'Hawk';
       } else if (pos === 'MID') {
-        if (tacklesPerGame >= 1.5) archetype = 'Engine / Destroyer';
+        if (tacklesPerGame >= 1.4) archetype = 'Destroyer';
         else if (passPct >= 82 || assistsPerGame >= 0.4) archetype = 'Maestro';
         else if (goalsPerGame >= 0.35) archetype = 'Shadow Striker';
         else archetype = 'Catalyst';
@@ -568,38 +750,46 @@
         archetype = 'Sweeper Keeper';
       }
 
-      // 2. Determine PlayStyle+ (Gold Diamond)
-      let psPlus = { name: 'Technical+', icon: 'fa-bolt' };
+      // Official FUTBIN FC27 PlayStyles Catalog
+      let psPlus = { name: 'Technical', icon: 'fa-Person-running', desc: 'Reaches higher speed when performing Controlled Sprint with tighter turns.' };
       if (pos === 'FWD') {
-        psPlus = height >= 188 
-          ? { name: 'Aerial+', icon: 'fa-plane-up' } 
-          : (goalsPerGame >= 0.5 ? { name: 'Finesse Shot+', icon: 'fa-crosshairs' } : { name: 'Quick Step+', icon: 'fa-rocket' });
+        if (goalsPerGame >= 0.5) {
+          psPlus = { name: 'Finesse Shot', icon: 'fa-crosshairs', desc: 'Performs finesse shots significantly faster with maximum curve and accuracy.' };
+        } else if (height >= 188) {
+          psPlus = { name: 'Aerial Fortress', icon: 'fa-plane-up', desc: 'Performs higher jumps and dominates aerial physical presence.' };
+        } else {
+          psPlus = { name: 'Rapid', icon: 'fa-bolt', desc: 'Reaches higher sprint speed while dribbling with reduced knock-on error.' };
+        }
       } else if (pos === 'MID') {
-        psPlus = passPct >= 80 
-          ? { name: 'Incisive Pass+', icon: 'fa-compass-drafting' } 
-          : (tacklesPerGame >= 1.4 ? { name: 'Intercept+', icon: 'fa-magnet' } : { name: 'Tiki Taka+', icon: 'fa-diagram-project' });
+        if (passPct >= 80 || assistsPerGame >= 0.35) {
+          psPlus = { name: 'Incisive Pass', icon: 'fa-compass-drafting', desc: 'Through passes are far more accurate with maximum swerve and speed.' };
+        } else if (tacklesPerGame >= 1.3) {
+          psPlus = { name: 'Intercept', icon: 'fa-magnet', desc: 'Increased reach and ball retention when performing interceptions.' };
+        } else {
+          psPlus = { name: 'Tiki Taka', icon: 'fa-diagram-project', desc: 'Executes difficult first-time ground passes with high accuracy.' };
+        }
       } else if (pos === 'DEF') {
-        psPlus = tacklesPerGame >= 1.2 
-          ? { name: 'Anticipate+', icon: 'fa-shield-halved' } 
-          : { name: 'Jockey+', icon: 'fa-person-running' };
+        if (tacklesPerGame >= 1.1) {
+          psPlus = { name: 'Anticipate', icon: 'fa-shield-halved', desc: 'Significantly increased chance of standing tackle success directly at feet.' };
+        } else {
+          psPlus = { name: 'Jockey', icon: 'fa-arrows-left-right', desc: 'Increased max speed of Sprint Jockey and transition responsiveness.' };
+        }
       } else {
-        psPlus = { name: 'Far Reach+', icon: 'fa-hand-sparkles' };
+        psPlus = { name: 'Footwork', icon: 'fa-shoe-prints', desc: 'Saves shots with feet more frequently with boosted 1v1 reactions.' };
       }
 
-      // 3. Determine Active Silver PlayStyles (Up to 3)
-      const playstyles = [];
-      if (goalsPerGame >= 0.35) playstyles.push({ name: 'Power Shot', icon: 'fa-fire-flame-curved' });
-      if (assistsPerGame >= 0.3) playstyles.push({ name: 'Whipped Pass', icon: 'fa-wind' });
-      if (passPct >= 78) playstyles.push({ name: 'Tiki Taka', icon: 'fa-share-nodes' });
-      if (tacklesPerGame >= 1.0) playstyles.push({ name: 'Intercept', icon: 'fa-shield' });
-      if (height >= 186) playstyles.push({ name: 'Bruiser', icon: 'fa-dumbbell' });
-      playstyles.push({ name: 'Relentless', icon: 'fa-battery-full' });
-      playstyles.push({ name: 'Press Proven', icon: 'fa-lock' });
+      const silverPool = [];
+      if (goalsPerGame >= 0.3) silverPool.push({ name: 'Power Shot', icon: 'fa-fire-flame-curved', desc: 'Performs power shots faster with significant velocity increase.' });
+      if (assistsPerGame >= 0.25) silverPool.push({ name: 'Whipped Pass', icon: 'fa-wind', desc: 'Highly accurate driven crosses with faster travel speed.' });
+      if (passPct >= 76) silverPool.push({ name: 'Pinged Pass', icon: 'fa-paper-plane', desc: 'Passes travel faster along the ground without impacting trapping.' });
+      if (tacklesPerGame >= 0.8) silverPool.push({ name: 'Bruiser', icon: 'fa-dumbbell', desc: 'Greater physical strength when performing physical tackles.' });
+      silverPool.push({ name: 'First Touch', icon: 'fa-feather', desc: 'Reduced error when trapping the ball with faster transition to dribbling.' });
+      silverPool.push({ name: 'Relentless', icon: 'fa-battery-full', desc: 'Reduces fatigue loss during play and increases halftime stamina recovery.' });
 
       return {
         archetype,
         psPlus,
-        activePlaystyles: playstyles.slice(0, 3)
+        activePlaystyles: silverPool.slice(0, 2)
       };
     }
 
@@ -742,7 +932,6 @@
         const oppClub = clubsData[oppId] || {};
         const oppName = oppClub.details?.name || oppClub.name || 'Opponent FC';
         const oppSR = Number(oppClub.skillRating || oppClub.details?.skillRating || 0);
-        // Full crest fallback chain including customKit.crestAssetId and TEAM
         const oppCrestId = oppClub.crestId || oppClub.TEAM || oppClub.details?.customKit?.crestAssetId || oppClub.details?.crestAssetId || oppClub.details?.teamId;
         const myGoals = Number(myClub.goals ?? myClub.score ?? 0);
         const oppGoals = Number(oppClub.goals ?? oppClub.score ?? 0);
@@ -942,7 +1131,8 @@
       list.forEach(m => {
         if (!m || typeof m !== 'object') return;
         const name = m.name || m.proName || m.gamertag || 'Unknown';
-        const proOverall = m.proOverall || m.overall || 85;
+        const proOverall = Number(m.proOverall || m.overall || 85);
+        const tierInfo = getCardTierTheme(proOverall);
         const nationId = m.proNationality || m.nationality || '25';
         const rawPos = m.favoritePosition || m.pos || m.favPos || 'MID';
         const normPos = normalizePosition(rawPos);
@@ -974,8 +1164,8 @@
         m._normalizedPos = normPos;
         m._rawPos = rawPos;
 
-        const gender = resolvePlayerGender(m);
-        const avatarBorder = gender === 'female' ? 'border-pink-500/60' : 'border-emerald-500/40';
+        const look = getPlayerAppearance(m);
+        const avatarBorder = look.gender === 'female' ? 'border-pink-500/60' : 'border-emerald-500/40';
 
         const badgeColor = normPos === 'FWD' ? 'text-rose-400 bg-rose-500/10' :
                            normPos === 'MID' ? 'text-amber-400 bg-amber-500/10' :
@@ -987,13 +1177,15 @@
         tr.innerHTML = `
           <td class="py-3 px-2 font-medium text-white">
             <div class="flex items-center gap-2">
-              <img src="${getPlayerAvatarUrl(name, gender)}" class="w-8 h-8 rounded-full border ${avatarBorder} bg-gray-900 flex-shrink-0" alt="${name}">
+              <img src="${getPlayerAvatarUrl(name)}" class="w-8 h-8 rounded-full border ${avatarBorder} bg-gray-900 flex-shrink-0" alt="${name}">
               <img src="${getFlagUrl(nationId)}" class="w-4 h-3 object-cover rounded-[2px] shadow-sm flex-shrink-0" alt="Flag">
               <span class="hover:text-yellow-400 transition font-semibold">${name}</span>
               ${getGenderSymbolHtml(m)}
             </div>
           </td>
-          <td class="py-3 px-2 text-center"><span class="px-2 py-0.5 rounded bg-yellow-500/15 text-yellow-400 border border-yellow-500/30 font-black text-xs">${proOverall}</span></td>
+          <td class="py-3 px-2 text-center">
+            <span class="px-2 py-0.5 rounded border font-black text-xs ${tierInfo.badgeClass}" title="${tierInfo.tier} CARD TIER">${proOverall}</span>
+          </td>
           <td class="py-3 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${badgeColor}">${normPos}</span></td>
           <td class="py-3 px-2 text-center text-gray-300">${games}</td>
           <td class="py-3 px-2 text-center font-bold text-emerald-400">${goals}</td>
@@ -1010,15 +1202,16 @@
       return list;
     }
 
-    // Populate and open the FC27 Gold Rare Ultimate Team Card Modal with Archetype & PlayStyles
+    // Populate and open the FC27 Ultimate Team Card Modal (Bronze <76, Silver <85, Gold >84)
     function openFutModal(playerName) {
       const p = GLOBAL_MEMBERS.find(m => (m.name || m.proName || m.gamertag) === playerName);
       if (!p) return;
 
+      ACTIVE_MODAL_PLAYER = playerName;
       const name = p.name || p.proName || 'Player';
-      const ovr = Number(p.proOverall || 88);
+      const ovr = Number(p.proOverall || 85);
       const nationId = p.proNationality || '25';
-      const gender = resolvePlayerGender(p);
+      const look = getPlayerAppearance(p);
       const pos = p._rawPos && p._rawPos.length <= 4 ? p._rawPos.toUpperCase() : p._normalizedPos;
       const games = Math.max(1, Number(p.gamesPlayed || 1));
       const goals = Number(p.goals || 0);
@@ -1027,31 +1220,32 @@
       const passPct = Number(p.passSuccessRate || 78);
       const rating = parseFloat(p.ratingAve || 7.5);
 
-      // Compute 6-column FC27 stats
-      const pac = Math.min(99, Math.max(72, Math.round(ovr + 3)));
-      const sho = Math.min(99, Math.max(62, Math.round(ovr - 4 + (goals / games) * 14)));
-      const pas = Math.min(99, Math.max(68, Math.round(passPct + 6)));
-      const dri = Math.min(99, Math.max(74, Math.round(ovr + (rating - 7.0) * 5)));
-      const def = Math.min(99, Math.max(32, Math.round((p._normalizedPos === 'DEF' ? 82 : 45) + (tackles / games) * 15)));
-      const phy = Math.min(99, Math.max(66, Math.round(ovr - 3 + (tackles / games) * 6)));
+      // Apply Bronze (<76) / Silver (<85) / Gold (>84) Metallic Foil Theme
+      applyCardTierColors(ovr);
 
-      // Compute Archetype & PlayStyles
+      // Compute 6-column FC27 stats
+      const pac = Math.min(99, Math.max(60, Math.round(ovr + 3)));
+      const sho = Math.min(99, Math.max(55, Math.round(ovr - 4 + (goals / games) * 14)));
+      const pas = Math.min(99, Math.max(58, Math.round(passPct + 6)));
+      const dri = Math.min(99, Math.max(62, Math.round(ovr + (rating - 7.0) * 5)));
+      const def = Math.min(99, Math.max(28, Math.round((p._normalizedPos === 'DEF' ? 82 : 42) + (tackles / games) * 15)));
+      const phy = Math.min(99, Math.max(58, Math.round(ovr - 3 + (tackles / games) * 6)));
+
+      // Compute Archetype & Left-Border PlayStyles (Messi Card Style)
       const buildInfo = computeArchetypeAndPlaystyles(p);
 
-      document.getElementById('futPlaystylePlusIcon').className = `fa-solid ${buildInfo.psPlus.icon}`;
-      document.getElementById('futPlaystylePlusLabel').innerText = buildInfo.psPlus.name;
       document.getElementById('futArchetypeBadge').innerHTML = `<i class="fa-solid fa-crown text-[8px]"></i> ${buildInfo.archetype} ARCHETYPE`;
 
-      document.getElementById('futPlaystylesRow').innerHTML = buildInfo.activePlaystyles.map(ps => `
-        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#2b2108]/15 border border-[#2b2108]/30 text-[#2b2108] text-[9px] font-black uppercase tracking-wider">
-          <i class="fa-solid ${ps.icon} text-[8px]"></i> ${ps.name}
-        </span>
-      `).join('');
+      const leftStack = document.getElementById('futLeftPlaystylesStack');
+      leftStack.innerHTML = [
+        renderPlaystyleDiamondHtml(buildInfo.psPlus, true),
+        ...buildInfo.activePlaystyles.map(ps => renderPlaystyleDiamondHtml(ps, false))
+      ].join('');
 
       document.getElementById('futOvr').innerText = ovr;
       document.getElementById('futPos').innerText = pos;
-      document.getElementById('futGenderBadge').innerText = gender === 'female' ? '♀' : '♂';
-      document.getElementById('futAvatar').src = getPlayerAvatarUrl(name, gender);
+      document.getElementById('futGenderBadge').innerText = look.gender === 'female' ? '♀' : '♂';
+      document.getElementById('futAvatar').src = getPlayerAvatarUrl(name);
       document.getElementById('futName').innerText = name;
 
       document.getElementById('futPac').innerText = pac;
@@ -1063,6 +1257,9 @@
 
       document.getElementById('futFlag').src = getFlagUrl(nationId);
       document.getElementById('futClubCrest').src = CURRENT_CLUB_CREST_URL || `${API_BASE}/crest/0?name=FC`;
+
+      const toggleBtn = document.getElementById('modalGenderToggleBtn');
+      toggleBtn.onclick = (ev) => togglePlayerGender(ev, name);
 
       const modal = document.getElementById('futModal');
       modal.classList.remove('hidden');
@@ -1332,19 +1529,20 @@
         }
         const name = player.name || player.proName || 'Player';
         const rating = parseFloat(player.ratingAve || player.rating || 0).toFixed(1);
-        const ovr = player.proOverall || 85;
+        const ovr = Number(player.proOverall || 85);
+        const tierInfo = getCardTierTheme(ovr);
         const nationId = player.proNationality || '25';
-        const gender = resolvePlayerGender(player);
-        const ringColor = gender === 'female' ? 'border-pink-400' : 'border-emerald-400';
-        const genderBadge = gender === 'female' ? '<span class="text-pink-400 text-[10px] ml-0.5">♀</span>' : '<span class="text-blue-400 text-[10px] ml-0.5">♂</span>';
+        const look = getPlayerAppearance(player);
+        const ringColor = look.gender === 'female' ? 'border-pink-400' : 'border-emerald-400';
+        const genderBadge = look.gender === 'female' ? '<span class="text-pink-400 text-[10px] ml-0.5">♀</span>' : '<span class="text-blue-400 text-[10px] ml-0.5">♂</span>';
         const specificRole = player._rawPos && player._rawPos.length <= 4 ? player._rawPos.toUpperCase() : defaultRole;
         const safeJsName = name.replace(/'/g, "\\'");
 
         return `
           <div onclick="openFutModal('${safeJsName}')" class="flex flex-col items-center hover:scale-110 transition transform cursor-pointer group">
             <div class="relative">
-              <img src="${getPlayerAvatarUrl(name, gender)}" class="w-12 h-12 rounded-full border-2 ${ringColor} bg-gray-900 object-cover shadow-xl group-hover:border-yellow-400 transition" alt="${name}">
-              <span class="absolute -top-1 -left-2 bg-gray-950 text-yellow-400 border border-yellow-500/40 font-black text-[9px] px-1 rounded">${ovr}</span>
+              <img src="${getPlayerAvatarUrl(name)}" class="w-12 h-12 rounded-full border-2 ${ringColor} bg-gray-900 object-cover shadow-xl group-hover:border-yellow-400 transition" alt="${name}">
+              <span class="absolute -top-1 -left-2 bg-gray-950 ${tierInfo.badgeClass} border font-black text-[9px] px-1 rounded">${ovr}</span>
               <img src="${getFlagUrl(nationId)}" class="absolute -bottom-0.5 -left-1.5 w-4 h-3 rounded-[2px] border border-black shadow" alt="Flag">
               <span class="absolute -bottom-1 -right-1 bg-yellow-500 text-black font-black text-[9px] px-1 rounded-sm shadow">${rating}</span>
             </div>
