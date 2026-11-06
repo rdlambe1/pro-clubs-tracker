@@ -61,6 +61,14 @@
       border-right: 2px solid rgba(255, 255, 255, 0.25);
       pointer-events: none;
     }
+
+    /* FUT Card Styling */
+    .fut-card {
+      background: linear-gradient(135deg, #2a210b 0%, #584312 35%, #1a1508 100%);
+      border: 2px solid #eab308;
+      box-shadow: 0 20px 50px rgba(234, 179, 8, 0.25);
+      border-radius: 20px;
+    }
   </style>
 </head>
 <body class="p-4 md:p-8">
@@ -97,45 +105,106 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Overview Card (Single Primary Crest Display) -->
-    <section class="card p-6 flex flex-col md:flex-row justify-between items-center gap-6">
-      <div class="flex items-center gap-5">
-        <div class="w-20 h-20 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center p-1.5 shadow-lg shadow-emerald-950/20 flex-shrink-0" id="heroCrestBox">
-          <i class="fa-solid fa-shield text-gray-600 text-3xl"></i>
+    <!-- Active Club Overview Card + Trophy Cabinet -->
+    <section class="card p-6 space-y-5">
+      <div class="flex flex-col md:flex-row justify-between items-center gap-6">
+        <div class="flex items-center gap-5">
+          <div class="w-20 h-20 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center p-1.5 shadow-lg shadow-emerald-950/20 flex-shrink-0" id="heroCrestBox">
+            <i class="fa-solid fa-shield text-gray-600 text-3xl"></i>
+          </div>
+
+          <div>
+            <div class="flex items-center gap-3">
+              <h2 id="clubName" class="text-3xl font-extrabold text-white">No Club Loaded</h2>
+              <span id="clubDivBadge" class="hidden px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">--</span>
+            </div>
+            <p id="clubMeta" class="text-gray-400 text-sm mt-1">Enter a club name or ID above to get started</p>
+            <div class="flex items-center gap-2 mt-3" id="formGuideContainer">
+              <span class="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">Form:</span>
+              <div id="formBadges" class="flex items-center gap-1.5">
+                <span class="text-xs text-gray-500 font-mono">--</span>
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <div class="flex items-center gap-3">
-            <h2 id="clubName" class="text-3xl font-extrabold text-white">No Club Loaded</h2>
-            <span id="clubDivBadge" class="hidden px-2.5 py-0.5 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">--</span>
+        <div class="grid grid-cols-3 gap-6 text-center border-t md:border-t-0 md:border-l border-gray-800 pt-4 md:pt-0 md:pl-8">
+          <div>
+            <div class="text-gray-400 text-xs uppercase tracking-wider">Record (W-D-L)</div>
+            <div id="clubRecord" class="text-xl font-bold text-white mt-1">-- - -- - --</div>
           </div>
-          <p id="clubMeta" class="text-gray-400 text-sm mt-1">Enter a club name or ID above to get started</p>
-          <div class="flex items-center gap-2 mt-3" id="formGuideContainer">
-            <span class="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">Form:</span>
-            <div id="formBadges" class="flex items-center gap-1.5">
-              <span class="text-xs text-gray-500 font-mono">--</span>
-            </div>
+          <div>
+            <div class="text-gray-400 text-xs uppercase tracking-wider">Skill Rating</div>
+            <div id="skillRating" class="text-xl font-bold text-emerald-400 mt-1">--</div>
+          </div>
+          <div>
+            <div class="text-gray-400 text-xs uppercase tracking-wider">Goals (Diff)</div>
+            <div id="goalStats" class="text-xl font-bold text-white mt-1">-- / --</div>
           </div>
         </div>
       </div>
 
-      <div class="grid grid-cols-3 gap-6 text-center border-t md:border-t-0 md:border-l border-gray-800 pt-4 md:pt-0 md:pl-8">
-        <div>
-          <div class="text-gray-400 text-xs uppercase tracking-wider">Record (W-D-L)</div>
-          <div id="clubRecord" class="text-xl font-bold text-white mt-1">-- - -- - --</div>
+      <!-- Trophy Cabinet & Club Honours Bar -->
+      <div id="trophyBar" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-gray-800/80">
+        <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center gap-3">
+          <i class="fa-solid fa-trophy text-yellow-400 text-xl"></i>
+          <div>
+            <div class="text-[10px] uppercase text-gray-400 font-semibold">Titles Won</div>
+            <div id="trophyTitles" class="text-sm font-black text-white">0</div>
+          </div>
         </div>
-        <div>
-          <div class="text-gray-400 text-xs uppercase tracking-wider">Skill Rating</div>
-          <div id="skillRating" class="text-xl font-bold text-emerald-400 mt-1">--</div>
+        <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center gap-3">
+          <i class="fa-solid fa-medal text-amber-400 text-xl"></i>
+          <div>
+            <div class="text-[10px] uppercase text-gray-400 font-semibold">League Titles</div>
+            <div id="trophyLeagues" class="text-sm font-black text-white">0</div>
+          </div>
         </div>
-        <div>
-          <div class="text-gray-400 text-xs uppercase tracking-wider">Goals (Diff)</div>
-          <div id="goalStats" class="text-xl font-bold text-white mt-1">-- / --</div>
+        <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center gap-3">
+          <i class="fa-solid fa-angles-up text-emerald-400 text-xl"></i>
+          <div>
+            <div class="text-[10px] uppercase text-gray-400 font-semibold">Promotions</div>
+            <div id="trophyPromos" class="text-sm font-black text-white">0</div>
+          </div>
+        </div>
+        <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center gap-3">
+          <i class="fa-solid fa-ranking-star text-purple-400 text-xl"></i>
+          <div>
+            <div class="text-[10px] uppercase text-gray-400 font-semibold">Peak Division</div>
+            <div id="trophyPeakDiv" class="text-sm font-black text-white">--</div>
+          </div>
         </div>
       </div>
     </section>
 
-    <!-- Recent Matches with Dedicated Vibe Column & Opponent SR -->
+    <!-- Club Intelligence Cards: Dynamic Duo & Nemesis / Bogey Detector -->
+    <section id="intelSection" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+      <!-- Dynamic Duo Card -->
+      <div class="card p-4 flex items-center justify-between border-l-4 border-l-emerald-500">
+        <div class="space-y-1">
+          <div class="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-handshake"></i> Dynamic Duo (Last 10 Games)
+          </div>
+          <div id="duoNames" class="text-base font-extrabold text-white">-- & --</div>
+          <div id="duoMeta" class="text-xs text-gray-400">Combined for -- goals & assists in the same fixtures</div>
+        </div>
+        <div id="duoAvatars" class="flex -space-x-3"></div>
+      </div>
+
+      <!-- Nemesis / Toughest Test Detector -->
+      <div class="card p-4 flex items-center justify-between border-l-4 border-l-rose-500">
+        <div class="space-y-1">
+          <div id="nemesisTitle" class="text-[10px] font-black uppercase tracking-widest text-rose-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-skull"></i> Nemesis / Toughest Opponent
+          </div>
+          <div id="nemesisName" class="text-base font-extrabold text-white">--</div>
+          <div id="nemesisMeta" class="text-xs text-gray-400">--</div>
+        </div>
+        <div id="nemesisCrest"></div>
+      </div>
+    </section>
+
+    <!-- Recent Matches with Dedicated Vibe Column & Player Avatars in Box Scores -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
@@ -165,19 +234,19 @@
       </div>
     </section>
 
-    <!-- Dynamic Formation Tactical Pitch Diagram -->
+    <!-- Dynamic Formation Tactical Pitch Diagram with Generated Avatars + Flags + OVR -->
     <section class="card p-6 space-y-4">
       <div class="flex justify-between items-center">
         <div>
           <h3 class="text-lg font-bold text-white flex items-center gap-2">
             <i class="fa-solid fa-chess-board text-emerald-400"></i> Most Used Formation & Tactic
           </h3>
-          <p id="formationSubtitle" class="text-xs text-gray-400 mt-0.5">Calculated dynamically from squad role history & ratings</p>
+          <p id="formationSubtitle" class="text-xs text-gray-400 mt-0.5">Click any player on the pitch to inspect their FUT Pro Card</p>
         </div>
         <span id="formationBadge" class="text-xs font-semibold px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">--</span>
       </div>
 
-      <div class="pitch-bg w-full h-[560px] p-6 flex flex-col justify-between relative shadow-inner">
+      <div class="pitch-bg w-full h-[580px] p-6 flex flex-col justify-between relative shadow-inner">
         <div class="pitch-penalty-top"></div>
         <div class="pitch-center-line"></div>
         <div class="pitch-center-circle"></div>
@@ -190,30 +259,36 @@
       </div>
     </section>
 
-    <!-- Full Squad Performance Table -->
+    <!-- Full Squad Performance Table with Avatars, Flags, OVR & Hot/Cold Form Arrows -->
     <section class="card p-6 space-y-4">
-      <h3 class="text-lg font-bold text-white flex items-center gap-2">
-        <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
-      </h3>
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
+        </h3>
+        <span class="text-xs text-gray-400">
+          <span class="text-emerald-400 font-bold">▲ Hot Streak</span> / <span class="text-rose-400 font-bold">▼ Cold Streak</span> (Last 5 games vs Career Avg) • Click player for FUT Card
+        </span>
+      </div>
 
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
           <thead class="border-b border-gray-800 text-gray-400 uppercase text-xs">
             <tr>
               <th class="py-3 px-2">Player</th>
+              <th class="py-3 px-2 text-center">OVR</th>
               <th class="py-3 px-2 text-center">Pos</th>
               <th class="py-3 px-2 text-center">Matches</th>
               <th class="py-3 px-2 text-center">Goals</th>
               <th class="py-3 px-2 text-center">Assists</th>
               <th class="py-3 px-2 text-center">G+A / G</th>
               <th class="py-3 px-2 text-center">Tackles (Win %)</th>
-              <th class="py-3 px-2 text-center">Rating</th>
+              <th class="py-3 px-2 text-center">Rating (Form)</th>
               <th class="py-3 px-2 text-center">Pass %</th>
               <th class="py-3 px-2 text-center">MoTM</th>
             </tr>
           </thead>
           <tbody id="membersTable" class="divide-y border-gray-800">
-            <tr><td colspan="10" class="py-6 text-center text-gray-500">Search for a club above to load squad.</td></tr>
+            <tr><td colspan="11" class="py-6 text-center text-gray-500">Search for a club above to load squad.</td></tr>
           </tbody>
         </table>
       </div>
@@ -221,8 +296,83 @@
 
   </div>
 
+  <!-- Interactive FUT Pro Card Modal -->
+  <div id="futModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4" onclick="closeFutModal(event)">
+    <div class="fut-card w-full max-w-xs p-6 text-white relative select-none" onclick="event.stopPropagation()">
+      <button onclick="closeFutModal()" class="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/50 text-gray-300 hover:text-white flex items-center justify-center">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+
+      <!-- Top Row: OVR + Pos + Flag + Avatar -->
+      <div class="flex items-center gap-4 border-b border-yellow-500/30 pb-4">
+        <div class="flex flex-col items-center">
+          <div id="futOvr" class="text-4xl font-black text-yellow-400 leading-none">88</div>
+          <div id="futPos" class="text-xs font-extrabold text-yellow-200 uppercase mt-1">CAM</div>
+          <img id="futFlag" src="" class="w-6 h-4 object-cover rounded-sm mt-2 border border-white/20" alt="Flag">
+        </div>
+        <div class="relative flex-1 flex justify-center">
+          <img id="futAvatar" src="" class="w-24 h-24 rounded-full border-2 border-yellow-400 bg-gray-900/90 object-cover shadow-xl" alt="Pro Avatar">
+          <span id="futFormBadge" class="absolute -bottom-1 right-2 px-2 py-0.5 rounded-full text-[10px] font-black bg-gray-900 border border-yellow-400">7.8 AVG</span>
+        </div>
+      </div>
+
+      <!-- Player Name & Pro Info -->
+      <div class="text-center my-3">
+        <div id="futName" class="text-xl font-black tracking-wide uppercase truncate">PLAYER</div>
+        <div id="futSub" class="text-[11px] text-yellow-200/80 font-medium">Pro Name: -- • Height: -- cm</div>
+      </div>
+
+      <!-- 6-Attribute FUT Grid -->
+      <div class="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm px-4 py-3 bg-black/40 rounded-xl border border-yellow-500/20 font-mono">
+        <div class="flex justify-between"><span class="text-yellow-400 font-bold" id="futPac">86</span> <span class="text-gray-300">PAC</span></div>
+        <div class="flex justify-between"><span class="text-yellow-400 font-bold" id="futDri">88</span> <span class="text-gray-300">DRI</span></div>
+        <div class="flex justify-between"><span class="text-yellow-400 font-bold" id="futSho">84</span> <span class="text-gray-300">SHO</span></div>
+        <div class="flex justify-between"><span class="text-yellow-400 font-bold" id="futDef">72</span> <span class="text-gray-300">DEF</span></div>
+        <div class="flex justify-between"><span class="text-yellow-400 font-bold" id="futPas">85</span> <span class="text-gray-300">PAS</span></div>
+        <div class="flex justify-between"><span class="text-yellow-400 font-bold" id="futPhy">80</span> <span class="text-gray-300">PHY</span></div>
+      </div>
+
+      <!-- Career Summary Footer -->
+      <div class="grid grid-cols-3 gap-2 text-center mt-4 pt-3 border-t border-yellow-500/30 text-xs">
+        <div>
+          <div class="text-yellow-200/70 text-[10px] uppercase">Games</div>
+          <div id="futGames" class="font-black text-white text-sm">0</div>
+        </div>
+        <div>
+          <div class="text-yellow-200/70 text-[10px] uppercase">Goals + Ast</div>
+          <div id="futGA" class="font-black text-emerald-400 text-sm">0</div>
+        </div>
+        <div>
+          <div class="text-yellow-200/70 text-[10px] uppercase">MoTM</div>
+          <div id="futMotm" class="font-black text-purple-300 text-sm">0</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const API_BASE = '/api';
+    let GLOBAL_MEMBERS = [];
+    let RECENT_FORM_MAP = {};
+
+    // Maps EA Pro Clubs numeric nationality IDs to ISO 2-letter Flag codes
+    const EA_NATION_TO_ISO = {
+      '14': 'gb-eng', '25': 'ie', '42': 'gb-sct', '50': 'gb-wls', '35': 'gb-nir',
+      '18': 'fr', '21': 'de', '45': 'es', '27': 'it', '34': 'nl', '38': 'pt', '7': 'be',
+      '54': 'br', '52': 'ar', '95': 'us', '70': 'ca', '195': 'au', '133': 'ng',
+      '13': 'dk', '46': 'se', '36': 'no', '37': 'pl', '10': 'hr', '47': 'ch', '4': 'at'
+    };
+
+    function getFlagUrl(nationId) {
+      const code = EA_NATION_TO_ISO[String(nationId || '')] || 'ie'; // Default Ireland flag if unknown
+      return `https://flagcdn.com/w40/${code}.png`;
+    }
+
+    // Generates a permanent, deterministic Footballer Avatar for every player
+    function getPlayerAvatarUrl(playerName) {
+      const seed = encodeURIComponent(String(playerName || 'Pro').trim());
+      return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&backgroundColor=064e3b,1e3a8a,4c1d95,78350f,111827`;
+    }
 
     function formatPlatformLabel(rawPlatform) {
       if (!rawPlatform) return 'PC / PS5 / XBOX SERIES X|S';
@@ -247,24 +397,12 @@
       const totalGoals = myGoals + oppGoals;
       const srNum = Number(oppSR || 0);
 
-      if (srNum >= 1900) {
-        return { emoji: '🔥', label: 'SWEATFEST (1900+ SR)' };
-      }
-      if (totalGoals >= 8) {
-        return { emoji: '🏀', label: 'BASKETBALL MATCH (8+ Goals)' };
-      }
-      if (myGoals < oppGoals && oppGoals >= 3) {
-        return { emoji: '🚨', label: 'DEFENSIVE DISASTERCLASS' };
-      }
-      if (myGoals > oppGoals && totalGoals <= 3) {
-        return { emoji: '🧱', label: 'HARAMBALL WIN (Gritty Defense)' };
-      }
-      if (myGoals >= 4 && myGoals > oppGoals) {
-        return { emoji: '💥', label: 'GOAL CARNIVAL (4+ Scored)' };
-      }
-      if (myGoals === oppGoals) {
-        return { emoji: '🤝', label: 'POINTS SHARED' };
-      }
+      if (srNum >= 1900) return { emoji: '🔥', label: 'SWEATFEST (1900+ SR)' };
+      if (totalGoals >= 8) return { emoji: '🏀', label: 'BASKETBALL MATCH (8+ Goals)' };
+      if (myGoals < oppGoals && oppGoals >= 3) return { emoji: '🚨', label: 'DEFENSIVE DISASTERCLASS' };
+      if (myGoals > oppGoals && totalGoals <= 3) return { emoji: '🧱', label: 'HARAMBALL WIN (Gritty Defense)' };
+      if (myGoals >= 4 && myGoals > oppGoals) return { emoji: '💥', label: 'GOAL CARNIVAL (4+ Scored)' };
+      if (myGoals === oppGoals) return { emoji: '🤝', label: 'POINTS SHARED' };
       return { emoji: '⚽', label: 'COMPETITIVE FIXTURE' };
     }
 
@@ -356,6 +494,119 @@
       card.classList.remove('hidden');
     }
 
+    // Computes recent 5-game average ratings per player, Dynamic Duo, and Nemesis
+    function computeMatchIntelligence(clubId, matchesPayload) {
+      RECENT_FORM_MAP = {};
+      const ratingBuckets = {};
+      const duoContributions = {};
+      const opponentCounts = {};
+      let highestSrOpp = null;
+
+      const matchArr = Array.isArray(matchesPayload) ? matchesPayload : (matchesPayload?.matches || []);
+
+      matchArr.slice(0, 10).forEach((m, idx) => {
+        const clubsData = m.clubs || m.aggregate || {};
+        const clubIds = Object.keys(clubsData);
+        let thisId = clubIds.find(id => String(id) === String(clubId)) || clubIds[0];
+        let oppId = clubIds.find(id => String(id) !== String(clubId)) || clubIds[1];
+
+        const myClub = clubsData[thisId] || {};
+        const oppClub = clubsData[oppId] || {};
+        const oppName = oppClub.details?.name || oppClub.name || 'Opponent FC';
+        const oppSR = Number(oppClub.skillRating || oppClub.details?.skillRating || 0);
+        const oppCrestId = oppClub.crestId || oppClub.TEAM || oppClub.details?.crestAssetId || oppClub.details?.teamId;
+        const myGoals = Number(myClub.goals ?? myClub.score ?? 0);
+        const oppGoals = Number(oppClub.goals ?? oppClub.score ?? 0);
+
+        // Track opponent encounters
+        if (!opponentCounts[oppName]) {
+          opponentCounts[oppName] = { name: oppName, played: 0, wins: 0, losses: 0, draws: 0, sr: oppSR, crestId: oppCrestId };
+        }
+        opponentCounts[oppName].played += 1;
+        if (myGoals > oppGoals) opponentCounts[oppName].wins += 1;
+        else if (myGoals < oppGoals) opponentCounts[oppName].losses += 1;
+        else opponentCounts[oppName].draws += 1;
+
+        if (!highestSrOpp || oppSR > highestSrOpp.sr) {
+          highestSrOpp = opponentCounts[oppName];
+        }
+
+        // Player ratings (last 5 matches for form arrows) & duo synergy
+        const playersData = m.players?.[thisId] || {};
+        const activeContributors = [];
+
+        Object.values(playersData).forEach(p => {
+          const pName = p.playername || p.name || 'Pro';
+          const r = parseFloat(p.rating || 0);
+          const g = Number(p.goals || 0);
+          const a = Number(p.assists || 0);
+
+          if (idx < 5 && r > 0) {
+            if (!ratingBuckets[pName]) ratingBuckets[pName] = [];
+            ratingBuckets[pName].push(r);
+          }
+
+          if (g + a > 0) {
+            activeContributors.push({ name: pName, ga: g + a });
+          }
+        });
+
+        // Pairwise Duo Synergy in this match
+        for (let i = 0; i < activeContributors.length; i++) {
+          for (let j = i + 1; j < activeContributors.length; j++) {
+            const pair = [activeContributors[i].name, activeContributors[j].name].sort();
+            const key = pair.join('|||');
+            if (!duoContributions[key]) {
+              duoContributions[key] = { p1: pair[0], p2: pair[1], combinedGA: 0, gamesTogether: 0 };
+            }
+            duoContributions[key].combinedGA += (activeContributors[i].ga + activeContributors[j].ga);
+            duoContributions[key].gamesTogether += 1;
+          }
+        }
+      });
+
+      Object.keys(ratingBuckets).forEach(name => {
+        const arr = ratingBuckets[name];
+        RECENT_FORM_MAP[name] = arr.reduce((a, b) => a + b, 0) / arr.length;
+      });
+
+      // Render Intelligence Cards
+      const intelSection = document.getElementById('intelSection');
+      if (matchArr.length > 0) {
+        intelSection.classList.remove('hidden');
+
+        // 1. Dynamic Duo
+        const sortedDuos = Object.values(duoContributions).sort((a, b) => b.combinedGA - a.combinedGA);
+        if (sortedDuos.length > 0) {
+          const topDuo = sortedDuos[0];
+          document.getElementById('duoNames').innerText = `${topDuo.p1} & ${topDuo.p2}`;
+          document.getElementById('duoMeta').innerText = `${topDuo.combinedGA} combined G+A across ${topDuo.gamesTogether} shared goalscoring games`;
+          document.getElementById('duoAvatars').innerHTML = `
+            <img src="${getPlayerAvatarUrl(topDuo.p1)}" class="w-11 h-11 rounded-full border-2 border-emerald-400 bg-gray-900">
+            <img src="${getPlayerAvatarUrl(topDuo.p2)}" class="w-11 h-11 rounded-full border-2 border-emerald-400 bg-gray-900">
+          `;
+        } else {
+          document.getElementById('duoNames').innerText = `Single Goalscorers`;
+          document.getElementById('duoMeta').innerText = `Play more games with multiple scorers to unlock Duo synergy`;
+          document.getElementById('duoAvatars').innerHTML = '';
+        }
+
+        // 2. Nemesis / Repeat Rival
+        const repeatRivals = Object.values(opponentCounts).filter(o => o.played > 1).sort((a, b) => b.played - a.played);
+        const targetOpp = repeatRivals.length > 0 ? repeatRivals[0] : highestSrOpp;
+        if (targetOpp) {
+          document.getElementById('nemesisTitle').innerHTML = repeatRivals.length > 0 
+            ? `<i class="fa-solid fa-fire text-amber-400"></i> Repeat Rival (${targetOpp.played}x Played)`
+            : `<i class="fa-solid fa-skull text-rose-400"></i> Toughest Recent Opponent`;
+          document.getElementById('nemesisName').innerText = targetOpp.name;
+          document.getElementById('nemesisMeta').innerText = `Record: ${targetOpp.wins}W - ${targetOpp.draws}D - ${targetOpp.losses}L • Skill Rating: ${targetOpp.sr || '--'}`;
+          document.getElementById('nemesisCrest').innerHTML = renderCrestHtml(targetOpp.name, targetOpp.crestId, 'w-11 h-11');
+        }
+      } else {
+        intelSection.classList.add('hidden');
+      }
+    }
+
     async function loadClub(clubId, platform) {
       setStatus(`Loading club stats for ID #${clubId}...`);
       try {
@@ -374,7 +625,9 @@
           return;
         }
 
+        computeMatchIntelligence(clubId, matchesPayload);
         const membersList = renderMembers(memData);
+        GLOBAL_MEMBERS = membersList;
         renderClub(clubId, combined, platform, membersList, matchesPayload);
         buildDynamicPitchTactic(membersList);
         renderRecentMatches(clubId, matchesPayload);
@@ -410,7 +663,6 @@
       const gDiff = (Number(goals || 0) - Number(conceded || 0));
       const diffLabel = gDiff > 0 ? `+${gDiff}` : `${gDiff}`;
 
-      // Also check most recent match TEAM crest if info endpoint omitted it
       let matchCrestId = null;
       if (Array.isArray(matchesPayload) && matchesPayload.length > 0) {
         const myMatchClub = matchesPayload[0]?.clubs?.[clubId];
@@ -431,6 +683,16 @@
         divBadge.classList.remove('hidden');
       } else {
         divBadge.classList.add('hidden');
+      }
+
+      // Render Trophy Cabinet
+      const trophyBar = document.getElementById('trophyBar');
+      if (data.trophies) {
+        trophyBar.classList.remove('hidden');
+        document.getElementById('trophyTitles').innerText = data.trophies.titlesWon ?? 0;
+        document.getElementById('trophyLeagues').innerText = data.trophies.leaguesWon ?? 0;
+        document.getElementById('trophyPromos').innerText = data.trophies.promotions ?? 0;
+        document.getElementById('trophyPeakDiv').innerText = data.trophies.bestDivision || data.division || 'Div 2';
       }
 
       const friendlyPlatform = formatPlatformLabel(platform);
@@ -454,25 +716,42 @@
       }
 
       if (!list || !list.length) {
-        tbody.innerHTML = '<tr><td colspan="10" class="py-6 text-center text-gray-500">No member records returned for this club.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="py-6 text-center text-gray-500">No member records returned for this club.</td></tr>';
         return [];
       }
 
       list.forEach(m => {
         if (!m || typeof m !== 'object') return;
         const name = m.name || m.proName || m.gamertag || 'Unknown';
+        const proOverall = m.proOverall || m.overall || 85;
+        const nationId = m.proNationality || m.nationality || '25';
         const rawPos = m.favoritePosition || m.pos || m.favPos || 'MID';
         const normPos = normalizePosition(rawPos);
         const games = Number(m.gamesPlayed ?? m.games ?? 0);
         const goals = Number(m.goals ?? 0);
         const assists = Number(m.assists ?? 0);
-        const rating = parseFloat(m.ratingAve || m.rating || 0).toFixed(1);
+        const careerRating = parseFloat(m.ratingAve || m.rating || 0);
+        const ratingStr = careerRating.toFixed(1);
         const pass = m.passSuccessRate ?? m.passSuccess ?? 0;
         const motm = m.manOfTheMatch ?? m.motm ?? 0;
 
         const tackles = m.tacklesmade ?? m.tackles ?? m.tacklesMade ?? 0;
         const tackleWinRate = m.tacklesuccessrate ?? m.tackleSuccessRate ?? 0;
         const gaPerGame = games > 0 ? ((goals + assists) / games).toFixed(2) : '0.00';
+
+        // Compute Hot / Cold Streak Arrow (Last 5 Matches vs Career Rating)
+        const recentAvg = RECENT_FORM_MAP[name];
+        let formArrow = '';
+        if (recentAvg !== undefined && careerRating > 0) {
+          const diff = recentAvg - careerRating;
+          if (diff >= 0.15) {
+            formArrow = `<span class="text-emerald-400 font-black ml-1" title="Hot Streak! Recent Avg: ${recentAvg.toFixed(1)}">▲</span>`;
+          } else if (diff <= -0.15) {
+            formArrow = `<span class="text-rose-400 font-black ml-1" title="Cold Streak! Recent Avg: ${recentAvg.toFixed(1)}">▼</span>`;
+          } else {
+            formArrow = `<span class="text-gray-500 font-bold ml-1" title="Steady Form (${recentAvg.toFixed(1)})">•</span>`;
+          }
+        }
 
         m._normalizedPos = normPos;
         m._rawPos = rawPos;
@@ -482,16 +761,24 @@
                            normPos === 'DEF' ? 'text-blue-400 bg-blue-500/10' : 'text-purple-400 bg-purple-500/10';
 
         const tr = document.createElement('tr');
-        tr.className = 'hover:bg-gray-800/40 transition border-b border-gray-800/60';
+        tr.className = 'hover:bg-gray-800/50 transition border-b border-gray-800/60 cursor-pointer';
+        tr.onclick = () => openFutModal(name);
         tr.innerHTML = `
-          <td class="py-3 px-2 font-medium text-white">${name}</td>
+          <td class="py-3 px-2 font-medium text-white">
+            <div class="flex items-center gap-2.5">
+              <img src="${getPlayerAvatarUrl(name)}" class="w-8 h-8 rounded-full border border-emerald-500/40 bg-gray-900 flex-shrink-0" alt="${name}">
+              <img src="${getFlagUrl(nationId)}" class="w-4 h-3 object-cover rounded-[2px] shadow-sm flex-shrink-0" alt="Flag">
+              <span class="hover:text-emerald-400 transition">${name}</span>
+            </div>
+          </td>
+          <td class="py-3 px-2 text-center"><span class="px-2 py-0.5 rounded bg-yellow-500/15 text-yellow-400 border border-yellow-500/30 font-black text-xs">${proOverall}</span></td>
           <td class="py-3 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${badgeColor}">${normPos}</span></td>
           <td class="py-3 px-2 text-center text-gray-300">${games}</td>
           <td class="py-3 px-2 text-center font-bold text-emerald-400">${goals}</td>
           <td class="py-3 px-2 text-center text-gray-300">${assists}</td>
           <td class="py-3 px-2 text-center text-emerald-300 font-mono font-medium">${gaPerGame}</td>
           <td class="py-3 px-2 text-center text-sky-400 font-medium">${tackles} <span class="text-xs text-gray-400">(${tackleWinRate}%)</span></td>
-          <td class="py-3 px-2 text-center text-yellow-400 font-semibold">${rating}</td>
+          <td class="py-3 px-2 text-center text-yellow-400 font-semibold">${ratingStr}${formArrow}</td>
           <td class="py-3 px-2 text-center text-gray-300">${pass}%</td>
           <td class="py-3 px-2 text-center text-purple-400">${motm}</td>
         `;
@@ -499,6 +786,62 @@
       });
 
       return list;
+    }
+
+    // FUT Pro Card Modal Logic
+    function openFutModal(playerName) {
+      const p = GLOBAL_MEMBERS.find(m => (m.name || m.proName || m.gamertag) === playerName);
+      if (!p) return;
+
+      const name = p.name || p.proName || 'Player';
+      const proName = p.proName || name;
+      const ovr = Number(p.proOverall || 86);
+      const height = p.proHeight || '183';
+      const nationId = p.proNationality || '25';
+      const pos = p._rawPos && p._rawPos.length <= 4 ? p._rawPos.toUpperCase() : p._normalizedPos;
+      const games = Number(p.gamesPlayed || 1);
+      const goals = Number(p.goals || 0);
+      const assists = Number(p.assists || 0);
+      const tackles = Number(p.tacklesmade || p.tackles || 0);
+      const passPct = Number(p.passSuccessRate || 78);
+      const rating = parseFloat(p.ratingAve || 7.5);
+
+      // Compute realistic FUT card stats scaled around their OVR & telemetry
+      const pac = Math.min(99, Math.max(70, Math.round(ovr + 2)));
+      const sho = Math.min(99, Math.max(65, Math.round(ovr - 4 + (goals / games) * 12)));
+      const pas = Math.min(99, Math.max(68, Math.round(passPct + 6)));
+      const dri = Math.min(99, Math.max(72, Math.round(ovr + (rating - 7.0) * 4)));
+      const def = Math.min(99, Math.max(45, Math.round(62 + (tackles / games) * 14)));
+      const phy = Math.min(99, Math.max(68, Math.round(ovr - 2)));
+
+      document.getElementById('futOvr').innerText = ovr;
+      document.getElementById('futPos').innerText = pos;
+      document.getElementById('futFlag').src = getFlagUrl(nationId);
+      document.getElementById('futAvatar').src = getPlayerAvatarUrl(name);
+      document.getElementById('futFormBadge').innerText = `${rating.toFixed(1)} AVG`;
+      document.getElementById('futName').innerText = name;
+      document.getElementById('futSub').innerText = `In-Game Pro: "${proName}" • ${height} cm`;
+
+      document.getElementById('futPac').innerText = pac;
+      document.getElementById('futSho').innerText = sho;
+      document.getElementById('futPas').innerText = pas;
+      document.getElementById('futDri').innerText = dri;
+      document.getElementById('futDef').innerText = def;
+      document.getElementById('futPhy').innerText = phy;
+
+      document.getElementById('futGames').innerText = games;
+      document.getElementById('futGA').innerText = goals + assists;
+      document.getElementById('futMotm').innerText = p.manOfTheMatch || 0;
+
+      const modal = document.getElementById('futModal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+    }
+
+    function closeFutModal(e) {
+      const modal = document.getElementById('futModal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
     }
 
     function renderRecentMatches(clubId, matches) {
@@ -544,7 +887,6 @@
           ? `<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/30">${oppSR}</span>` 
           : `<span class="inline-block font-mono text-xs text-gray-500 bg-gray-800/80 px-2.5 py-1 rounded">--</span>`;
 
-        // Pull exact opponent crest from TEAM or customKit.crestAssetId
         const oppCrestId = oppClub.crestId || oppClub.TEAM || oppClub.details?.customKit?.crestAssetId || oppClub.details?.crestAssetId || oppClub.details?.teamId;
         const oppCrestHtml = renderCrestHtml(oppName, oppCrestId, 'w-7 h-7');
 
@@ -645,7 +987,8 @@
 
             return `
               <div class="flex flex-col sm:flex-row justify-between sm:items-center py-2 px-1 text-xs border-b border-gray-800/50 hover:bg-gray-900/40 transition">
-                <div class="font-medium text-white flex items-center mb-1 sm:mb-0">
+                <div class="font-medium text-white flex items-center gap-2 mb-1 sm:mb-0">
+                  <img src="${getPlayerAvatarUrl(pName)}" class="w-6 h-6 rounded-full border border-gray-700 bg-gray-900">
                   <span>${pName}</span>
                   ${crownBadge}
                 </div>
@@ -746,31 +1089,33 @@
 
       const formationLabel = `${defCount} - ${midCount} - ${fwdCount}`;
       document.getElementById('formationBadge').innerText = formationLabel;
-      document.getElementById('formationSubtitle').innerText = `Team setup optimized around your active squad roster`;
 
       const createPlayerCard = (player, defaultRole) => {
         if (!player) {
           return `
             <div class="flex flex-col items-center opacity-30">
-              <div class="w-10 h-10 rounded-full border border-gray-500 bg-gray-900 flex items-center justify-center text-xs text-gray-400 font-bold">${defaultRole}</div>
+              <div class="w-12 h-12 rounded-full border border-gray-500 bg-gray-900 flex items-center justify-center text-xs text-gray-400 font-bold">${defaultRole}</div>
               <span class="text-[10px] text-gray-400 mt-1">${defaultRole}</span>
             </div>
           `;
         }
         const name = player.name || player.proName || 'Player';
         const rating = parseFloat(player.ratingAve || player.rating || 0).toFixed(1);
+        const ovr = player.proOverall || 85;
+        const nationId = player.proNationality || '25';
         const specificRole = player._rawPos && player._rawPos.length <= 4 ? player._rawPos.toUpperCase() : defaultRole;
-        
+        const safeJsName = name.replace(/'/g, "\\'");
+
         return `
-          <div class="flex flex-col items-center hover:scale-105 transition transform cursor-pointer">
+          <div onclick="openFutModal('${safeJsName}')" class="flex flex-col items-center hover:scale-110 transition transform cursor-pointer group">
             <div class="relative">
-              <div class="w-11 h-11 rounded-full border-2 border-emerald-400 bg-gray-900 flex items-center justify-center font-extrabold text-white text-xs shadow-lg">
-                ${name.substring(0, 2).toUpperCase()}
-              </div>
-              <span class="absolute -bottom-1 -right-1 bg-yellow-500 text-black font-black text-[9px] px-1 rounded-sm">${rating}</span>
+              <img src="${getPlayerAvatarUrl(name)}" class="w-12 h-12 rounded-full border-2 border-emerald-400 bg-gray-900 object-cover shadow-xl group-hover:border-yellow-400 transition" alt="${name}">
+              <span class="absolute -top-1 -left-2 bg-gray-950 text-yellow-400 border border-yellow-500/40 font-black text-[9px] px-1 rounded">${ovr}</span>
+              <img src="${getFlagUrl(nationId)}" class="absolute -bottom-0.5 -left-1.5 w-4 h-3 rounded-[2px] border border-black shadow" alt="Flag">
+              <span class="absolute -bottom-1 -right-1 bg-yellow-500 text-black font-black text-[9px] px-1 rounded-sm shadow">${rating}</span>
             </div>
-            <span class="text-xs font-semibold text-white mt-1 drop-shadow max-w-[85px] truncate">${name}</span>
-            <span class="text-[10px] text-emerald-300 uppercase tracking-wider font-semibold">${specificRole}</span>
+            <span class="text-xs font-bold text-white mt-1.5 drop-shadow max-w-[90px] truncate group-hover:text-yellow-300">${name}</span>
+            <span class="text-[10px] text-emerald-300 uppercase tracking-wider font-extrabold">${specificRole}</span>
           </div>
         `;
       };
