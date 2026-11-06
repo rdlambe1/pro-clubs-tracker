@@ -62,7 +62,6 @@
       pointer-events: none;
     }
 
-    /* FUT Card Styling */
     .fut-card {
       background: linear-gradient(135deg, #2a210b 0%, #584312 35%, #1a1508 100%);
       border: 2px solid #eab308;
@@ -109,7 +108,7 @@
     <section class="card p-6 space-y-5">
       <div class="flex flex-col md:flex-row justify-between items-center gap-6">
         <div class="flex items-center gap-5">
-          <div class="w-20 h-20 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center p-1.5 shadow-lg shadow-emerald-950/20 flex-shrink-0" id="heroCrestBox">
+          <div id="heroCrestBox" class="w-20 h-20 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center p-1.5 shadow-lg shadow-emerald-950/20 flex-shrink-0">
             <i class="fa-solid fa-shield text-gray-600 text-3xl"></i>
           </div>
 
@@ -144,7 +143,7 @@
         </div>
       </div>
 
-      <!-- Trophy Cabinet & Club Honours Bar -->
+      <!-- Trophy Cabinet Bar -->
       <div id="trophyBar" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-gray-800/80">
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center gap-3">
           <i class="fa-solid fa-trophy text-yellow-400 text-xl"></i>
@@ -177,9 +176,8 @@
       </div>
     </section>
 
-    <!-- Club Intelligence Cards: Dynamic Duo & Nemesis / Bogey Detector -->
+    <!-- Club Intelligence: Dynamic Duo & Nemesis Cards -->
     <section id="intelSection" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
-      <!-- Dynamic Duo Card -->
       <div class="card p-4 flex items-center justify-between border-l-4 border-l-emerald-500">
         <div class="space-y-1">
           <div class="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5">
@@ -191,7 +189,6 @@
         <div id="duoAvatars" class="flex -space-x-3"></div>
       </div>
 
-      <!-- Nemesis / Toughest Test Detector -->
       <div class="card p-4 flex items-center justify-between border-l-4 border-l-rose-500">
         <div class="space-y-1">
           <div id="nemesisTitle" class="text-[10px] font-black uppercase tracking-widest text-rose-400 flex items-center gap-1.5">
@@ -204,7 +201,7 @@
       </div>
     </section>
 
-    <!-- Recent Matches with Dedicated Vibe Column & Player Avatars in Box Scores -->
+    <!-- Recent Matches -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
@@ -234,7 +231,7 @@
       </div>
     </section>
 
-    <!-- Dynamic Formation Tactical Pitch Diagram with Generated Avatars + Flags + OVR -->
+    <!-- Dynamic Formation Tactical Pitch Diagram with Avatars + Flags + Gender Signs + OVR -->
     <section class="card p-6 space-y-4">
       <div class="flex justify-between items-center">
         <div>
@@ -259,14 +256,14 @@
       </div>
     </section>
 
-    <!-- Full Squad Performance Table with Avatars, Flags, OVR & Hot/Cold Form Arrows -->
+    <!-- Full Squad Performance Table with Male/Female Symbols -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
         </h3>
         <span class="text-xs text-gray-400">
-          <span class="text-emerald-400 font-bold">▲ Hot Streak</span> / <span class="text-rose-400 font-bold">▼ Cold Streak</span> (Last 5 games vs Career Avg) • Click player for FUT Card
+          <span class="text-emerald-400 font-bold">▲ Hot Streak</span> / <span class="text-rose-400 font-bold">▼ Cold Streak</span> • Click player for FUT Card
         </span>
       </div>
 
@@ -303,11 +300,13 @@
         <i class="fa-solid fa-xmark"></i>
       </button>
 
-      <!-- Top Row: OVR + Pos + Flag + Avatar -->
       <div class="flex items-center gap-4 border-b border-yellow-500/30 pb-4">
         <div class="flex flex-col items-center">
           <div id="futOvr" class="text-4xl font-black text-yellow-400 leading-none">88</div>
-          <div id="futPos" class="text-xs font-extrabold text-yellow-200 uppercase mt-1">CAM</div>
+          <div class="flex items-center gap-1 mt-1">
+            <span id="futPos" class="text-xs font-extrabold text-yellow-200 uppercase">CAM</span>
+            <span id="futGenderSign" class="text-xs font-bold text-blue-400">♂</span>
+          </div>
           <img id="futFlag" src="" class="w-6 h-4 object-cover rounded-sm mt-2 border border-white/20" alt="Flag">
         </div>
         <div class="relative flex-1 flex justify-center">
@@ -316,13 +315,11 @@
         </div>
       </div>
 
-      <!-- Player Name & Pro Info -->
       <div class="text-center my-3">
         <div id="futName" class="text-xl font-black tracking-wide uppercase truncate">PLAYER</div>
         <div id="futSub" class="text-[11px] text-yellow-200/80 font-medium">Pro Name: -- • Height: -- cm</div>
       </div>
 
-      <!-- 6-Attribute FUT Grid -->
       <div class="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm px-4 py-3 bg-black/40 rounded-xl border border-yellow-500/20 font-mono">
         <div class="flex justify-between"><span class="text-yellow-400 font-bold" id="futPac">86</span> <span class="text-gray-300">PAC</span></div>
         <div class="flex justify-between"><span class="text-yellow-400 font-bold" id="futDri">88</span> <span class="text-gray-300">DRI</span></div>
@@ -332,7 +329,6 @@
         <div class="flex justify-between"><span class="text-yellow-400 font-bold" id="futPhy">80</span> <span class="text-gray-300">PHY</span></div>
       </div>
 
-      <!-- Career Summary Footer -->
       <div class="grid grid-cols-3 gap-2 text-center mt-4 pt-3 border-t border-yellow-500/30 text-xs">
         <div>
           <div class="text-yellow-200/70 text-[10px] uppercase">Games</div>
@@ -355,7 +351,6 @@
     let GLOBAL_MEMBERS = [];
     let RECENT_FORM_MAP = {};
 
-    // Maps EA Pro Clubs numeric nationality IDs to ISO 2-letter Flag codes
     const EA_NATION_TO_ISO = {
       '14': 'gb-eng', '25': 'ie', '42': 'gb-sct', '50': 'gb-wls', '35': 'gb-nir',
       '18': 'fr', '21': 'de', '45': 'es', '27': 'it', '34': 'nl', '38': 'pt', '7': 'be',
@@ -364,14 +359,19 @@
     };
 
     function getFlagUrl(nationId) {
-      const code = EA_NATION_TO_ISO[String(nationId || '')] || 'ie'; // Default Ireland flag if unknown
+      const code = EA_NATION_TO_ISO[String(nationId || '')] || 'ie';
       return `https://flagcdn.com/w40/${code}.png`;
     }
 
-    // Generates a permanent, deterministic Footballer Avatar for every player
     function getPlayerAvatarUrl(playerName) {
       const seed = encodeURIComponent(String(playerName || 'Pro').trim());
       return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&backgroundColor=064e3b,1e3a8a,4c1d95,78350f,111827`;
+    }
+
+    function getGenderSymbol(genderVal) {
+      // EA typically uses 1 or 'female' for women pros, 0 or 'male' for men
+      const isFemale = String(genderVal).toLowerCase() === '1' || String(genderVal).toLowerCase() === 'female' || String(genderVal).toLowerCase() === 'f';
+      return isFemale ? '<span class="text-pink-400 font-bold" title="Female Pro">♀</span>' : '<span class="text-blue-400 font-bold" title="Male Pro">♂</span>';
     }
 
     function formatPlatformLabel(rawPlatform) {
@@ -494,7 +494,6 @@
       card.classList.remove('hidden');
     }
 
-    // Computes recent 5-game average ratings per player, Dynamic Duo, and Nemesis
     function computeMatchIntelligence(clubId, matchesPayload) {
       RECENT_FORM_MAP = {};
       const ratingBuckets = {};
@@ -518,7 +517,6 @@
         const myGoals = Number(myClub.goals ?? myClub.score ?? 0);
         const oppGoals = Number(oppClub.goals ?? oppClub.score ?? 0);
 
-        // Track opponent encounters
         if (!opponentCounts[oppName]) {
           opponentCounts[oppName] = { name: oppName, played: 0, wins: 0, losses: 0, draws: 0, sr: oppSR, crestId: oppCrestId };
         }
@@ -531,7 +529,6 @@
           highestSrOpp = opponentCounts[oppName];
         }
 
-        // Player ratings (last 5 matches for form arrows) & duo synergy
         const playersData = m.players?.[thisId] || {};
         const activeContributors = [];
 
@@ -551,7 +548,6 @@
           }
         });
 
-        // Pairwise Duo Synergy in this match
         for (let i = 0; i < activeContributors.length; i++) {
           for (let j = i + 1; j < activeContributors.length; j++) {
             const pair = [activeContributors[i].name, activeContributors[j].name].sort();
@@ -570,12 +566,10 @@
         RECENT_FORM_MAP[name] = arr.reduce((a, b) => a + b, 0) / arr.length;
       });
 
-      // Render Intelligence Cards
       const intelSection = document.getElementById('intelSection');
       if (matchArr.length > 0) {
         intelSection.classList.remove('hidden');
 
-        // 1. Dynamic Duo
         const sortedDuos = Object.values(duoContributions).sort((a, b) => b.combinedGA - a.combinedGA);
         if (sortedDuos.length > 0) {
           const topDuo = sortedDuos[0];
@@ -591,7 +585,6 @@
           document.getElementById('duoAvatars').innerHTML = '';
         }
 
-        // 2. Nemesis / Repeat Rival
         const repeatRivals = Object.values(opponentCounts).filter(o => o.played > 1).sort((a, b) => b.played - a.played);
         const targetOpp = repeatRivals.length > 0 ? repeatRivals[0] : highestSrOpp;
         if (targetOpp) {
@@ -685,7 +678,6 @@
         divBadge.classList.add('hidden');
       }
 
-      // Render Trophy Cabinet
       const trophyBar = document.getElementById('trophyBar');
       if (data.trophies) {
         trophyBar.classList.remove('hidden');
@@ -725,6 +717,7 @@
         const name = m.name || m.proName || m.gamertag || 'Unknown';
         const proOverall = m.proOverall || m.overall || 85;
         const nationId = m.proNationality || m.nationality || '25';
+        const genderVal = m.proGender || m.gender || 0;
         const rawPos = m.favoritePosition || m.pos || m.favPos || 'MID';
         const normPos = normalizePosition(rawPos);
         const games = Number(m.gamesPlayed ?? m.games ?? 0);
@@ -739,7 +732,6 @@
         const tackleWinRate = m.tacklesuccessrate ?? m.tackleSuccessRate ?? 0;
         const gaPerGame = games > 0 ? ((goals + assists) / games).toFixed(2) : '0.00';
 
-        // Compute Hot / Cold Streak Arrow (Last 5 Matches vs Career Rating)
         const recentAvg = RECENT_FORM_MAP[name];
         let formArrow = '';
         if (recentAvg !== undefined && careerRating > 0) {
@@ -769,6 +761,7 @@
               <img src="${getPlayerAvatarUrl(name)}" class="w-8 h-8 rounded-full border border-emerald-500/40 bg-gray-900 flex-shrink-0" alt="${name}">
               <img src="${getFlagUrl(nationId)}" class="w-4 h-3 object-cover rounded-[2px] shadow-sm flex-shrink-0" alt="Flag">
               <span class="hover:text-emerald-400 transition">${name}</span>
+              ${getGenderSymbol(genderVal)}
             </div>
           </td>
           <td class="py-3 px-2 text-center"><span class="px-2 py-0.5 rounded bg-yellow-500/15 text-yellow-400 border border-yellow-500/30 font-black text-xs">${proOverall}</span></td>
@@ -788,7 +781,6 @@
       return list;
     }
 
-    // FUT Pro Card Modal Logic
     function openFutModal(playerName) {
       const p = GLOBAL_MEMBERS.find(m => (m.name || m.proName || m.gamertag) === playerName);
       if (!p) return;
@@ -798,6 +790,7 @@
       const ovr = Number(p.proOverall || 86);
       const height = p.proHeight || '183';
       const nationId = p.proNationality || '25';
+      const genderVal = p.proGender || p.gender || 0;
       const pos = p._rawPos && p._rawPos.length <= 4 ? p._rawPos.toUpperCase() : p._normalizedPos;
       const games = Number(p.gamesPlayed || 1);
       const goals = Number(p.goals || 0);
@@ -806,7 +799,6 @@
       const passPct = Number(p.passSuccessRate || 78);
       const rating = parseFloat(p.ratingAve || 7.5);
 
-      // Compute realistic FUT card stats scaled around their OVR & telemetry
       const pac = Math.min(99, Math.max(70, Math.round(ovr + 2)));
       const sho = Math.min(99, Math.max(65, Math.round(ovr - 4 + (goals / games) * 12)));
       const pas = Math.min(99, Math.max(68, Math.round(passPct + 6)));
@@ -816,6 +808,7 @@
 
       document.getElementById('futOvr').innerText = ovr;
       document.getElementById('futPos').innerText = pos;
+      document.getElementById('futGenderSign').outerHTML = `<span id="futGenderSign" class="text-xs font-bold">${getGenderSymbol(genderVal)}</span>`;
       document.getElementById('futFlag').src = getFlagUrl(nationId);
       document.getElementById('futAvatar').src = getPlayerAvatarUrl(name);
       document.getElementById('futFormBadge').innerText = `${rating.toFixed(1)} AVG`;
@@ -887,7 +880,7 @@
           ? `<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded border border-emerald-500/30">${oppSR}</span>` 
           : `<span class="inline-block font-mono text-xs text-gray-500 bg-gray-800/80 px-2.5 py-1 rounded">--</span>`;
 
-        const oppCrestId = oppClub.crestId || oppClub.TEAM || oppClub.details?.customKit?.crestAssetId || oppClub.details?.crestAssetId || oppClub.details?.teamId;
+        const oppCrestId = oppClub.crestId || oppClub.TEAM || oppClub.details?.crestAssetId || oppClub.details?.crestAssetId || oppClub.details?.teamId;
         const oppCrestHtml = renderCrestHtml(oppName, oppCrestId, 'w-7 h-7');
 
         const chaos = getChaosEmoji(myGoals, oppGoals, oppSR);
