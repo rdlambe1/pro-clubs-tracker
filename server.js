@@ -36,13 +36,11 @@ function resolveCrestId(infoObj = {}, statObj = {}, matchClubObj = {}) {
   const customKit = infoObj?.customKit || details?.customKit || statObj?.customKit || matchClubObj?.customKit || {};
   const kitType = String(customKit.selectedKitType ?? infoObj?.selectedKitType ?? details?.selectedKitType ?? '');
 
-  // If selectedKitType is '0', the club uses a real-world authentic teamId badge
   if (kitType === '0') {
     const authenticId = infoObj?.teamId || details?.teamId || matchClubObj?.TEAM || statObj?.teamId;
     if (authenticId && String(authenticId) !== '0') return String(authenticId);
   }
 
-  // Otherwise prioritized order: match TEAM field -> customKit.crestAssetId -> teamId
   const candidates = [
     matchClubObj?.TEAM,
     customKit.crestAssetId,
@@ -125,7 +123,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Overall Stats + Division + Exact Crest ID
+// 2. Club Info + Overall Stats + Trophy Cabinet + Seasonal Division + Exact Crest ID
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -148,12 +146,21 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     const statObj = Array.isArray(overall) ? (overall[0] || {}) : (overall[clubId] || overall);
     const infoObj = directInfo[clubId] || sdkInfo[clubId] || directInfo || sdkInfo || {};
 
+    let seasonObj = {};
+    if (Array.isArray(seasonalPayload)) seasonObj = seasonalPayload[0] || {};
+    else if (seasonalPayload && typeof seasonalPayload === 'object') seasonObj = seasonalPayload[clubId] || Object.values(seasonalPayload)[0] || seasonalPayload;
+
     const division = parseDivisionFromPayload(seasonalPayload, statObj, infoObj) || 'Div 2';
     const crestId = resolveCrestId(infoObj, statObj);
 
-    console.log(`[Club Info ${numericId}] Resolved CrestId: ${crestId}, Division: ${division}`);
+    const trophies = {
+      titlesWon: Number(seasonObj.titlesWon ?? statObj.titlesWon ?? 0),
+      leaguesWon: Number(seasonObj.leaguesWon ?? statObj.leaguesWon ?? 0),
+      promotions: Number(seasonObj.promotions ?? statObj.promotions ?? 0),
+      bestDivision: parseDivisionFromPayload({ currentDivision: seasonObj.bestDivision ?? statObj.bestDivision }, {}, {}) || division
+    };
 
-    res.json({ info: infoObj, overall: statObj, division, crestId });
+    res.json({ info: infoObj, overall: statObj, division, crestId, trophies });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -173,7 +180,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Match History (Extracts TEAM crest IDs and enriches opponent Division/SR)
+// 4. Match History
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -250,7 +257,6 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
           if (enriched.skillRating) matchClubObj.skillRating = enriched.skillRating;
           if (enriched.division) matchClubObj.division = enriched.division;
         }
-        // Resolve crest from match's TEAM property or enriched club info
         matchClubObj.crestId = resolveCrestId(
           enriched ? { crestAssetId: enriched.crestId } : {},
           {},
@@ -265,13 +271,12 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   res.json(recent10);
 });
 
-// 5. Official EA fltOnlineAssets Crest Proxy (Uses exact 'l{id}.png' filename format)
+// 5. Official EA fltOnlineAssets Crest Proxy
 app.get('/api/crest/:crestId', async (req, res) => {
   const rawId = String(req.params.crestId || '').replace(/^l/i, '').trim();
   const clubName = req.query.name || 'FC';
 
   if (rawId && rawId !== 'undefined' && rawId !== 'null' && rawId !== '0') {
-    // Official EA CDN buckets for FC 27 / 26 / 25 / 24 / FIFA 21 where l{id}.png crests live
     const candidateUrls = [
       `https://eafc26.content.easports.com/fc/fltOnlineAssets/26E4D4D6-8DBB-4A9A-BD99-9C47D3AA341D/2026/fcweb/crests/256x256/l${rawId}.png`,
       `https://eafc26.content.easports.com/fc/fltOnlineAssets/26E4D4D6-8DBB-4A9A-BD99-9C47D3AA341D/2026/fifaweb/crests/256x256/l${rawId}.png`,
@@ -303,7 +308,6 @@ app.get('/api/crest/:crestId', async (req, res) => {
     }
   }
 
-  // Fallback SVG if no CDN returned an image
   res.setHeader('Content-Type', 'image/svg+xml');
   res.setHeader('Cache-Control', 'public, max-age=3600');
   return res.send(generateFallbackSvg(clubName));
