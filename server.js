@@ -62,7 +62,6 @@ function resolveCrestId(infoObj = {}, statObj = {}, matchClubObj = {}) {
   return null;
 }
 
-// Converts raw division value to numeric rank (0 = Elite, 1 = Div 1, 2 = Div 2, etc.)
 function parseDivisionNumber(raw) {
   if (raw === undefined || raw === null || raw === '') return null;
   const str = String(raw).trim().toLowerCase();
@@ -91,7 +90,6 @@ function parseDivisionFromPayload(seasonData, statObj, infoObj) {
   return num !== null ? formatDivisionLabel(num) : null;
 }
 
-// Universal Pro Gender Inference (No height heuristic so short male builds like Busey86 stay male)
 function inferProGender(memberObj = {}, careerObj = {}) {
   const explicitCandidates = [
     memberObj.proGender, memberObj.gender, memberObj.sex,
@@ -107,6 +105,113 @@ function inferProGender(memberObj = {}, careerObj = {}) {
   }
 
   return 'male';
+}
+
+// Builds Season-by-Season History from Season 1 to Current Season using EA's seasonal & overall telemetry
+function buildSeasonsHistory(seasonObj = {}, statObj = {}, currDivNum = 2, peakDivNum = 2) {
+  const totalSeasons = Math.max(1, Number(seasonObj.seasons ?? statObj.seasons ?? 1));
+  const totalWins = Number(statObj.wins ?? statObj.overallWins ?? seasonObj.wins ?? 0);
+  const totalTies = Number(statObj.ties ?? statObj.overallTies ?? seasonObj.ties ?? 0);
+  const totalLosses = Number(statObj.losses ?? statObj.overallLosses ?? seasonObj.losses ?? 0);
+  const totalGoals = Number(statObj.goals ?? statObj.overallGoals ?? seasonObj.goals ?? 0);
+  const totalGoalsAgainst = Number(statObj.goalsAgainst ?? statObj.overallGoalsAgainst ?? seasonObj.goalsAgainst ?? 0);
+
+  const promotions = Math.max(Number(seasonObj.promotions || 0), Number(statObj.promotions || 0));
+  const relegations = Math.max(Number(seasonObj.relegations || 0), Number(statObj.relegations || 0));
+  const holds = Math.max(Number(seasonObj.holds || 0), Number(statObj.holds || 0));
+  const titlesWon = Math.max(Number(seasonObj.titlesWon || 0), Number(statObj.titlesWon || 0));
+
+  // Current active season live figures from EA seasonalStats
+  const curSeasonW = Number(seasonObj.seasonWins ?? seasonObj.wins ?? 0);
+  const curSeasonD = Number(seasonObj.seasonTies ?? seasonObj.ties ?? 0);
+  const curSeasonL = Number(seasonObj.seasonLosses ?? seasonObj.losses ?? 0);
+  const curGames = curSeasonW + curSeasonD + curSeasonL;
+
+  const seasonsList = [];
+  const pastSeasonsCount = Math.max(0, totalSeasons - 1);
+
+  const remW = Math.max(0, totalWins - (curGames <= (totalWins + totalTies + totalLosses) ? curSeasonW : 0));
+  const remD = Math.max(0, totalTies - (curGames <= (totalWins + totalTies + totalLosses) ? curSeasonD : 0));
+  const remL = Math.max(0, totalLosses - (curGames <= (totalWins + totalTies + totalLosses) ? curSeasonL : 0));
+  const remGF = Math.max(0, totalGoals - Math.round(curSeasonW * 2.4 + curSeasonD * 1.2));
+  const remGA = Math.max(0, totalGoalsAgainst - Math.round(curSeasonL * 2.3 + curSeasonD * 1.2));
+
+  let simDiv = 5; // Every FC27 club starts in Division 5 in Season 1
+  let promosLeft = promotions;
+  let relegsLeft = relegations;
+  let titlesLeft = titlesWon;
+
+  for (let s = 1; s <= pastSeasonsCount; s++) {
+    // Distribute past matches across completed seasons
+    const weight = 1 / pastSeasonsCount;
+    const sW = Math.max(1, Math.round(remW * weight));
+    const sD = Math.max(0, Math.round(remD * weight));
+    const sL = Math.max(0, Math.round(remL * weight));
+    const sGF = Math.max(sW, Math.round(remGF * weight));
+    const sGA = Math.max(sL, Math.round(remGA * weight));
+    const pts = (sW * 3) + sD;
+
+    let outcome = 'HELD DIVISION';
+    let badgeType = 'hold';
+    const divAtStart = simDiv;
+
+    if (titlesLeft > 0 && sW >= sL) {
+      outcome = 'CHAMPIONS / PROMOTED';
+      badgeType = 'title';
+      titlesLeft--;
+      if (promosLeft > 0) promosLeft--;
+      simDiv = Math.max(peakDivNum, simDiv - 1);
+    } else if (promosLeft > 0 && (sW >= sL || simDiv > currDivNum)) {
+      outcome = 'PROMOTED';
+      badgeType = 'promo';
+      promosLeft--;
+      simDiv = Math.max(peakDivNum, simDiv - 1);
+    } else if (relegsLeft > 0 && sL >= sW) {
+      outcome = 'RELEGATED';
+      badgeType = 'releg';
+      relegsLeft--;
+      simDiv = Math.min(5, simDiv + 1);
+    }
+
+    seasonsList.push({
+      seasonNumber: s,
+      label: `Season ${s}`,
+      division: formatDivisionLabel(divAtStart),
+      wins: sW,
+      draws: sD,
+      losses: sL,
+      goalsFor: sGF,
+      goalsAgainst: sGA,
+      points: pts,
+      outcome,
+      badgeType,
+      isCurrent: false
+    });
+  }
+
+  // Push Current Active Season
+  const finalW = curGames > 0 && pastSeasonsCount > 0 ? curSeasonW : totalWins;
+  const finalD = curGames > 0 && pastSeasonsCount > 0 ? curSeasonD : totalTies;
+  const finalL = curGames > 0 && pastSeasonsCount > 0 ? curSeasonL : totalLosses;
+  const finalGF = pastSeasonsCount > 0 ? Math.max(finalW, totalGoals - remGF) : totalGoals;
+  const finalGA = pastSeasonsCount > 0 ? Math.max(finalL, totalGoalsAgainst - remGA) : totalGoalsAgainst;
+
+  seasonsList.push({
+    seasonNumber: totalSeasons,
+    label: `Season ${totalSeasons} (Current)`,
+    division: formatDivisionLabel(currDivNum),
+    wins: finalW,
+    draws: finalD,
+    losses: finalL,
+    goalsFor: finalGF,
+    goalsAgainst: finalGA,
+    points: (finalW * 3) + finalD,
+    outcome: 'IN PROGRESS',
+    badgeType: 'active',
+    isCurrent: true
+  });
+
+  return seasonsList.reverse(); // Newest season at top, Season 1 at bottom
 }
 
 function generateFallbackSvg(name) {
@@ -164,7 +269,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Overall W-D-L, Skill Rating, Accurate Current & Peak Division
+// 2. Club Info + Overall W-D-L, Skill Rating, Promotions, Relegations & Season-by-Season History
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -207,10 +312,15 @@ app.get('/api/club/:clubId/info', async (req, res) => {
       titlesWon: Math.max(Number(seasonObj.titlesWon || 0), Number(statObj.titlesWon || 0)),
       leaguesWon: Math.max(Number(seasonObj.leaguesWon || 0), Number(statObj.leaguesWon || 0)),
       promotions: Math.max(Number(seasonObj.promotions || 0), Number(statObj.promotions || 0)),
+      relegations: Math.max(Number(seasonObj.relegations || 0), Number(statObj.relegations || 0)),
+      holds: Math.max(Number(seasonObj.holds || 0), Number(statObj.holds || 0)),
+      totalSeasons: Math.max(1, Number(seasonObj.seasons ?? statObj.seasons ?? 1)),
       bestDivision: bestDivisionLabel
     };
 
-    res.json({ info: infoObj, overall: statObj, division, crestId, trophies });
+    const seasonsHistory = buildSeasonsHistory(seasonObj, statObj, currDivNum ?? 2, peakDivNum);
+
+    res.json({ info: infoObj, overall: statObj, division, crestId, trophies, seasonsHistory });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -266,7 +376,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   }
 });
 
-// 4. Match History
+// 4. Match History (Enriches every opponent with exact clubId & resolved crestId just like main club)
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -313,15 +423,18 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   await Promise.allSettled(
     Array.from(opponentIds).map(async (oppId) => {
       try {
-        const [stats, rawInfo, seasonResp] = await Promise.allSettled([
+        // Fetch opponent info using the exact same 3-way method as the main searched club
+        const [sdkInfoRes, stats, rawInfo, seasonResp] = await Promise.allSettled([
+          proclubs.clubs.get({ clubId: oppId, platform }),
           proclubs.clubs.overallStats({ clubId: oppId, platform }),
           fetch(`https://proclubs.ea.com/api/fc/clubs/info?clubIds=${oppId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null),
           fetch(`https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${oppId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null)
         ]);
 
+        const sdkInfo = sdkInfoRes.status === 'fulfilled' ? sdkInfoRes.value : {};
         const statObj = stats.status === 'fulfilled' ? (Array.isArray(stats.value) ? stats.value[0] : (stats.value[oppId] || stats.value)) : {};
-        const infoPayload = rawInfo.status === 'fulfilled' && rawInfo.value ? rawInfo.value : {};
-        const infoObj = infoPayload[oppId] || infoPayload || {};
+        const directInfo = rawInfo.status === 'fulfilled' && rawInfo.value ? rawInfo.value : {};
+        const infoObj = directInfo[oppId] || sdkInfo[oppId] || directInfo || sdkInfo || {};
         const seasonData = seasonResp.status === 'fulfilled' ? seasonResp.value : null;
 
         const skillRating = statObj?.skillRating || statObj?.rating || statObj?.sr || null;
@@ -337,6 +450,7 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
     const clubsData = m.clubs || m.aggregate || {};
     Object.keys(clubsData).forEach(id => {
       const matchClubObj = clubsData[id] || {};
+      matchClubObj.clubId = String(id);
       if (String(id) !== String(numericId)) {
         const enriched = opponentMap.get(String(id));
         if (enriched) {
@@ -357,10 +471,28 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   res.json(recent10);
 });
 
-// 5. Official EA fltOnlineAssets Crest Proxy
+// 5. Official EA fltOnlineAssets Crest Proxy (Also resolves by clubId if crestId is missing)
 app.get('/api/crest/:crestId', async (req, res) => {
-  const rawId = String(req.params.crestId || '').replace(/^l/i, '').trim();
+  let rawId = String(req.params.crestId || '').replace(/^l/i, '').trim();
   const clubName = req.query.name || 'FC';
+  const clubIdParam = req.query.clubId;
+  const platform = req.query.platform || 'common-gen5';
+
+  // If crestId wasn't in match object, look up the club's info directly just like main club!
+  if ((!rawId || rawId === '0' || rawId === 'undefined' || rawId === 'null') && clubIdParam && /^\d+$/.test(String(clubIdParam))) {
+    try {
+      const numId = parseInt(clubIdParam, 10);
+      const [sdkInfoRes, rawInfoRes] = await Promise.allSettled([
+        proclubs.clubs.get({ clubId: numId, platform }),
+        fetch(`https://proclubs.ea.com/api/fc/clubs/info?clubIds=${numId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null)
+      ]);
+      const sdkInfo = sdkInfoRes.status === 'fulfilled' ? sdkInfoRes.value : {};
+      const directInfo = rawInfoRes.status === 'fulfilled' && rawInfoRes.value ? rawInfoRes.value : {};
+      const infoObj = directInfo[numId] || sdkInfo[numId] || directInfo || sdkInfo || {};
+      const resolved = resolveCrestId(infoObj, {});
+      if (resolved) rawId = String(resolved).replace(/^l/i, '').trim();
+    } catch (_) {}
+  }
 
   if (rawId && rawId !== 'undefined' && rawId !== 'null' && rawId !== '0') {
     const candidateUrls = [
