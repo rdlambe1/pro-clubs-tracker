@@ -30,6 +30,7 @@ function extractClubId(obj, keyFallback = null) {
   return null;
 }
 
+// Universal Crest ID Resolver across club info, stats, and match payloads
 function resolveCrestId(infoObj = {}, statObj = {}, matchClubObj = {}) {
   const details = matchClubObj?.details || {};
   const customKit = infoObj?.customKit || details?.customKit || statObj?.customKit || matchClubObj?.customKit || {};
@@ -41,6 +42,7 @@ function resolveCrestId(infoObj = {}, statObj = {}, matchClubObj = {}) {
   }
 
   const candidates = [
+    matchClubObj?.crestId,
     matchClubObj?.TEAM,
     customKit.crestAssetId,
     customKit.crestId,
@@ -60,6 +62,22 @@ function resolveCrestId(infoObj = {}, statObj = {}, matchClubObj = {}) {
   return null;
 }
 
+// Converts raw division value to numeric rank (0 = Elite, 1 = Div 1, 2 = Div 2, etc.)
+function parseDivisionNumber(raw) {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const str = String(raw).trim().toLowerCase();
+  if (str === 'elite') return 0;
+  const num = parseInt(str.replace(/[^0-9-]/g, ''), 10);
+  if (isNaN(num) || num < 0 || num > 10) return null;
+  return num;
+}
+
+function formatDivisionLabel(divNum) {
+  if (divNum === null || divNum === undefined || isNaN(divNum)) return 'Div 2';
+  if (divNum <= 0) return 'Elite';
+  return `Div ${divNum}`;
+}
+
 function parseDivisionFromPayload(seasonData, statObj, infoObj) {
   let seasonItem = null;
   if (Array.isArray(seasonData)) {
@@ -68,13 +86,44 @@ function parseDivisionFromPayload(seasonData, statObj, infoObj) {
     seasonItem = Object.values(seasonData)[0] || seasonData;
   }
 
-  const raw = seasonItem?.currentDivision ?? seasonItem?.division ?? statObj?.currentDivision ?? statObj?.bestDivision ?? infoObj?.currentDivision ?? null;
-  if (raw === undefined || raw === null || raw === '') return null;
+  const raw = seasonItem?.currentDivision ?? seasonItem?.division ?? statObj?.currentDivision ?? infoObj?.currentDivision ?? null;
+  const num = parseDivisionNumber(raw);
+  return num !== null ? formatDivisionLabel(num) : null;
+}
 
-  const num = parseInt(raw, 10);
-  if (isNaN(num)) return String(raw);
-  if (num <= 0 || num === 1) return num === 0 ? 'Elite' : 'Div 1';
-  return `Div ${num}`;
+// Universal Pro Gender Inference (No hardcoded usernames)
+function inferProGender(memberObj = {}, careerObj = {}, matchPlayerSamples = []) {
+  // 1. Check explicit gender / sex fields across all EA objects
+  const explicitCandidates = [
+    memberObj.proGender, memberObj.gender, memberObj.sex,
+    careerObj.proGender, careerObj.gender, careerObj.sex,
+    ...matchPlayerSamples.map(s => s?.proGender ?? s?.gender ?? s?.sex)
+  ];
+
+  for (const val of explicitCandidates) {
+    if (val !== undefined && val !== null && String(val).trim() !== '') {
+      const s = String(val).toLowerCase().trim();
+      if (s === '1' || s === 'female' || s === 'f' || s === 'true') return 'female';
+      if (s === '0' || s === 'male' || s === 'm' || s === 'false') return 'male';
+    }
+  }
+
+  // 2. Check vproattr string if present in match telemetry
+  for (const sample of matchPlayerSamples) {
+    if (sample?.vproattr && typeof sample.vproattr === 'string') {
+      // EA vproattr pipe-delimited string or JSON attribute inspection
+      const attr = sample.vproattr.toLowerCase();
+      if (attr.includes('female') || attr.includes('"gender":1')) return 'female';
+    }
+  }
+
+  // 3. Physical model heuristic (EA Virtual Pro female preset height/weight bounds)
+  const height = parseInt(memberObj.proHeight || careerObj.proHeight || 0, 10);
+  const weight = parseInt(memberObj.proWeight || careerObj.proWeight || 0, 10);
+  if (height > 0 && height <= 170) return 'female';
+  if (height > 0 && height <= 175 && weight > 0 && weight <= 64) return 'female';
+
+  return 'male';
 }
 
 function generateFallbackSvg(name) {
@@ -132,7 +181,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Overall W-D-L, Skill Rating & Division
+// 2. Club Info + Overall W-D-L, Skill Rating, Accurate Current & Peak Division
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -159,14 +208,24 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     if (Array.isArray(seasonalPayload)) seasonObj = seasonalPayload[0] || {};
     else if (seasonalPayload && typeof seasonalPayload === 'object') seasonObj = seasonalPayload[clubId] || Object.values(seasonalPayload)[0] || seasonalPayload;
 
-    const division = parseDivisionFromPayload(seasonalPayload, statObj, infoObj) || 'Div 2';
+    // Resolve Current Division and Peak Division (lower number = higher rank, e.g. Div 2 beats Div 3)
+    const currDivNum = parseDivisionNumber(seasonObj.currentDivision ?? seasonObj.division ?? statObj.currentDivision ?? infoObj.currentDivision);
+    const bestSeasonNum = parseDivisionNumber(seasonObj.bestDivision);
+    const bestOverallNum = parseDivisionNumber(statObj.bestDivision);
+
+    const validNums = [currDivNum, bestSeasonNum, bestOverallNum].filter(n => n !== null);
+    const peakDivNum = validNums.length > 0 ? Math.min(...validNums) : (currDivNum ?? 2);
+
+    const division = formatDivisionLabel(currDivNum ?? peakDivNum);
+    const bestDivisionLabel = formatDivisionLabel(peakDivNum);
+
     const crestId = resolveCrestId(infoObj, statObj);
 
     const trophies = {
-      titlesWon: Number(seasonObj.titlesWon ?? statObj.titlesWon ?? 0),
-      leaguesWon: Number(seasonObj.leaguesWon ?? statObj.leaguesWon ?? 0),
-      promotions: Number(seasonObj.promotions ?? statObj.promotions ?? 0),
-      bestDivision: parseDivisionFromPayload({ currentDivision: seasonObj.bestDivision ?? statObj.bestDivision }, {}, {}) || division
+      titlesWon: Math.max(Number(seasonObj.titlesWon || 0), Number(statObj.titlesWon || 0)),
+      leaguesWon: Math.max(Number(seasonObj.leaguesWon || 0), Number(statObj.leaguesWon || 0)),
+      promotions: Math.max(Number(seasonObj.promotions || 0), Number(statObj.promotions || 0)),
+      bestDivision: bestDivisionLabel
     };
 
     res.json({ info: infoObj, overall: statObj, division, crestId, trophies });
@@ -175,20 +234,22 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 });
 
-// 3. Member / Squad Stats (Merges club stats + career stats to capture all pro attributes)
+// 3. Member / Squad Stats (Merges club stats, career stats & match player telemetry)
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
   const numericId = parseInt(clubId, 10);
 
   try {
-    const [clubMemRes, careerMemRes] = await Promise.allSettled([
+    const [clubMemRes, careerMemRes, recentMatchRes] = await Promise.allSettled([
       proclubs.members.stats({ clubId: numericId, platform }),
-      fetch(`https://proclubs.ea.com/api/fc/members/career/stats?clubId=${numericId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null)
+      fetch(`https://proclubs.ea.com/api/fc/members/career/stats?clubId=${numericId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null),
+      fetch(`https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numericId}&platform=${platform}&matchType=leagueMatch&maxResultCount=5`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null)
     ]);
 
     const rawMembers = clubMemRes.status === 'fulfilled' ? clubMemRes.value : {};
     const careerPayload = careerMemRes.status === 'fulfilled' ? careerMemRes.value : null;
+    const recentMatches = recentMatchRes.status === 'fulfilled' && Array.isArray(recentMatchRes.value) ? recentMatchRes.value : [];
 
     let list = [];
     if (Array.isArray(rawMembers)) list = rawMembers;
@@ -200,31 +261,38 @@ app.get('/api/club/:clubId/members', async (req, res) => {
       const cList = Array.isArray(careerPayload) ? careerPayload : (careerPayload.members || Object.values(careerPayload));
       if (Array.isArray(cList)) {
         cList.forEach(cm => {
-          if (cm && cm.name) careerMap.set(String(cm.name).toLowerCase(), cm);
+          if (cm && cm.name) careerMap.set(String(cm.name).toLowerCase().trim(), cm);
         });
       }
     }
 
-    // Known female Virtual Pros + automatic detection via career/height attributes
-    const KNOWN_FEMALE_PROS = new Set(['rbizzzl', 'doffel7365']);
+    // Collect match player samples per gamertag
+    const matchPlayerSamplesMap = new Map();
+    recentMatches.forEach(match => {
+      const clubPlayers = match?.players?.[numericId] || {};
+      Object.values(clubPlayers).forEach(mp => {
+        const pName = String(mp?.playername || mp?.name || '').toLowerCase().trim();
+        if (pName) {
+          if (!matchPlayerSamplesMap.has(pName)) matchPlayerSamplesMap.set(pName, []);
+          matchPlayerSamplesMap.get(pName).push(mp);
+        }
+      });
+    });
 
     list.forEach(m => {
       if (!m || typeof m !== 'object') return;
       const key = String(m.name || m.proName || '').toLowerCase().trim();
       const careerObj = careerMap.get(key) || {};
+      const samples = matchPlayerSamplesMap.get(key) || [];
 
-      const rawGender = m.proGender ?? m.gender ?? careerObj.proGender ?? careerObj.gender ?? m.sex ?? null;
-      const heightNum = parseInt(m.proHeight || careerObj.proHeight || 180, 10);
+      // Enrich missing pro metadata from career object
+      if (!m.proStyle && careerObj.proStyle) m.proStyle = careerObj.proStyle;
+      if (!m.proHeight && careerObj.proHeight) m.proHeight = careerObj.proHeight;
+      if (!m.proWeight && careerObj.proWeight) m.proWeight = careerObj.proWeight;
+      if (!m.proOverall && careerObj.proOverall) m.proOverall = careerObj.proOverall;
+      if (!m.proNationality && careerObj.proNationality) m.proNationality = careerObj.proNationality;
 
-      if (KNOWN_FEMALE_PROS.has(key)) {
-        m.inferredGender = 'female';
-      } else if (rawGender !== null && (String(rawGender) === '1' || String(rawGender).toLowerCase().startsWith('f'))) {
-        m.inferredGender = 'female';
-      } else if (heightNum > 0 && heightNum <= 167) {
-        m.inferredGender = 'female';
-      } else {
-        m.inferredGender = 'male';
-      }
+      m.inferredGender = inferProGender(m, careerObj, samples);
     });
 
     res.json(list);
