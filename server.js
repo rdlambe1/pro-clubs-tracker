@@ -91,13 +91,11 @@ function parseDivisionFromPayload(seasonData, statObj, infoObj) {
   return num !== null ? formatDivisionLabel(num) : null;
 }
 
-// Universal Pro Gender Inference (No hardcoded usernames)
-function inferProGender(memberObj = {}, careerObj = {}, matchPlayerSamples = []) {
-  // 1. Check explicit gender / sex fields across all EA objects
+// Universal Pro Gender Inference (No height heuristic so short male builds like Busey86 stay male)
+function inferProGender(memberObj = {}, careerObj = {}) {
   const explicitCandidates = [
     memberObj.proGender, memberObj.gender, memberObj.sex,
-    careerObj.proGender, careerObj.gender, careerObj.sex,
-    ...matchPlayerSamples.map(s => s?.proGender ?? s?.gender ?? s?.sex)
+    careerObj.proGender, careerObj.gender, careerObj.sex
   ];
 
   for (const val of explicitCandidates) {
@@ -107,21 +105,6 @@ function inferProGender(memberObj = {}, careerObj = {}, matchPlayerSamples = [])
       if (s === '0' || s === 'male' || s === 'm' || s === 'false') return 'male';
     }
   }
-
-  // 2. Check vproattr string if present in match telemetry
-  for (const sample of matchPlayerSamples) {
-    if (sample?.vproattr && typeof sample.vproattr === 'string') {
-      // EA vproattr pipe-delimited string or JSON attribute inspection
-      const attr = sample.vproattr.toLowerCase();
-      if (attr.includes('female') || attr.includes('"gender":1')) return 'female';
-    }
-  }
-
-  // 3. Physical model heuristic (EA Virtual Pro female preset height/weight bounds)
-  const height = parseInt(memberObj.proHeight || careerObj.proHeight || 0, 10);
-  const weight = parseInt(memberObj.proWeight || careerObj.proWeight || 0, 10);
-  if (height > 0 && height <= 170) return 'female';
-  if (height > 0 && height <= 175 && weight > 0 && weight <= 64) return 'female';
 
   return 'male';
 }
@@ -208,7 +191,6 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     if (Array.isArray(seasonalPayload)) seasonObj = seasonalPayload[0] || {};
     else if (seasonalPayload && typeof seasonalPayload === 'object') seasonObj = seasonalPayload[clubId] || Object.values(seasonalPayload)[0] || seasonalPayload;
 
-    // Resolve Current Division and Peak Division (lower number = higher rank, e.g. Div 2 beats Div 3)
     const currDivNum = parseDivisionNumber(seasonObj.currentDivision ?? seasonObj.division ?? statObj.currentDivision ?? infoObj.currentDivision);
     const bestSeasonNum = parseDivisionNumber(seasonObj.bestDivision);
     const bestOverallNum = parseDivisionNumber(statObj.bestDivision);
@@ -234,22 +216,20 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 });
 
-// 3. Member / Squad Stats (Merges club stats, career stats & match player telemetry)
+// 3. Member / Squad Stats
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
   const numericId = parseInt(clubId, 10);
 
   try {
-    const [clubMemRes, careerMemRes, recentMatchRes] = await Promise.allSettled([
+    const [clubMemRes, careerMemRes] = await Promise.allSettled([
       proclubs.members.stats({ clubId: numericId, platform }),
-      fetch(`https://proclubs.ea.com/api/fc/members/career/stats?clubId=${numericId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null),
-      fetch(`https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numericId}&platform=${platform}&matchType=leagueMatch&maxResultCount=5`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null)
+      fetch(`https://proclubs.ea.com/api/fc/members/career/stats?clubId=${numericId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null)
     ]);
 
     const rawMembers = clubMemRes.status === 'fulfilled' ? clubMemRes.value : {};
     const careerPayload = careerMemRes.status === 'fulfilled' ? careerMemRes.value : null;
-    const recentMatches = recentMatchRes.status === 'fulfilled' && Array.isArray(recentMatchRes.value) ? recentMatchRes.value : [];
 
     let list = [];
     if (Array.isArray(rawMembers)) list = rawMembers;
@@ -266,33 +246,18 @@ app.get('/api/club/:clubId/members', async (req, res) => {
       }
     }
 
-    // Collect match player samples per gamertag
-    const matchPlayerSamplesMap = new Map();
-    recentMatches.forEach(match => {
-      const clubPlayers = match?.players?.[numericId] || {};
-      Object.values(clubPlayers).forEach(mp => {
-        const pName = String(mp?.playername || mp?.name || '').toLowerCase().trim();
-        if (pName) {
-          if (!matchPlayerSamplesMap.has(pName)) matchPlayerSamplesMap.set(pName, []);
-          matchPlayerSamplesMap.get(pName).push(mp);
-        }
-      });
-    });
-
     list.forEach(m => {
       if (!m || typeof m !== 'object') return;
       const key = String(m.name || m.proName || '').toLowerCase().trim();
       const careerObj = careerMap.get(key) || {};
-      const samples = matchPlayerSamplesMap.get(key) || [];
 
-      // Enrich missing pro metadata from career object
       if (!m.proStyle && careerObj.proStyle) m.proStyle = careerObj.proStyle;
       if (!m.proHeight && careerObj.proHeight) m.proHeight = careerObj.proHeight;
       if (!m.proWeight && careerObj.proWeight) m.proWeight = careerObj.proWeight;
       if (!m.proOverall && careerObj.proOverall) m.proOverall = careerObj.proOverall;
       if (!m.proNationality && careerObj.proNationality) m.proNationality = careerObj.proNationality;
 
-      m.inferredGender = inferProGender(m, careerObj, samples);
+      m.inferredGender = inferProGender(m, careerObj);
     });
 
     res.json(list);
