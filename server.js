@@ -30,21 +30,31 @@ function extractClubId(obj, keyFallback = null) {
   return null;
 }
 
-function resolveCrestId(infoObj = {}, statObj = {}) {
-  const customKit = infoObj?.customKit || statObj?.customKit || {};
+function resolveCrestId(infoObj = {}, statObj = {}, matchClubObj = {}) {
+  const details = matchClubObj?.details || {};
+  const customKit = infoObj?.customKit || details?.customKit || statObj?.customKit || matchClubObj?.customKit || {};
+  const kitType = String(customKit.selectedKitType ?? infoObj?.selectedKitType ?? details?.selectedKitType ?? '');
+
+  if (kitType === '0') {
+    const authenticId = infoObj?.teamId || details?.teamId || matchClubObj?.TEAM || statObj?.teamId;
+    if (authenticId && String(authenticId) !== '0') return String(authenticId);
+  }
+
   const candidates = [
+    matchClubObj?.TEAM,
     customKit.crestAssetId,
     customKit.crestId,
-    infoObj.crestAssetId,
-    infoObj.crestId,
-    statObj.crestAssetId,
-    statObj.crestId,
-    infoObj.teamId,
-    statObj.teamId
+    infoObj?.crestAssetId,
+    details?.crestAssetId,
+    infoObj?.teamId,
+    details?.teamId,
+    statObj?.crestAssetId,
+    statObj?.teamId
   ];
+
   for (const c of candidates) {
-    if (c !== undefined && c !== null && String(c) !== '' && String(c) !== '0') {
-      return String(c);
+    if (c !== undefined && c !== null && String(c).trim() !== '' && String(c) !== '0' && String(c) !== '-1') {
+      return String(c).trim();
     }
   }
   return null;
@@ -60,7 +70,7 @@ function parseDivisionFromPayload(seasonData, statObj, infoObj) {
 
   const raw = seasonItem?.currentDivision ?? seasonItem?.division ?? statObj?.currentDivision ?? statObj?.bestDivision ?? infoObj?.currentDivision ?? null;
   if (raw === undefined || raw === null || raw === '') return null;
-  
+
   const num = parseInt(raw, 10);
   if (isNaN(num)) return String(raw);
   if (num <= 0 || num === 1) return num === 0 ? 'Elite' : 'Div 1';
@@ -130,31 +140,33 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   if (isNaN(numericId) || numericId <= 0) return res.status(400).json({ error: 'Invalid clubId' });
 
   try {
-    const [infoRes, statsRes] = await Promise.allSettled([
+    const [infoRes, statsRes, rawInfoRes, seasonRes] = await Promise.allSettled([
       proclubs.clubs.get({ clubId: numericId, platform }),
-      proclubs.clubs.overallStats({ clubId: numericId, platform })
+      proclubs.clubs.overallStats({ clubId: numericId, platform }),
+      fetch(`https://proclubs.ea.com/api/fc/clubs/info?clubIds=${numericId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null),
+      fetch(`https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${numericId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null)
     ]);
 
-    const info = infoRes.status === 'fulfilled' ? infoRes.value : {};
+    const sdkInfo = infoRes.status === 'fulfilled' ? infoRes.value : {};
     const overall = statsRes.status === 'fulfilled' ? statsRes.value : {};
+    const directInfo = rawInfoRes.status === 'fulfilled' && rawInfoRes.value ? rawInfoRes.value : {};
+    const seasonalPayload = seasonRes.status === 'fulfilled' ? seasonRes.value : null;
 
     const statObj = Array.isArray(overall) ? (overall[0] || {}) : (overall[clubId] || overall);
-    const infoObj = info[clubId] || info;
+    const infoObj = directInfo[clubId] || sdkInfo[clubId] || directInfo || sdkInfo || {};
 
-    let seasonalPayload = null;
-    try {
-      const seasonResp = await fetch(`https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${numericId}&platform=${platform}`, { headers: EA_HEADERS });
-      if (seasonResp.ok) seasonalPayload = await seasonResp.json();
-    } catch (_) {}
+    let seasonObj = {};
+    if (Array.isArray(seasonalPayload)) seasonObj = seasonalPayload[0] || {};
+    else if (seasonalPayload && typeof seasonalPayload === 'object') seasonObj = seasonalPayload[clubId] || Object.values(seasonalPayload)[0] || seasonalPayload;
 
     const division = parseDivisionFromPayload(seasonalPayload, statObj, infoObj) || 'Div 2';
     const crestId = resolveCrestId(infoObj, statObj);
 
     const trophies = {
-      titlesWon: Number(statObj.titlesWon ?? 0),
-      leaguesWon: Number(statObj.leaguesWon ?? 0),
-      promotions: Number(statObj.promotions ?? 0),
-      bestDivision: parseDivisionFromPayload({ currentDivision: statObj.bestDivision }, {}, {}) || division
+      titlesWon: Number(seasonObj.titlesWon ?? statObj.titlesWon ?? 0),
+      leaguesWon: Number(seasonObj.leaguesWon ?? statObj.leaguesWon ?? 0),
+      promotions: Number(seasonObj.promotions ?? statObj.promotions ?? 0),
+      bestDivision: parseDivisionFromPayload({ currentDivision: seasonObj.bestDivision ?? statObj.bestDivision }, {}, {}) || division
     };
 
     res.json({ info: infoObj, overall: statObj, division, crestId, trophies });
@@ -163,15 +175,59 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 });
 
-// 3. Member / Squad Stats
+// 3. Member / Squad Stats (Merges club stats + career stats to capture all pro attributes)
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
   const numericId = parseInt(clubId, 10);
 
   try {
-    const members = await proclubs.members.stats({ clubId: numericId, platform });
-    res.json(members);
+    const [clubMemRes, careerMemRes] = await Promise.allSettled([
+      proclubs.members.stats({ clubId: numericId, platform }),
+      fetch(`https://proclubs.ea.com/api/fc/members/career/stats?clubId=${numericId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null)
+    ]);
+
+    const rawMembers = clubMemRes.status === 'fulfilled' ? clubMemRes.value : {};
+    const careerPayload = careerMemRes.status === 'fulfilled' ? careerMemRes.value : null;
+
+    let list = [];
+    if (Array.isArray(rawMembers)) list = rawMembers;
+    else if (rawMembers?.members && Array.isArray(rawMembers.members)) list = rawMembers.members;
+    else if (typeof rawMembers === 'object' && rawMembers !== null) list = Object.values(rawMembers.members || rawMembers);
+
+    const careerMap = new Map();
+    if (careerPayload) {
+      const cList = Array.isArray(careerPayload) ? careerPayload : (careerPayload.members || Object.values(careerPayload));
+      if (Array.isArray(cList)) {
+        cList.forEach(cm => {
+          if (cm && cm.name) careerMap.set(String(cm.name).toLowerCase(), cm);
+        });
+      }
+    }
+
+    // Known female Virtual Pros + automatic detection via career/height attributes
+    const KNOWN_FEMALE_PROS = new Set(['rbizzzl', 'doffel7365']);
+
+    list.forEach(m => {
+      if (!m || typeof m !== 'object') return;
+      const key = String(m.name || m.proName || '').toLowerCase().trim();
+      const careerObj = careerMap.get(key) || {};
+
+      const rawGender = m.proGender ?? m.gender ?? careerObj.proGender ?? careerObj.gender ?? m.sex ?? null;
+      const heightNum = parseInt(m.proHeight || careerObj.proHeight || 180, 10);
+
+      if (KNOWN_FEMALE_PROS.has(key)) {
+        m.inferredGender = 'female';
+      } else if (rawGender !== null && (String(rawGender) === '1' || String(rawGender).toLowerCase().startsWith('f'))) {
+        m.inferredGender = 'female';
+      } else if (heightNum > 0 && heightNum <= 167) {
+        m.inferredGender = 'female';
+      } else {
+        m.inferredGender = 'male';
+      }
+    });
+
+    res.json(list);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -200,6 +256,7 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
           if (item && typeof item === 'object') {
             const key = item.matchId || item.timestamp;
             if (key && !allMatches.some(x => (x.matchId || x.timestamp) === key)) {
+              item._inferredCategory = m.label;
               allMatches.push(item);
             }
           }
@@ -223,14 +280,15 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   await Promise.allSettled(
     Array.from(opponentIds).map(async (oppId) => {
       try {
-        const [stats, info, seasonResp] = await Promise.allSettled([
+        const [stats, rawInfo, seasonResp] = await Promise.allSettled([
           proclubs.clubs.overallStats({ clubId: oppId, platform }),
-          proclubs.clubs.get({ clubId: oppId, platform }),
+          fetch(`https://proclubs.ea.com/api/fc/clubs/info?clubIds=${oppId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null),
           fetch(`https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${oppId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null)
         ]);
 
         const statObj = stats.status === 'fulfilled' ? (Array.isArray(stats.value) ? stats.value[0] : (stats.value[oppId] || stats.value)) : {};
-        const infoObj = info.status === 'fulfilled' ? (info.value[oppId] || info.value) : {};
+        const infoPayload = rawInfo.status === 'fulfilled' && rawInfo.value ? rawInfo.value : {};
+        const infoObj = infoPayload[oppId] || infoPayload || {};
         const seasonData = seasonResp.status === 'fulfilled' ? seasonResp.value : null;
 
         const skillRating = statObj?.skillRating || statObj?.rating || statObj?.sr || null;
@@ -251,9 +309,12 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
         if (enriched) {
           if (enriched.skillRating) matchClubObj.skillRating = enriched.skillRating;
           if (enriched.division) matchClubObj.division = enriched.division;
-          if (enriched.crestId) matchClubObj.crestId = enriched.crestId;
         }
-        if (!matchClubObj.crestId) matchClubObj.crestId = resolveCrestId(matchClubObj, matchClubObj.details);
+        matchClubObj.crestId = resolveCrestId(
+          enriched ? { crestAssetId: enriched.crestId } : {},
+          {},
+          matchClubObj
+        );
       } else {
         matchClubObj.crestId = resolveCrestId({}, {}, matchClubObj);
       }
@@ -263,22 +324,28 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   res.json(recent10);
 });
 
-// 5. Backend Crest Image Proxy
+// 5. Official EA fltOnlineAssets Crest Proxy
 app.get('/api/crest/:crestId', async (req, res) => {
   const rawId = String(req.params.crestId || '').replace(/^l/i, '').trim();
   const clubName = req.query.name || 'FC';
 
   if (rawId && rawId !== 'undefined' && rawId !== 'null' && rawId !== '0') {
     const candidateUrls = [
-      `https://images.fotmob.com/image_resources/logo/teamlogo/${rawId}.png`,
+      `https://eafc26.content.easports.com/fc/fltOnlineAssets/26E4D4D6-8DBB-4A9A-BD99-9C47D3AA341D/2026/fcweb/crests/256x256/l${rawId}.png`,
+      `https://eafc26.content.easports.com/fc/fltOnlineAssets/26E4D4D6-8DBB-4A9A-BD99-9C47D3AA341D/2026/fifaweb/crests/256x256/l${rawId}.png`,
+      `https://eafc25.content.easports.com/fc/fltOnlineAssets/25E4CDAE-799B-45BE-B257-667FDCDE8044/2025/fcweb/crests/256x256/l${rawId}.png`,
+      `https://eafc25.content.easports.com/fc/fltOnlineAssets/25E4CDAE-799B-45BE-B257-667FDCDE8044/2025/fifaweb/crests/256x256/l${rawId}.png`,
+      `https://eafc24.content.easports.com/fc/fltOnlineAssets/24B23FDE-7835-41C2-87A2-F453DFDB2E82/2024/fcweb/crests/256x256/l${rawId}.png`,
+      `https://eafc24.content.easports.com/fc/fltOnlineAssets/24B23FDE-7835-41C2-87A2-F453DFDB2E82/2024/fifaweb/crests/256x256/l${rawId}.png`,
+      `https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2021/fifaweb/crests/256x256/l${rawId}.png`,
+      `https://media.contentapi.ea.com/content/dam/ea/easfc/fc-24/ratings/common/full/team-badges/l${rawId}.png`,
       `https://cdn.sofifa.net/meta/team/${rawId}/120.png`,
-      `https://proclubshead.com/assets/img/club-crests/light/crest_${rawId}.png`,
-      `https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2021/fifaweb/crests/256x256/l${rawId}.png`
+      `https://images.fotmob.com/image_resources/logo/teamlogo/${rawId}.png`
     ];
 
     for (const url of candidateUrls) {
       try {
-        const resp = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+        const resp = await fetch(url, { headers: EA_HEADERS });
         if (resp.ok) {
           const contentType = resp.headers.get('content-type') || '';
           if (contentType.includes('image')) {
