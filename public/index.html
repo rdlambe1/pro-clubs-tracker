@@ -65,8 +65,8 @@
 
     /* Authentic FC27 Gold Rare Ultimate Team Shield Card */
     .fc27-card-wrapper {
-      width: 330px;
-      height: 475px;
+      width: 345px;
+      height: 510px;
       position: relative;
       filter: drop-shadow(0 25px 40px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 25px rgba(234, 179, 8, 0.28));
       user-select: none;
@@ -261,7 +261,7 @@
           <h3 class="text-lg font-bold text-white flex items-center gap-2">
             <i class="fa-solid fa-chess-board text-emerald-400"></i> Most Used Formation & Tactic
           </h3>
-          <p id="formationSubtitle" class="text-xs text-gray-400 mt-0.5">Click any player on the pitch to inspect their FC27 Ultimate Team Card</p>
+          <p id="formationSubtitle" class="text-xs text-gray-400 mt-0.5">Click any player on the pitch to inspect their FC27 Ultimate Team Card, Archetype & PlayStyles</p>
         </div>
         <span id="formationBadge" class="text-xs font-semibold px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">--</span>
       </div>
@@ -316,7 +316,7 @@
 
   </div>
 
-  <!-- Authentic FC27 Gold Rare Ultimate Team Card Modal -->
+  <!-- Authentic FC27 Gold Rare Ultimate Team Card Modal with Archetype & Active PlayStyles -->
   <div id="futModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center z-50 p-4" onclick="closeFutModal(event)">
     <div class="fc27-card-wrapper" onclick="event.stopPropagation()">
       
@@ -325,8 +325,8 @@
         <i class="fa-solid fa-xmark"></i>
       </button>
 
-      <!-- SVG Gold Rare FC27 Shield Background with Metallic Foil Shimmer & Diagonal Ridges -->
-      <svg viewBox="0 0 330 475" class="w-full h-full absolute inset-0 pointer-events-none">
+      <!-- SVG Gold Rare FC27 Shield Background -->
+      <svg viewBox="0 0 345 510" class="w-full h-full absolute inset-0 pointer-events-none">
         <defs>
           <linearGradient id="fc27GoldBase" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stop-color="#fef08a" />
@@ -336,9 +336,9 @@
             <stop offset="100%" stop-color="#854d0e" />
           </linearGradient>
           <linearGradient id="fc27LowerPlate" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="#fde047" stop-opacity="0.92" />
+            <stop offset="0%" stop-color="#fde047" stop-opacity="0.94" />
             <stop offset="65%" stop-color="#eab308" stop-opacity="0.96" />
-            <stop offset="100%" stop-color="#a16207" stop-opacity="0.98" />
+            <stop offset="100%" stop-color="#a16207" stop-opacity="0.99" />
           </linearGradient>
           <linearGradient id="fc27BorderRim" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stop-color="#ffffff" />
@@ -354,99 +354,106 @@
             <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
           </linearGradient>
           <clipPath id="fc27ShieldClip">
-            <path d="M 55 24 Q 165 -2 275 24 C 287 40 302 48 316 54 L 316 368 C 316 418 238 450 165 468 C 92 450 14 418 14 368 L 14 54 C 28 48 43 40 55 24 Z" />
+            <path d="M 58 24 Q 172.5 -2 287 24 C 300 40 316 48 330 54 L 330 398 C 330 450 248 482 172.5 502 C 97 482 15 450 15 398 L 15 54 C 29 48 45 40 58 24 Z" />
           </clipPath>
         </defs>
 
-        <!-- Main Clipped Card Body -->
         <g clip-path="url(#fc27ShieldClip)">
-          <rect width="330" height="475" fill="url(#fc27GoldBase)" />
+          <rect width="345" height="510" fill="url(#fc27GoldBase)" />
           
-          <!-- 3D Diagonal Gold Crystal Foil Streaks (Top Half) -->
-          <polygon points="-20,260 340,30 340,95 -20,310" fill="url(#foilBeam)" />
-          <polygon points="30,290 350,85 350,155 30,340" fill="url(#foilBeam)" opacity="0.65" />
-          <line x1="-10" y1="245" x2="340" y2="25" stroke="#fef9c3" stroke-width="2" opacity="0.7" />
-          <line x1="20" y1="275" x2="340" y2="75" stroke="#854d0e" stroke-width="3" opacity="0.45" />
-          <line x1="25" y1="280" x2="340" y2="80" stroke="#fef08a" stroke-width="1.5" opacity="0.8" />
+          <!-- 3D Diagonal Gold Crystal Foil Streaks -->
+          <polygon points="-20,255 360,25 360,90 -20,305" fill="url(#foilBeam)" />
+          <polygon points="30,285 365,80 365,150 30,335" fill="url(#foilBeam)" opacity="0.65" />
+          <line x1="-10" y1="240" x2="355" y2="20" stroke="#fef9c3" stroke-width="2" opacity="0.7" />
+          <line x1="20" y1="270" x2="355" y2="70" stroke="#854d0e" stroke-width="3" opacity="0.45" />
+          <line x1="25" y1="275" x2="355" y2="75" stroke="#fef08a" stroke-width="1.5" opacity="0.8" />
 
           <!-- Lower Stat Plate -->
-          <rect x="0" y="276" width="330" height="210" fill="url(#fc27LowerPlate)" />
-          <line x1="14" y1="276" x2="316" y2="276" stroke="#fef9c3" stroke-width="2" opacity="0.9" />
+          <rect x="0" y="268" width="345" height="242" fill="url(#fc27LowerPlate)" />
+          <line x1="15" y1="268" x2="330" y2="268" stroke="#fef9c3" stroke-width="2" opacity="0.9" />
         </g>
 
         <!-- Outer Metallic Shield Border -->
-        <path d="M 55 24 Q 165 -2 275 24 C 287 40 302 48 316 54 L 316 368 C 316 418 238 450 165 468 C 92 450 14 418 14 368 L 14 54 C 28 48 43 40 55 24 Z" 
+        <path d="M 58 24 Q 172.5 -2 287 24 C 300 40 316 48 330 54 L 330 398 C 330 450 248 482 172.5 502 C 97 482 15 450 15 398 L 15 54 C 29 48 45 40 58 24 Z" 
               fill="none" stroke="url(#fc27BorderRim)" stroke-width="4.5" />
-        <path d="M 59 30 Q 165 6 271 30 C 282 44 295 51 308 57 L 308 365 C 308 411 234 442 165 459 C 96 442 22 411 22 365 L 22 57 C 35 51 48 44 59 30 Z" 
+        <path d="M 62 30 Q 172.5 6 283 30 C 295 44 309 51 322 57 L 322 395 C 322 443 244 474 172.5 493 C 101 474 23 443 23 395 L 23 57 C 36 51 50 44 62 30 Z" 
               fill="none" stroke="#fef9c3" stroke-width="1" opacity="0.55" />
       </svg>
 
-      <!-- PlayStyle+ Diamond Badge on Left Edge -->
-      <div class="playstyle-plus-diamond absolute left-[-4px] top-[232px] z-30" title="PlayStyle+ Signature Trait">
-        <i id="futPlaystyleIcon" class="fa-solid fa-rocket"></i>
+      <!-- PlayStyle+ Signature Diamond Badge on Left Edge -->
+      <div class="group absolute left-[-4px] top-[222px] z-30 cursor-pointer">
+        <div class="playstyle-plus-diamond">
+          <i id="futPlaystylePlusIcon" class="fa-solid fa-crosshairs"></i>
+        </div>
+        <span id="futPlaystylePlusLabel" class="pointer-events-none absolute left-14 top-1/2 -translate-y-1/2 hidden group-hover:inline-block bg-gray-950 text-yellow-300 border border-yellow-400/50 text-[10px] font-black uppercase px-2 py-0.5 rounded shadow-xl whitespace-nowrap">
+          FINESSE SHOT+
+        </span>
       </div>
 
       <!-- Top Left: OVR + Position + Gender Badge -->
-      <div class="absolute top-[52px] left-[38px] z-20 flex flex-col items-center leading-none">
-        <div id="futOvr" class="fc27-font text-[58px] font-extrabold tracking-tighter leading-none">91</div>
-        <div id="futPos" class="fc27-font text-[23px] font-bold uppercase tracking-wider mt-0.5">ST</div>
-        <div id="futGenderBadge" class="mt-1.5 px-2 py-0.5 rounded-full bg-black/15 text-[#2b2108] text-xs font-black">♀</div>
+      <div class="absolute top-[48px] left-[38px] z-20 flex flex-col items-center leading-none">
+        <div id="futOvr" class="fc27-font text-[56px] font-extrabold tracking-tighter leading-none">91</div>
+        <div id="futPos" class="fc27-font text-[22px] font-bold uppercase tracking-wider mt-0.5">ST</div>
+        <div id="futGenderBadge" class="mt-1.5 px-2 py-0.5 rounded-full bg-black/15 text-[#2b2108] text-xs font-black">♂</div>
       </div>
 
       <!-- Center Player Headshot / Avatar -->
-      <div class="absolute top-[42px] right-[26px] w-[205px] h-[234px] z-10 flex items-end justify-center overflow-hidden pointer-events-none">
-        <img id="futAvatar" src="" class="w-[195px] h-[195px] object-contain drop-shadow-[0_12px_12px_rgba(0,0,0,0.45)] transform translate-y-2" alt="Pro">
+      <div class="absolute top-[36px] right-[26px] w-[205px] h-[232px] z-10 flex items-end justify-center overflow-hidden pointer-events-none">
+        <img id="futAvatar" src="" class="w-[190px] h-[190px] object-contain drop-shadow-[0_12px_12px_rgba(0,0,0,0.45)] transform translate-y-2" alt="Pro">
       </div>
 
-      <!-- Lower Section: Name, 6-Column Stats & Bottom Crest Trio -->
-      <div class="absolute top-[280px] inset-x-[24px] bottom-[18px] z-20 flex flex-col justify-between items-center">
+      <!-- Lower Section: Archetype, Name, 6-Column Stats, PlayStyles & Crest Trio -->
+      <div class="absolute top-[271px] inset-x-[24px] bottom-[16px] z-20 flex flex-col justify-between items-center">
         
-        <!-- Player Name -->
+        <!-- Archetype Banner + Player Name -->
         <div class="w-full text-center border-b border-[#2b2108]/25 pb-1">
-          <div id="futName" class="text-[26px] font-black text-[#2b2108] tracking-tight truncate px-2 leading-tight">MBAPPÉ</div>
+          <div id="futArchetypeBadge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#2b2108] text-yellow-300 text-[9px] font-black uppercase tracking-widest shadow-sm">
+            <i class="fa-solid fa-bolt text-[8px]"></i> FINISHER ARCHETYPE
+          </div>
+          <div id="futName" class="text-[24px] font-black text-[#2b2108] tracking-tight truncate px-2 leading-tight mt-0.5">PLAYER</div>
         </div>
 
         <!-- 6-Column Vertical Stats (PAC | SHO | PAS | DRI | DEF | PHY) -->
-        <div class="w-full grid grid-cols-6 gap-1 px-1 text-center fc27-font my-0.5">
+        <div class="w-full grid grid-cols-6 gap-1 px-1 text-center fc27-font">
           <div class="flex flex-col items-center">
-            <span class="text-[13px] font-bold tracking-wider opacity-85">PAC</span>
-            <span id="futPac" class="text-[25px] font-extrabold leading-tight">96</span>
+            <span class="text-[12px] font-bold tracking-wider opacity-85">PAC</span>
+            <span id="futPac" class="text-[23px] font-extrabold leading-tight">96</span>
           </div>
           <div class="flex flex-col items-center">
-            <span class="text-[13px] font-bold tracking-wider opacity-85">SHO</span>
-            <span id="futSho" class="text-[25px] font-extrabold leading-tight">91</span>
+            <span class="text-[12px] font-bold tracking-wider opacity-85">SHO</span>
+            <span id="futSho" class="text-[23px] font-extrabold leading-tight">91</span>
           </div>
           <div class="flex flex-col items-center">
-            <span class="text-[13px] font-bold tracking-wider opacity-85">PAS</span>
-            <span id="futPas" class="text-[25px] font-extrabold leading-tight">80</span>
+            <span class="text-[12px] font-bold tracking-wider opacity-85">PAS</span>
+            <span id="futPas" class="text-[23px] font-extrabold leading-tight">80</span>
           </div>
           <div class="flex flex-col items-center">
-            <span class="text-[13px] font-bold tracking-wider opacity-85">DRI</span>
-            <span id="futDri" class="text-[25px] font-extrabold leading-tight">92</span>
+            <span class="text-[12px] font-bold tracking-wider opacity-85">DRI</span>
+            <span id="futDri" class="text-[23px] font-extrabold leading-tight">92</span>
           </div>
           <div class="flex flex-col items-center">
-            <span class="text-[13px] font-bold tracking-wider opacity-85">DEF</span>
-            <span id="futDef" class="text-[25px] font-extrabold leading-tight">29</span>
+            <span class="text-[12px] font-bold tracking-wider opacity-85">DEF</span>
+            <span id="futDef" class="text-[23px] font-extrabold leading-tight">29</span>
           </div>
           <div class="flex flex-col items-center">
-            <span class="text-[13px] font-bold tracking-wider opacity-85">PHY</span>
-            <span id="futPhy" class="text-[25px] font-extrabold leading-tight">76</span>
+            <span class="text-[12px] font-bold tracking-wider opacity-85">PHY</span>
+            <span id="futPhy" class="text-[23px] font-extrabold leading-tight">76</span>
           </div>
         </div>
 
-        <!-- Career Sub-Stats Pill -->
-        <div id="futCareerPill" class="text-[10px] font-extrabold uppercase tracking-wider text-[#2b2108]/80 bg-black/10 px-3 py-0.5 rounded-full">
-          0 Games • 0 G+A • 0 MoTM • 7.5 AVG
+        <!-- Active PlayStyles Row -->
+        <div id="futPlaystylesRow" class="flex flex-wrap items-center justify-center gap-1 px-1">
+          <!-- Populated dynamically -->
         </div>
 
         <!-- Bottom Trio: Nation Flag | Pro Clubs Shield | Club Crest -->
-        <div class="flex items-center justify-center gap-5 pb-2 pt-0.5">
-          <img id="futFlag" src="" class="w-7 h-4.5 object-cover rounded-[2px] shadow-sm border border-[#2b2108]/30" alt="Nation">
+        <div class="flex items-center justify-center gap-5 pb-1">
+          <img id="futFlag" src="" class="w-6 h-4 object-cover rounded-[2px] shadow-sm border border-[#2b2108]/30" alt="Nation">
           <div class="flex flex-col items-center text-[#2b2108]" title="EA Sports FC Pro Clubs">
-            <i class="fa-solid fa-shield-halved text-lg leading-none"></i>
-            <span class="text-[7px] font-black tracking-widest uppercase mt-0.5">CLUBS</span>
+            <i class="fa-solid fa-shield-halved text-base leading-none"></i>
+            <span class="text-[6px] font-black tracking-widest uppercase mt-0.5">CLUBS</span>
           </div>
-          <img id="futClubCrest" src="" class="w-7 h-7 object-contain drop-shadow-sm" alt="Club Crest">
+          <img id="futClubCrest" src="" class="w-6 h-6 object-contain drop-shadow-sm" alt="Club Crest">
         </div>
 
       </div>
@@ -459,9 +466,7 @@
     let RECENT_FORM_MAP = {};
     let CURRENT_CLUB_CREST_URL = '';
 
-    // Pre-seeded female pros (RBizzzl & doffel7365) + user overrides in localStorage
-    const DEFAULT_FEMALE_PROS = ['rbizzzl', 'doffel7365'];
-
+    // Universal Gender Storage (No hardcoded usernames)
     function getGenderOverrides() {
       try {
         return JSON.parse(localStorage.getItem('proClubsGenderMap') || '{}');
@@ -476,7 +481,6 @@
       const overrides = getGenderOverrides();
 
       if (overrides[key]) return overrides[key];
-      if (DEFAULT_FEMALE_PROS.some(f => key.includes(f))) return 'female';
       if (playerObj && typeof playerObj === 'object' && playerObj.inferredGender === 'female') return 'female';
       return 'male';
     }
@@ -494,7 +498,6 @@
       overrides[key] = next;
       localStorage.setItem('proClubsGenderMap', JSON.stringify(overrides));
 
-      // Re-render squad table and pitch immediately with updated gender & avatar
       renderMembers(GLOBAL_MEMBERS);
       buildDynamicPitchTactic(GLOBAL_MEMBERS);
     }
@@ -511,16 +514,16 @@
       return `https://flagcdn.com/w40/${code}.png`;
     }
 
-    // Generates gender-accurate avatars
+    // Reliable Avatar Generator using DiceBear v9 valid hair presets for both genders
     function getPlayerAvatarUrl(playerName, genderOverride = null) {
       const seed = encodeURIComponent(String(playerName || 'Pro').trim());
       const memberObj = GLOBAL_MEMBERS.find(m => (m.name || m.proName) === playerName);
       const gender = genderOverride || resolvePlayerGender(memberObj || playerName);
 
       if (gender === 'female') {
-        return `https://api.dicebear.com/9.x/avataaars/svg?seed=${seed}&top=longButNotTooLong,straight01,straight02,MiaWallace,bob,curly&facialHairProbability=0&backgroundColor=b6e3f4,c0aede,ffd5dc`;
+        return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&hair=long01,long02,long03,long04,long05,long06,long07,long08,long09,long10,long11,long12,long13,long14,long15,long16&backgroundColor=831843,4c1d95,1e3a8a,064e3b`;
       }
-      return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&backgroundColor=064e3b,1e3a8a,4c1d95,78350f,111827`;
+      return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&hair=short01,short02,short03,short04,short05,short06,short07,short08,short09,short10,short11,short12,short13,short14,short15,short16&backgroundColor=064e3b,1e3a8a,4c1d95,78350f,111827`;
     }
 
     function getGenderSymbolHtml(playerObj) {
@@ -532,6 +535,72 @@
         return `<button onclick="togglePlayerGender(event, '${safeJsName}')" class="text-pink-400 hover:text-pink-300 font-black text-sm px-1 rounded hover:bg-pink-500/10 transition" title="Female Pro (Click to toggle)">♀</button>`;
       }
       return `<button onclick="togglePlayerGender(event, '${safeJsName}')" class="text-blue-400 hover:text-blue-300 font-black text-sm px-1 rounded hover:bg-blue-500/10 transition" title="Male Pro (Click to toggle)">♂</button>`;
+    }
+
+    // Derives Pro Archetype & Active PlayStyles from EA proStyle and live performance telemetry
+    function computeArchetypeAndPlaystyles(player) {
+      const pos = player._normalizedPos || 'MID';
+      const rawPos = String(player._rawPos || '').toUpperCase();
+      const games = Math.max(1, Number(player.gamesPlayed || 1));
+      const goalsPerGame = Number(player.goals || 0) / games;
+      const assistsPerGame = Number(player.assists || 0) / games;
+      const tacklesPerGame = Number(player.tacklesmade || player.tackles || 0) / games;
+      const passPct = Number(player.passSuccessRate || 75);
+      const height = parseInt(player.proHeight || 180, 10);
+
+      // 1. Determine Archetype
+      let archetype = 'Maestro';
+      if (pos === 'FWD') {
+        if (height >= 188) archetype = 'Target';
+        else if (goalsPerGame >= 0.65) archetype = 'Finisher';
+        else if (assistsPerGame >= 0.45) archetype = 'Creator';
+        else archetype = 'Hawk';
+      } else if (pos === 'MID') {
+        if (tacklesPerGame >= 1.5) archetype = 'Engine / Destroyer';
+        else if (passPct >= 82 || assistsPerGame >= 0.4) archetype = 'Maestro';
+        else if (goalsPerGame >= 0.35) archetype = 'Shadow Striker';
+        else archetype = 'Catalyst';
+      } else if (pos === 'DEF') {
+        if (rawPos.includes('B') && !rawPos.includes('CB')) archetype = 'Marauder';
+        else if (height >= 188) archetype = 'Titan';
+        else archetype = 'Guardian';
+      } else {
+        archetype = 'Sweeper Keeper';
+      }
+
+      // 2. Determine PlayStyle+ (Gold Diamond)
+      let psPlus = { name: 'Technical+', icon: 'fa-bolt' };
+      if (pos === 'FWD') {
+        psPlus = height >= 188 
+          ? { name: 'Aerial+', icon: 'fa-plane-up' } 
+          : (goalsPerGame >= 0.5 ? { name: 'Finesse Shot+', icon: 'fa-crosshairs' } : { name: 'Quick Step+', icon: 'fa-rocket' });
+      } else if (pos === 'MID') {
+        psPlus = passPct >= 80 
+          ? { name: 'Incisive Pass+', icon: 'fa-compass-drafting' } 
+          : (tacklesPerGame >= 1.4 ? { name: 'Intercept+', icon: 'fa-magnet' } : { name: 'Tiki Taka+', icon: 'fa-diagram-project' });
+      } else if (pos === 'DEF') {
+        psPlus = tacklesPerGame >= 1.2 
+          ? { name: 'Anticipate+', icon: 'fa-shield-halved' } 
+          : { name: 'Jockey+', icon: 'fa-person-running' };
+      } else {
+        psPlus = { name: 'Far Reach+', icon: 'fa-hand-sparkles' };
+      }
+
+      // 3. Determine Active Silver PlayStyles (Up to 3)
+      const playstyles = [];
+      if (goalsPerGame >= 0.35) playstyles.push({ name: 'Power Shot', icon: 'fa-fire-flame-curved' });
+      if (assistsPerGame >= 0.3) playstyles.push({ name: 'Whipped Pass', icon: 'fa-wind' });
+      if (passPct >= 78) playstyles.push({ name: 'Tiki Taka', icon: 'fa-share-nodes' });
+      if (tacklesPerGame >= 1.0) playstyles.push({ name: 'Intercept', icon: 'fa-shield' });
+      if (height >= 186) playstyles.push({ name: 'Bruiser', icon: 'fa-dumbbell' });
+      playstyles.push({ name: 'Relentless', icon: 'fa-battery-full' });
+      playstyles.push({ name: 'Press Proven', icon: 'fa-lock' });
+
+      return {
+        archetype,
+        psPlus,
+        activePlaystyles: playstyles.slice(0, 3)
+      };
     }
 
     function formatPlatformLabel(rawPlatform) {
@@ -673,12 +742,15 @@
         const oppClub = clubsData[oppId] || {};
         const oppName = oppClub.details?.name || oppClub.name || 'Opponent FC';
         const oppSR = Number(oppClub.skillRating || oppClub.details?.skillRating || 0);
-        const oppCrestId = oppClub.crestId || oppClub.TEAM || oppClub.details?.crestAssetId || oppClub.details?.teamId;
+        // Full crest fallback chain including customKit.crestAssetId and TEAM
+        const oppCrestId = oppClub.crestId || oppClub.TEAM || oppClub.details?.customKit?.crestAssetId || oppClub.details?.crestAssetId || oppClub.details?.teamId;
         const myGoals = Number(myClub.goals ?? myClub.score ?? 0);
         const oppGoals = Number(oppClub.goals ?? oppClub.score ?? 0);
 
         if (!opponentCounts[oppName]) {
           opponentCounts[oppName] = { name: oppName, played: 0, wins: 0, losses: 0, draws: 0, sr: oppSR, crestId: oppCrestId };
+        } else if (!opponentCounts[oppName].crestId && oppCrestId) {
+          opponentCounts[oppName].crestId = oppCrestId;
         }
         opponentCounts[oppName].played += 1;
         if (myGoals > oppGoals) opponentCounts[oppName].wins += 1;
@@ -753,7 +825,7 @@
             : `<i class="fa-solid fa-skull text-rose-400"></i> Toughest Recent Opponent`;
           document.getElementById('nemesisName').innerText = targetOpp.name;
           document.getElementById('nemesisMeta').innerText = `Record: ${targetOpp.wins}W - ${targetOpp.draws}D - ${targetOpp.losses}L • Skill Rating: ${targetOpp.sr || '--'}`;
-          document.getElementById('nemesisCrest').innerHTML = renderCrestHtml(targetOpp.name, targetOpp.crestId, 'w-11 h-11');
+          document.getElementById('nemesisCrest').innerHTML = renderCrestHtml(targetOpp.name, targetOpp.crestId, 'w-12 h-12');
         }
       } else {
         intelSection.classList.add('hidden');
@@ -778,8 +850,8 @@
           return;
         }
 
-        computeMatchIntelligence(clubId, matchesPayload);
         GLOBAL_MEMBERS = Array.isArray(memData) ? memData : (memData?.members || Object.values(memData || {}));
+        computeMatchIntelligence(clubId, matchesPayload);
         const membersList = renderMembers(GLOBAL_MEMBERS);
         renderClub(clubId, combined, platform, membersList, matchesPayload);
         buildDynamicPitchTactic(membersList);
@@ -819,7 +891,7 @@
       let matchCrestId = null;
       if (Array.isArray(matchesPayload) && matchesPayload.length > 0) {
         const myMatchClub = matchesPayload[0]?.clubs?.[clubId];
-        matchCrestId = myMatchClub?.crestId || myMatchClub?.TEAM || myMatchClub?.details?.crestAssetId || myMatchClub?.details?.teamId;
+        matchCrestId = myMatchClub?.crestId || myMatchClub?.TEAM || myMatchClub?.details?.customKit?.crestAssetId || myMatchClub?.details?.crestAssetId || myMatchClub?.details?.teamId;
       }
 
       const crestId = data.crestId || matchCrestId || infoObj.customKit?.crestAssetId || infoObj.crestAssetId || infoObj.teamId || '0';
@@ -938,7 +1010,7 @@
       return list;
     }
 
-    // Populate and open the FC27 Gold Rare Ultimate Team Card Modal
+    // Populate and open the FC27 Gold Rare Ultimate Team Card Modal with Archetype & PlayStyles
     function openFutModal(playerName) {
       const p = GLOBAL_MEMBERS.find(m => (m.name || m.proName || m.gamertag) === playerName);
       if (!p) return;
@@ -954,7 +1026,6 @@
       const tackles = Number(p.tacklesmade || p.tackles || 0);
       const passPct = Number(p.passSuccessRate || 78);
       const rating = parseFloat(p.ratingAve || 7.5);
-      const motm = Number(p.manOfTheMatch || 0);
 
       // Compute 6-column FC27 stats
       const pac = Math.min(99, Math.max(72, Math.round(ovr + 3)));
@@ -964,12 +1035,18 @@
       const def = Math.min(99, Math.max(32, Math.round((p._normalizedPos === 'DEF' ? 82 : 45) + (tackles / games) * 15)));
       const phy = Math.min(99, Math.max(66, Math.round(ovr - 3 + (tackles / games) * 6)));
 
-      // PlayStyle+ Icon based on role
-      const psIcon = document.getElementById('futPlaystyleIcon');
-      if (p._normalizedPos === 'FWD') psIcon.className = 'fa-solid fa-rocket';
-      else if (p._normalizedPos === 'MID') psIcon.className = 'fa-solid fa-compass-drafting';
-      else if (p._normalizedPos === 'DEF') psIcon.className = 'fa-solid fa-shield-dog';
-      else psIcon.className = 'fa-solid fa-hand-fist';
+      // Compute Archetype & PlayStyles
+      const buildInfo = computeArchetypeAndPlaystyles(p);
+
+      document.getElementById('futPlaystylePlusIcon').className = `fa-solid ${buildInfo.psPlus.icon}`;
+      document.getElementById('futPlaystylePlusLabel').innerText = buildInfo.psPlus.name;
+      document.getElementById('futArchetypeBadge').innerHTML = `<i class="fa-solid fa-crown text-[8px]"></i> ${buildInfo.archetype} ARCHETYPE`;
+
+      document.getElementById('futPlaystylesRow').innerHTML = buildInfo.activePlaystyles.map(ps => `
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[#2b2108]/15 border border-[#2b2108]/30 text-[#2b2108] text-[9px] font-black uppercase tracking-wider">
+          <i class="fa-solid ${ps.icon} text-[8px]"></i> ${ps.name}
+        </span>
+      `).join('');
 
       document.getElementById('futOvr').innerText = ovr;
       document.getElementById('futPos').innerText = pos;
@@ -984,7 +1061,6 @@
       document.getElementById('futDef').innerText = def;
       document.getElementById('futPhy').innerText = phy;
 
-      document.getElementById('futCareerPill').innerText = `${p.gamesPlayed || 0} GP • ${goals}G ${assists}A • ${motm} MoTM • ${rating.toFixed(1)} AVG`;
       document.getElementById('futFlag').src = getFlagUrl(nationId);
       document.getElementById('futClubCrest').src = CURRENT_CLUB_CREST_URL || `${API_BASE}/crest/0?name=FC`;
 
