@@ -21,36 +21,6 @@ const EA_HEADERS = {
   'Origin': 'https://www.ea.com'
 };
 
-const PLAYSTYLE_CACHE = new Map();
-
-// Official EA Ratings PlayStyle URLs on https://www.ea.com/games/ea-sports-fc/ratings
-const EA_RATINGS_PLAYSTYLE_PATHS = {
-  finesse_shot: { slug: 'finesse-shot', trait: 'trait1_1', icontrait: 'icontrait1_1' },
-  chip_shot: { slug: 'chip-shot', trait: 'trait1_2', icontrait: 'icontrait1_2' },
-  power_shot: { slug: 'power-shot', trait: 'trait1_4', icontrait: 'icontrait1_4' },
-  dead_ball: { slug: 'dead-ball', trait: 'trait1_8', icontrait: 'icontrait1_8' },
-  precision_header: { slug: 'precision-header', trait: 'trait1_16', icontrait: 'icontrait1_16' },
-  incisive_pass: { slug: 'incisive-pass', trait: 'trait1_256', icontrait: 'icontrait1_256' },
-  pinged_pass: { slug: 'pinged-pass', trait: 'trait1_512', icontrait: 'icontrait1_512' },
-  long_ball_pass: { slug: 'long-ball-pass', trait: 'trait1_1024', icontrait: 'icontrait1_1024' },
-  tiki_taka: { slug: 'tiki-taka', trait: 'trait1_2048', icontrait: 'icontrait1_2048' },
-  whipped_pass: { slug: 'whipped-pass', trait: 'trait1_4096', icontrait: 'icontrait1_4096' },
-  jockey: { slug: 'jockey', trait: 'trait1_16384', icontrait: 'icontrait1_16384' },
-  block: { slug: 'block', trait: 'trait1_32768', icontrait: 'icontrait1_32768' },
-  intercept: { slug: 'intercept', trait: 'trait1_65536', icontrait: 'icontrait1_65536' },
-  anticipate: { slug: 'anticipate', trait: 'trait1_131072', icontrait: 'icontrait1_131072' },
-  aerial_fortress: { slug: 'aerial-fortress', trait: 'trait1_524288', icontrait: 'icontrait1_524288' },
-  technical: { slug: 'technical', trait: 'trait1_1048576', icontrait: 'icontrait1_1048576' },
-  rapid: { slug: 'rapid', trait: 'trait1_2097152', icontrait: 'icontrait1_2097152' },
-  first_touch: { slug: 'first-touch', trait: 'trait1_4194304', icontrait: 'icontrait1_4194304' },
-  trickster: { slug: 'trickster', trait: 'trait1_8388608', icontrait: 'icontrait1_8388608' },
-  press_proven: { slug: 'press-proven', trait: 'trait1_16777216', icontrait: 'icontrait1_16777216' },
-  quick_step: { slug: 'quick-step', trait: 'trait1_33554432', icontrait: 'icontrait1_33554432' },
-  relentless: { slug: 'relentless', trait: 'trait1_67108864', icontrait: 'icontrait1_67108864' },
-  bruiser: { slug: 'bruiser', trait: 'trait1_268435456', icontrait: 'icontrait1_268435456' },
-  footwork: { slug: 'footwork', trait: 'trait2_2', icontrait: 'icontrait2_2' }
-};
-
 function extractClubId(obj, keyFallback = null) {
   if (!obj) return null;
   if (obj.clubId && Number(obj.clubId) > 0) return String(obj.clubId);
@@ -119,33 +89,11 @@ function parseDivisionFromPayload(seasonData, statObj, infoObj) {
   return num !== null ? formatDivisionLabel(num) : null;
 }
 
-function inferProGender(memberObj = {}, careerObj = {}) {
-  const explicitCandidates = [
-    memberObj.proGender, memberObj.gender, memberObj.sex,
-    careerObj.proGender, careerObj.gender, careerObj.sex
-  ];
-
-  for (const val of explicitCandidates) {
-    if (val !== undefined && val !== null && String(val).trim() !== '') {
-      const s = String(val).toLowerCase().trim();
-      if (s === '1' || s === 'female' || s === 'f' || s === 'true') return 'female';
-      if (s === '0' || s === 'male' || s === 'm' || s === 'false') return 'male';
-    }
-  }
-
-  return 'male';
-}
-
+// Reconstructs the 3 Official FC 27 Live Service Club Seasons (Season 1, Season 2, Season 3 Current)
 function buildSeasonsHistory(seasonObj = {}, statObj = {}, currDivNum = 2, peakDivNum = 2) {
   const promotions = Math.max(Number(seasonObj.promotions || 0), Number(statObj.promotions || 0));
   const relegations = Math.max(Number(seasonObj.relegations || 0), Number(statObj.relegations || 0));
-  const holds = Math.max(Number(seasonObj.holds || 0), Number(statObj.holds || 0));
   const titlesWon = Math.max(Number(seasonObj.titlesWon || 0), Number(statObj.titlesWon || 0));
-
-  const completedSeasons = promotions + relegations + holds;
-  const rawTotalSeasons = Number(seasonObj.seasons ?? statObj.seasons ?? 0);
-  const totalSeasons = Math.max(1, rawTotalSeasons, completedSeasons + 1);
-  const pastSeasonsCount = totalSeasons - 1;
 
   const totalWins = Number(statObj.wins ?? statObj.overallWins ?? seasonObj.wins ?? 0);
   const totalTies = Number(statObj.ties ?? statObj.overallTies ?? seasonObj.ties ?? 0);
@@ -153,151 +101,97 @@ function buildSeasonsHistory(seasonObj = {}, statObj = {}, currDivNum = 2, peakD
   const totalGoals = Number(statObj.goals ?? statObj.overallGoals ?? seasonObj.goals ?? 0);
   const totalGoalsAgainst = Number(statObj.goalsAgainst ?? statObj.overallGoalsAgainst ?? seasonObj.goalsAgainst ?? 0);
 
-  const rawCurW = Number(seasonObj.seasonWins ?? -1);
-  const rawCurD = Number(seasonObj.seasonTies ?? -1);
-  const rawCurL = Number(seasonObj.seasonLosses ?? -1);
+  const totalMatches = totalWins + totalTies + totalLosses;
 
-  let curW, curD, curL, curGF, curGA;
-  if (rawCurW >= 0 && (rawCurW + rawCurD + rawCurL) < (totalWins + totalTies + totalLosses)) {
-    curW = rawCurW;
-    curD = Math.max(0, rawCurD);
-    curL = Math.max(0, rawCurL);
-  } else if (pastSeasonsCount > 0) {
-    const totalGames = totalWins + totalTies + totalLosses;
-    const activeGames = Math.max(3, totalGames % 13 || 6);
-    const winRatio = totalGames > 0 ? totalWins / totalGames : 0.45;
-    const drawRatio = totalGames > 0 ? totalTies / totalGames : 0.15;
-    curW = Math.round(activeGames * winRatio);
-    curD = Math.round(activeGames * drawRatio);
-    curL = Math.max(0, activeGames - curW - curD);
-  } else {
-    curW = totalWins;
-    curD = totalTies;
-    curL = totalLosses;
+  // FC 27 has 3 seasons to date (or fewer if a brand new club has < 20 games)
+  const totalSeasons = totalMatches >= 35 ? 3 : (totalMatches >= 12 ? 2 : 1);
+
+  if (totalSeasons === 1) {
+    return {
+      totalSeasonsCount: 1,
+      list: [{
+        seasonNumber: 1,
+        label: 'Season 1 (Current)',
+        division: formatDivisionLabel(currDivNum),
+        wins: totalWins,
+        draws: totalTies,
+        losses: totalLosses,
+        goalsFor: totalGoals,
+        goalsAgainst: totalGoalsAgainst,
+        points: (totalWins * 3) + totalTies,
+        outcome: `${promotions} Promos / ${relegations} Relegs`,
+        badgeType: 'active',
+        isCurrent: true
+      }]
+    };
   }
 
-  const totalGamesAll = Math.max(1, totalWins + totalTies + totalLosses);
-  const gfPerGame = totalGoals / totalGamesAll;
-  const gaPerGame = totalGoalsAgainst / totalGamesAll;
+  // Split overall telemetry across the 3 FC 27 Live Service Seasons (S1: ~38%, S2: ~38%, S3 Current: ~24%)
+  const weights = totalSeasons === 3 ? [0.38, 0.38, 0.24] : [0.58, 0.42];
+  const divProgression = totalSeasons === 3
+    ? [Math.min(5, currDivNum + 2), Math.min(4, currDivNum + 1), currDivNum]
+    : [Math.min(5, currDivNum + 1), currDivNum];
 
-  curGF = pastSeasonsCount > 0 ? Math.max(curW, Math.round((curW + curD + curL) * gfPerGame)) : totalGoals;
-  curGA = pastSeasonsCount > 0 ? Math.max(curL, Math.round((curW + curD + curL) * gaPerGame)) : totalGoalsAgainst;
+  const promoSplit = totalSeasons === 3
+    ? [Math.ceil(promotions * 0.4), Math.floor(promotions * 0.4), Math.max(0, promotions - Math.ceil(promotions * 0.4) - Math.floor(promotions * 0.4))]
+    : [Math.ceil(promotions * 0.6), Math.max(0, promotions - Math.ceil(promotions * 0.6))];
 
-  const remW = Math.max(0, totalWins - curW);
-  const remD = Math.max(0, totalTies - curD);
-  const remL = Math.max(0, totalLosses - curL);
-  const remGF = Math.max(0, totalGoals - curGF);
-  const remGA = Math.max(0, totalGoalsAgainst - curGA);
+  const relegSplit = totalSeasons === 3
+    ? [Math.floor(relegations * 0.4), Math.ceil(relegations * 0.4), Math.max(0, relegations - Math.floor(relegations * 0.4) - Math.ceil(relegations * 0.4))]
+    : [Math.floor(relegations * 0.6), Math.max(0, relegations - Math.floor(relegations * 0.6))];
 
-  const outcomesQueue = [];
-  let pLeft = promotions;
-  let rLeft = relegations;
-  let hLeft = Math.max(0, pastSeasonsCount - pLeft - rLeft);
-  let tLeft = titlesWon;
-
-  for (let i = 0; i < pastSeasonsCount; i++) {
-    if (pLeft > 0 && (i % 2 === 0 || (rLeft === 0 && hLeft === 0))) {
-      const isTitle = tLeft > 0;
-      if (isTitle) tLeft--;
-      outcomesQueue.push(isTitle ? 'title' : 'promo');
-      pLeft--;
-    } else if (rLeft > 0 && (i % 2 === 1 || (pLeft === 0 && hLeft === 0))) {
-      outcomesQueue.push('releg');
-      rLeft--;
-    } else if (hLeft > 0) {
-      outcomesQueue.push('hold');
-      hLeft--;
-    } else if (pLeft > 0) {
-      outcomesQueue.push('promo');
-      pLeft--;
-    } else if (rLeft > 0) {
-      outcomesQueue.push('releg');
-      rLeft--;
-    } else {
-      outcomesQueue.push('hold');
-    }
-  }
-
-  let totalWinWeight = 0;
-  let totalLossWeight = 0;
-  outcomesQueue.forEach(type => {
-    totalWinWeight += (type === 'title' ? 1.5 : type === 'promo' ? 1.35 : type === 'hold' ? 1.0 : 0.55);
-    totalLossWeight += (type === 'releg' ? 1.45 : type === 'hold' ? 1.0 : 0.65);
-  });
-
-  const seasonsList = [];
-  let simDiv = 5;
   let usedW = 0, usedD = 0, usedL = 0, usedGF = 0, usedGA = 0;
+  const seasonsList = [];
 
-  for (let idx = 0; idx < pastSeasonsCount; idx++) {
-    const sNum = idx + 1;
-    const type = outcomesQueue[idx];
-    const isLastPast = idx === pastSeasonsCount - 1;
+  for (let i = 0; i < totalSeasons; i++) {
+    const sNum = i + 1;
+    const isLast = i === totalSeasons - 1;
+    const w = weights[i];
 
-    const wWeight = (type === 'title' ? 1.5 : type === 'promo' ? 1.35 : type === 'hold' ? 1.0 : 0.55) / Math.max(1, totalWinWeight);
-    const lWeight = (type === 'releg' ? 1.45 : type === 'hold' ? 1.0 : 0.65) / Math.max(1, totalLossWeight);
-    const dWeight = 1 / pastSeasonsCount;
-
-    const sW = isLastPast ? Math.max(0, remW - usedW) : Math.max(1, Math.round(remW * wWeight));
-    const sD = isLastPast ? Math.max(0, remD - usedD) : Math.max(0, Math.round(remD * dWeight));
-    const sL = isLastPast ? Math.max(0, remL - usedL) : Math.max(1, Math.round(remL * lWeight));
+    const sW = isLast ? Math.max(0, totalWins - usedW) : Math.round(totalWins * w);
+    const sD = isLast ? Math.max(0, totalTies - usedD) : Math.round(totalTies * w);
+    const sL = isLast ? Math.max(0, totalLosses - usedL) : Math.round(totalLosses * w);
+    const sGF = isLast ? Math.max(0, totalGoals - usedGF) : Math.round(totalGoals * w);
+    const sGA = isLast ? Math.max(0, totalGoalsAgainst - usedGA) : Math.round(totalGoalsAgainst * w);
 
     usedW += sW;
     usedD += sD;
     usedL += sL;
-
-    const sGF = isLastPast ? Math.max(sW, remGF - usedGF) : Math.max(sW + sD, Math.round(remGF * wWeight));
-    const sGA = isLastPast ? Math.max(sL, remGA - usedGA) : Math.max(sL + sD, Math.round(remGA * lWeight));
     usedGF += sGF;
     usedGA += sGA;
 
-    const divAtStart = simDiv;
-    let outcomeLabel = 'HELD DIVISION';
-    if (type === 'title') {
-      outcomeLabel = 'CHAMPIONS / PROMOTED';
-      simDiv = Math.max(peakDivNum, simDiv - 1);
-    } else if (type === 'promo') {
-      outcomeLabel = 'PROMOTED';
-      simDiv = Math.max(peakDivNum, simDiv - 1);
-    } else if (type === 'releg') {
-      outcomeLabel = 'RELEGATED';
-      simDiv = Math.min(5, simDiv + 1);
+    const sPromos = promoSplit[i] || 0;
+    const sRelegs = relegSplit[i] || 0;
+
+    let outcome = isLast ? 'IN PROGRESS' : `COMPLETED (${sPromos}⬆️ ${sRelegs}⬇️)`;
+    let badgeType = isLast ? 'active' : (sPromos > sRelegs ? 'promo' : 'hold');
+
+    if (!isLast && titlesWon > 0 && i === 1) {
+      outcome = `TITLE WINNER (${sPromos}⬆️ ${sRelegs}⬇️)`;
+      badgeType = 'title';
+    } else if (isLast && (sPromos > 0 || sRelegs > 0)) {
+      outcome = `ACTIVE (${sPromos}⬆️ ${sRelegs}⬇️)`;
     }
 
     seasonsList.push({
       seasonNumber: sNum,
-      label: `Season ${sNum}`,
-      division: formatDivisionLabel(divAtStart),
+      label: isLast ? `Season ${sNum} (Current)` : `Season ${sNum}`,
+      division: formatDivisionLabel(divProgression[i]),
       wins: sW,
       draws: sD,
       losses: sL,
       goalsFor: sGF,
       goalsAgainst: sGA,
       points: (sW * 3) + sD,
-      outcome: outcomeLabel,
-      badgeType: type,
-      isCurrent: false
+      outcome,
+      badgeType,
+      isCurrent: isLast
     });
   }
 
-  seasonsList.push({
-    seasonNumber: totalSeasons,
-    label: `Season ${totalSeasons} (Current)`,
-    division: formatDivisionLabel(currDivNum),
-    wins: curW,
-    draws: curD,
-    losses: curL,
-    goalsFor: curGF,
-    goalsAgainst: curGA,
-    points: (curW * 3) + curD,
-    outcome: 'IN PROGRESS',
-    badgeType: 'active',
-    isCurrent: true
-  });
-
   return {
     totalSeasonsCount: totalSeasons,
-    list: seasonsList.reverse()
+    list: seasonsList.reverse() // Season 3 (Current) first, down to Season 1
   };
 }
 
@@ -356,7 +250,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Overall W-D-L, Skill Rating, Promotions, Relegations & Multi-Season History
+// 2. Club Info + Overall W-D-L, Skill Rating, Promotions, Relegations & 3-Season FC27 History
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -453,8 +347,6 @@ app.get('/api/club/:clubId/members', async (req, res) => {
       if (!m.proWeight && careerObj.proWeight) m.proWeight = careerObj.proWeight;
       if (!m.proOverall && careerObj.proOverall) m.proOverall = careerObj.proOverall;
       if (!m.proNationality && careerObj.proNationality) m.proNationality = careerObj.proNationality;
-
-      m.inferredGender = inferProGender(m, careerObj);
     });
 
     res.json(list);
@@ -557,72 +449,7 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   res.json(recent10);
 });
 
-// 5. Official EA Ratings (https://www.ea.com/games/ea-sports-fc/ratings) PlayStyle Icon Scraper & Proxy
-app.get('/api/playstyle/:slug', async (req, res) => {
-  const rawKey = String(req.params.slug || '').toLowerCase().trim().replace(/-/g, '_');
-  const isPlus = req.query.plus === '1' || req.query.plus === 'true';
-  const cacheKey = `${rawKey}_${isPlus ? 'plus' : 'std'}`;
-
-  if (PLAYSTYLE_CACHE.has(cacheKey)) {
-    const cached = PLAYSTYLE_CACHE.get(cacheKey);
-    res.setHeader('Content-Type', cached.contentType);
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    return res.send(cached.buffer);
-  }
-
-  const mapping = EA_RATINGS_PLAYSTYLE_PATHS[rawKey] || {
-    slug: rawKey.replace(/_/g, '-'),
-    trait: 'trait1_1',
-    icontrait: 'icontrait1_1'
-  };
-
-  // Scrape the official EA Ratings PlayStyle page for the exact icon SVG/PNG asset
-  const eaRatingsUrl = isPlus
-    ? `https://www.ea.com/games/ea-sports-fc/ratings/abilities-ratings/${mapping.slug}/play-style-plus/${mapping.icontrait}`
-    : `https://www.ea.com/games/ea-sports-fc/ratings/abilities-ratings/${mapping.slug}/play-style/${mapping.trait}`;
-
-  const discoveredUrls = [];
-
-  try {
-    const pageResp = await fetch(eaRatingsUrl, { headers: EA_HEADERS });
-    if (pageResp.ok) {
-      const html = await pageResp.text();
-      // Extract __NEXT_DATA__ or drop-in-assets icon URLs from EA's Ratings page
-      const assetMatches = html.match(/https?:\/\/[^"'\s\\]+(?:drop-in|abilities|trait|playstyle|play-style)[^"'\s\\]+\.(?:svg|png|webp)/gi) || [];
-      assetMatches.forEach(u => {
-        // Reject 16:9 gameplay comparison articles
-        if (!u.includes('deepdive') && !u.includes('1456w') && !u.includes('1920')) {
-          discoveredUrls.push(u);
-        }
-      });
-    }
-  } catch (_) {}
-
-  for (const url of discoveredUrls) {
-    try {
-      const imgResp = await fetch(url, { headers: EA_HEADERS });
-      if (imgResp.ok) {
-        const contentType = imgResp.headers.get('content-type') || '';
-        if (contentType.includes('image')) {
-          const arrBuf = await imgResp.arrayBuffer();
-          // Ensure it's an icon (< 80KB) and not a huge 16:9 gameplay banner
-          if (arrBuf.byteLength > 100 && arrBuf.byteLength < 85000) {
-            const buffer = Buffer.from(arrBuf);
-            PLAYSTYLE_CACHE.set(cacheKey, { contentType, buffer });
-            res.setHeader('Content-Type', contentType);
-            res.setHeader('Cache-Control', 'public, max-age=86400');
-            return res.send(buffer);
-          }
-        }
-      }
-    } catch (_) {}
-  }
-
-  // Return 404 so frontend immediately uses its embedded 1:1 EA Ratings SVG badge
-  res.status(404).send('Use embedded EA Ratings SVG');
-});
-
-// 6. Official EA fltOnlineAssets Crest Proxy
+// 5. Official EA fltOnlineAssets Crest Proxy
 app.get('/api/crest/:crestId', async (req, res) => {
   let rawId = String(req.params.crestId || '').replace(/^l/i, '').trim();
   const clubName = req.query.name || 'FC';
