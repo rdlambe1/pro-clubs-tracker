@@ -7,7 +7,7 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700;800&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Oswald:wght@500;700;800&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
   <style>
     body {
       background-color: #0b0f19;
@@ -208,7 +208,7 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Active Club Overview Card + Official Division Shield + Stadium + Region + Kit Jerseys + Global Rank -->
+    <!-- Active Club Overview Card + Official EA Division Shield + Stadium + Region + Kit Jerseys + Global Rank -->
     <section class="card p-6 space-y-5">
       <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
         <div class="flex items-center gap-5">
@@ -235,7 +235,6 @@
                 <span id="clubStadiumName" class="font-bold text-gray-200">--</span>
               </div>
               <div id="clubKitsContainer" class="flex items-center gap-2 bg-gray-900/80 border border-gray-800 px-2.5 py-1 rounded-md text-xs">
-                <!-- Populated dynamically with Home, Away & 3rd mini-kit SVGs -->
               </div>
             </div>
 
@@ -256,7 +255,6 @@
           <div class="flex flex-col items-center">
             <div class="text-gray-400 text-xs uppercase tracking-wider">Skill Rating</div>
             <div id="skillRating" class="text-xl font-bold text-emerald-400 mt-1">--</div>
-            <!-- Global Club Rank Percentile Pill -->
             <span id="globalRankBadge" class="hidden mt-1 px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">
               🌍 Top --%
             </span>
@@ -311,32 +309,39 @@
       </div>
     </section>
 
-    <!-- Latest Session Recap Banner + Tilt Meter + WhatsApp/Discord Export -->
+    <!-- Session / Last 10 Matches Report Banner (With Toggle Between Latest Session & Last 10 Matches) -->
     <section id="sessionRecapSection" class="hidden card p-5 border-l-4 border-l-amber-400 space-y-4">
-      <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-gray-800 pb-3">
-        <div class="flex items-center gap-2.5">
-          <span class="px-2.5 py-1 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
-            <i class="fa-solid fa-bolt"></i> Latest Session Report
-          </span>
+      <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 border-b border-gray-800 pb-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <!-- Mode Toggle: Latest Session vs Last 10 Matches -->
+          <div class="flex items-center bg-gray-900 p-1 rounded-lg border border-gray-800">
+            <button id="btnRecapSession" onclick="switchRecapMode('session')" class="px-3 py-1 rounded text-xs font-black bg-amber-400 text-black transition shadow">
+              <i class="fa-solid fa-bolt mr-1"></i> Latest Session
+            </button>
+            <button id="btnRecapLast10" onclick="switchRecapMode('last10')" class="px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition">
+              <i class="fa-solid fa-chart-simple mr-1"></i> Last 10 Matches
+            </button>
+          </div>
           <span id="sessionTimeWindow" class="text-xs text-gray-400 font-medium">--</span>
         </div>
+
         <div class="flex items-center gap-2">
           <span id="sessionTiltBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-black">--</span>
           <button onclick="shareElementAsPng('sessionRecapSection', 'Session-Recap')" class="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded text-xs font-bold transition flex items-center gap-1.5">
-            <i class="fa-solid fa-camera"></i> Share Session
+            <i class="fa-solid fa-camera"></i> Share Report
           </button>
         </div>
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3">
-          <div class="text-[10px] uppercase font-bold text-gray-400">Session Record</div>
+          <div id="recapRecordTitle" class="text-[10px] uppercase font-bold text-gray-400">Session Record</div>
           <div id="sessionRecordText" class="text-lg font-black text-white mt-0.5">--</div>
           <div id="sessionGoalDiffText" class="text-xs text-gray-400 mt-0.5">--</div>
         </div>
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center justify-between">
           <div>
-            <div class="text-[10px] uppercase font-bold text-emerald-400">👑 Session MVP</div>
+            <div id="recapMvpTitle" class="text-[10px] uppercase font-bold text-emerald-400">👑 Session MVP</div>
             <div id="sessionMvpName" class="text-sm font-black text-white mt-0.5">--</div>
             <div id="sessionMvpStats" class="text-[11px] text-gray-400">--</div>
           </div>
@@ -344,7 +349,7 @@
         </div>
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center justify-between">
           <div>
-            <div class="text-[10px] uppercase font-bold text-rose-400">⚓ Session Passenger</div>
+            <div id="recapLiabilityTitle" class="text-[10px] uppercase font-bold text-rose-400">⚓ Session Passenger</div>
             <div id="sessionLiabilityName" class="text-sm font-black text-white mt-0.5">--</div>
             <div id="sessionLiabilityStats" class="text-[11px] text-gray-400">--</div>
           </div>
@@ -360,14 +365,32 @@
         </div>
       </div>
 
-      <!-- Performance vs Opponent Lobby Sizes (vs 2-Man, 3-Man, 4-Man, 5+ Man Opponents) -->
+      <!-- Performance vs Opponent Lobby Sizes -->
       <div class="pt-3 border-t border-gray-800/80">
         <div class="text-[11px] font-black uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5">
           <i class="fa-solid fa-people-arrows text-emerald-400"></i> Performance vs. Opponent Lobby Sizes (Last 10 Matches)
         </div>
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="vsOpponentSizeGrid">
-          <!-- Populated dynamically -->
         </div>
+      </div>
+    </section>
+
+    <!-- NEW SECTION: Club Tactical Review & Scouting Report (Status, Strengths, Weaknesses, Areas to Address) -->
+    <section id="clubReviewSection" class="hidden card p-6 space-y-4">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-800 pb-3">
+        <div>
+          <h3 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-clipboard-check text-emerald-400"></i> Club Tactical Review & Scouting Report
+          </h3>
+          <p class="text-xs text-gray-400 mt-0.5">Automated diagnostic of your club's current standing, strengths, vulnerabilities & priority fixes</p>
+        </div>
+        <span id="clubReviewGradeBadge" class="px-3 py-1 rounded-full text-xs font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+          OVERALL CLUB HEALTH: --
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="clubReviewGrid">
+        <!-- Populated dynamically with Current Status, Strengths, Weaknesses & Areas to Address -->
       </div>
     </section>
 
@@ -396,7 +419,7 @@
       </div>
     </section>
 
-    <!-- Dressing Room Banter & Shame Board (5-Card Strip Including Possession Lost & Fidget Spinner) -->
+    <!-- Dressing Room Banter & Shame Board -->
     <section id="shameBoardSection" class="hidden card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
@@ -465,62 +488,6 @@
             <tr><td colspan="9" class="py-6 text-center text-gray-500">Search for a club to view match history.</td></tr>
           </tbody>
         </table>
-      </div>
-    </section>
-
-    <!-- Tactical Pitch Section: "Last Match XI" & "Suggested Best XI (Builds & Attributes)" -->
-    <section class="card p-6 space-y-4">
-      <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-4 border-b border-gray-800 pb-4">
-        <div>
-          <div class="flex items-center gap-2.5">
-            <h3 class="text-lg font-bold text-white flex items-center gap-2">
-              <i class="fa-solid fa-chess-board text-emerald-400"></i> Tactical Pitch & Squad Lineup
-            </h3>
-            <span id="formationBadge" class="text-xs font-black px-2.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">--</span>
-          </div>
-          <p id="formationSubtitle" class="text-xs text-gray-400 mt-1">Click any player on the pitch to inspect their FC27 Ultimate Team Card</p>
-        </div>
-
-        <div class="flex flex-wrap items-center gap-1.5 bg-gray-900 p-1 rounded-lg border border-gray-800">
-          <button id="btnModeLastMatch" onclick="switchPitchMode('lastMatch')" class="px-3.5 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition shadow">
-            <i class="fa-solid fa-clock-rotate-left mr-1"></i> Last Match XI
-          </button>
-          <button id="btnModeSuggested" onclick="switchPitchMode('suggestedXI')" class="px-3.5 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition">
-            <i class="fa-solid fa-wand-magic-sparkles mr-1 text-yellow-400"></i> Suggested Best XI (Builds & Attributes)
-          </button>
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between">
-          <span class="text-[10px] uppercase font-bold text-gray-400">Human Pros in XI</span>
-          <span id="pitchMetricHumans" class="text-sm font-black text-emerald-400">-- / 11</span>
-        </div>
-        <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between">
-          <span class="text-[10px] uppercase font-bold text-gray-400">Lineup Avg OVR</span>
-          <span id="pitchMetricOvr" class="text-sm font-black text-yellow-400">--</span>
-        </div>
-        <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between">
-          <span class="text-[10px] uppercase font-bold text-gray-400">Lineup Avg Rating</span>
-          <span id="pitchMetricRating" class="text-sm font-black text-white">--</span>
-        </div>
-        <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between">
-          <span class="text-[10px] uppercase font-bold text-gray-400">Strongest Unit</span>
-          <span id="pitchMetricZone" class="text-xs font-black text-purple-400 uppercase">--</span>
-        </div>
-      </div>
-
-      <div class="pitch-bg w-full h-[620px] py-6 px-4 flex flex-col justify-between relative shadow-inner">
-        <div class="pitch-penalty-top"></div>
-        <div class="pitch-center-line"></div>
-        <div class="pitch-center-circle"></div>
-        <div class="pitch-penalty-bottom"></div>
-
-        <div class="flex justify-around items-center z-10 w-full px-2" id="rowAttack"></div>
-        <div class="flex justify-around items-center z-10 w-full px-6" id="rowCAM"></div>
-        <div class="flex justify-around items-center z-10 w-full px-4" id="rowMidfield"></div>
-        <div class="flex justify-around items-center z-10 w-full px-2" id="rowDefense"></div>
-        <div class="flex justify-center items-center z-10 w-full" id="rowGK"></div>
       </div>
     </section>
 
@@ -611,6 +578,62 @@
             <tr><td colspan="11" class="py-6 text-center text-gray-500">Search for a club above to load squad.</td></tr>
           </tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- MOVED TO BOTTOM: Tactical Pitch Section ("Last Match XI" & "Suggested Best XI (Builds & Attributes)") -->
+    <section class="card p-6 space-y-4">
+      <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-4 border-b border-gray-800 pb-4">
+        <div>
+          <div class="flex items-center gap-2.5">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-chess-board text-emerald-400"></i> Tactical Pitch & Squad Lineup
+            </h3>
+            <span id="formationBadge" class="text-xs font-black px-2.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">--</span>
+          </div>
+          <p id="formationSubtitle" class="text-xs text-gray-400 mt-1">Click any player on the pitch to inspect their FC27 Ultimate Team Card</p>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-1.5 bg-gray-900 p-1 rounded-lg border border-gray-800">
+          <button id="btnModeLastMatch" onclick="switchPitchMode('lastMatch')" class="px-3.5 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition shadow">
+            <i class="fa-solid fa-clock-rotate-left mr-1"></i> Last Match XI
+          </button>
+          <button id="btnModeSuggested" onclick="switchPitchMode('suggestedXI')" class="px-3.5 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition">
+            <i class="fa-solid fa-wand-magic-sparkles mr-1 text-yellow-400"></i> Suggested Best XI (Builds & Attributes)
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between">
+          <span class="text-[10px] uppercase font-bold text-gray-400">Human Pros in XI</span>
+          <span id="pitchMetricHumans" class="text-sm font-black text-emerald-400">-- / 11</span>
+        </div>
+        <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between">
+          <span class="text-[10px] uppercase font-bold text-gray-400">Lineup Avg OVR</span>
+          <span id="pitchMetricOvr" class="text-sm font-black text-yellow-400">--</span>
+        </div>
+        <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between">
+          <span class="text-[10px] uppercase font-bold text-gray-400">Lineup Avg Rating</span>
+          <span id="pitchMetricRating" class="text-sm font-black text-white">--</span>
+        </div>
+        <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between">
+          <span class="text-[10px] uppercase font-bold text-gray-400">Strongest Unit</span>
+          <span id="pitchMetricZone" class="text-xs font-black text-purple-400 uppercase">--</span>
+        </div>
+      </div>
+
+      <div class="pitch-bg w-full h-[620px] py-6 px-4 flex flex-col justify-between relative shadow-inner">
+        <div class="pitch-penalty-top"></div>
+        <div class="pitch-center-line"></div>
+        <div class="pitch-center-circle"></div>
+        <div class="pitch-penalty-bottom"></div>
+
+        <div class="flex justify-around items-center z-10 w-full px-2" id="rowAttack"></div>
+        <div class="flex justify-around items-center z-10 w-full px-6" id="rowCAM"></div>
+        <div class="flex justify-around items-center z-10 w-full px-4" id="rowMidfield"></div>
+        <div class="flex justify-around items-center z-10 w-full px-2" id="rowDefense"></div>
+        <div class="flex justify-center items-center z-10 w-full" id="rowGK"></div>
       </div>
     </section>
 
@@ -783,13 +806,16 @@
     const API_BASE = '/api';
     let GLOBAL_MEMBERS = [];
     let GLOBAL_MATCHES = [];
+    let GLOBAL_COMBINED_DATA = {};
     let GLOBAL_CLUB_ID = null;
     let RECENT_FORM_MAP = {};
     let RECENT_10_STATS_MAP = {};
+    let SESSION_MATCHES_CACHE = [];
     let TOP_FIDGET_SPINNER_NAME = null;
     let CURRENT_CLUB_CREST_URL = '';
     let ACTIVE_MODAL_PLAYER = null;
     let CURRENT_PITCH_MODE = 'lastMatch';
+    let CURRENT_RECAP_MODE = 'session'; // 'session' or 'last10'
 
     function applyStoredTheme() {
       const saved = localStorage.getItem('proClubsTheme') || 'dark';
@@ -810,52 +836,110 @@
       applyStoredTheme();
     }
 
-    // Official EA Sports FC Division Shield Emblem Renderer (Elite, Div 1, Div 2, Div 3, Div 4, Div 5)
+    // EXACT EA SPORTS FC CLUBS DIVISION CREST LOGOS (Replicating the attached reference image 1:1)
+    // - Div 5, 4, 3, 2: Beveled gold shield with side notches, dark obsidian/teal faceted core, gold serif numeral ('5','4','3','2') & bottom 'C' monogram
+    // - Div 1: Deep crimson-red shield with gold laurel wreath, gold '1', bottom ruby gem & 'C' monogram
+    // - Elite: Royal purple shield with external golden laurel wings, gold rampant lion + crown + stars, and amethyst gem
     function renderDivisionShieldHtml(divLabelOrNum, size = 'md') {
       const str = String(divLabelOrNum ?? 'Div 2').trim().toLowerCase();
       let num = 2;
       if (str.includes('elite') || str === '0') num = 0;
       else {
         const parsed = parseInt(str.replace(/[^0-9]/g, ''), 10);
-        if (!isNaN(parsed)) num = parsed;
+        if (!isNaN(parsed)) num = Math.max(1, Math.min(5, parsed));
       }
 
-      const themes = {
-        0: { label: 'ELITE', sub: 'DIVISION', c1: '#fef08a', c2: '#eab308', c3: '#7f1d1d', rim: '#fde047', text: '#ffffff', wing: '#facc15' },
-        1: { label: 'I', sub: 'DIV 1', c1: '#fef08a', c2: '#ca8a04', c3: '#422006', rim: '#fef08a', text: '#fef9c3', wing: '#eab308' },
-        2: { label: 'II', sub: 'DIV 2', c1: '#6ee7b7', c2: '#059669', c3: '#064e3b', rim: '#34d399', text: '#ffffff', wing: '#10b981' },
-        3: { label: 'III', sub: 'DIV 3', c1: '#93c5fd', c2: '#2563eb', c3: '#1e3a8a', rim: '#60a5fa', text: '#ffffff', wing: '#3b82f6' },
-        4: { label: 'IV', sub: 'DIV 4', c1: '#d8b4fe', c2: '#7c3aed', c3: '#3b0764', rim: '#c084fc', text: '#ffffff', wing: '#8b5cf6' },
-        5: { label: 'V', sub: 'DIV 5', c1: '#fdba74', c2: '#ea580c', c3: '#431407', rim: '#fb923c', text: '#ffffff', wing: '#f97316' }
+      const uid = `eaDiv_${num}_${Math.random().toString(36).substring(2, 7)}`;
+      const dims = size === 'lg' ? 'w-12 h-14' : (size === 'sm' ? 'w-7 h-8' : 'w-10 h-11');
+
+      // Core color palettes matching the attached reference image
+      const palettes = {
+        5: { bgTop: '#1c1917', bgBot: '#09090b', facet: '#292524', gem: null, wreath: false },
+        4: { bgTop: '#1e293b', bgBot: '#090d16', facet: '#334155', gem: '#10b981', wreath: true },
+        3: { bgTop: '#2e2318', bgBot: '#0c0a09', facet: '#443322', gem: '#d4af37', wreath: true },
+        2: { bgTop: '#0d4a4e', bgBot: '#041316', facet: '#146c72', gem: '#2dd4bf', wreath: true },
+        1: { bgTop: '#991b1b', bgBot: '#450a0a', facet: '#dc2626', gem: '#ef4444', wreath: true },
+        0: { bgTop: '#5b21b6', bgBot: '#2e1065', facet: '#7c3aed', gem: '#a855f7', wreath: true }
       };
+      const pal = palettes[num] || palettes[2];
 
-      const t = themes[num] || themes[2];
-      const uid = `divShield_${num}_${Math.random().toString(36).substring(2, 7)}`;
+      // Interior Laurel Wreath SVG path (used on Div 4, 3, 2, 1, Elite)
+      const innerWreathSvg = pal.wreath ? `
+        <path d="M 34 78 C 22 68 20 46 28 32" fill="none" stroke="url(#${uid}_gold)" stroke-width="2.5" stroke-dasharray="4 2" stroke-linecap="round" opacity="${num <= 1 ? '0.95' : '0.45'}"/>
+        <path d="M 66 78 C 78 68 80 46 72 32" fill="none" stroke="url(#${uid}_gold)" stroke-width="2.5" stroke-dasharray="4 2" stroke-linecap="round" opacity="${num <= 1 ? '0.95' : '0.45'}"/>
+      ` : '';
 
-      const dims = size === 'lg' ? 'w-12 h-12' : (size === 'sm' ? 'w-7 h-7' : 'w-9 h-9');
-      const fontSize = num === 0 ? '20' : '34';
+      // External Golden Laurel Wings for Elite Division
+      const eliteOuterWingsSvg = num === 0 ? `
+        <path d="M 16 74 C 2 62 2 38 12 22 C 6 40 10 58 20 70 Z" fill="url(#${uid}_gold)"/>
+        <path d="M 18 82 C 4 72 0 52 8 34 C 6 50 12 66 24 78 Z" fill="url(#${uid}_gold)"/>
+        <path d="M 24 90 C 10 82 4 66 10 48 C 10 64 16 76 30 86 Z" fill="url(#${uid}_gold)"/>
+        <path d="M 84 74 C 98 62 98 38 88 22 C 94 40 90 58 80 70 Z" fill="url(#${uid}_gold)"/>
+        <path d="M 82 82 C 96 72 100 52 92 34 C 94 50 88 66 76 78 Z" fill="url(#${uid}_gold)"/>
+        <path d="M 76 90 C 90 82 96 66 90 48 C 90 64 84 76 70 86 Z" fill="url(#${uid}_gold)"/>
+      ` : '';
+
+      // Center Content: Rampant Lion + Crown for Elite, or Serif Numeral ('1','2','3','4','5')
+      const centerSymbolSvg = num === 0 ? `
+        <!-- 3-Point Gold Crown -->
+        <polygon points="38,28 43,19 50,25 57,19 62,28" fill="url(#${uid}_num)" stroke="#2e1065" stroke-width="0.8"/>
+        <circle cx="33" cy="25" r="1.8" fill="#fde68a"/>
+        <circle cx="67" cy="25" r="1.8" fill="#fde68a"/>
+        <!-- Rampant Gold Lion Silhouette -->
+        <path d="M 46 34 C 52 32 58 35 58 41 C 58 45 55 47 57 52 C 60 56 64 54 64 59 C 64 63 58 63 55 61 L 58 72 L 52 72 L 49 62 L 44 62 L 41 72 L 36 72 L 40 58 C 36 55 34 49 38 45 C 35 42 36 37 41 38 L 46 34 Z" fill="url(#${uid}_num)"/>
+      ` : `
+        <text x="50" y="64" font-family="'Cinzel', Georgia, serif" font-size="44" font-weight="900" fill="url(#${uid}_num)" text-anchor="middle" filter="drop-shadow(0px 3px 3px rgba(0,0,0,0.85))">${num}</text>
+      `;
+
+      // Bottom Jewel Clasp
+      const bottomGemSvg = pal.gem ? `
+        <circle cx="50" cy="105" r="4.5" fill="${pal.gem}" stroke="url(#${uid}_gold)" stroke-width="1.8"/>
+      ` : '';
 
       return `
-        <div class="inline-flex items-center gap-1.5 select-none" title="EA Sports FC ${t.sub}">
-          <div class="${dims} relative flex-shrink-0 drop-shadow-md">
-            <svg viewBox="0 0 100 100" class="w-full h-full">
+        <div class="inline-flex items-center gap-1.5 select-none" title="EA Sports FC ${num === 0 ? 'Elite Division' : `Division ${num}`}">
+          <div class="${dims} relative flex-shrink-0 drop-shadow-lg">
+            <svg viewBox="0 0 100 114" class="w-full h-full overflow-visible">
               <defs>
-                <linearGradient id="${uid}" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="${t.c1}"/>
-                  <stop offset="50%" stop-color="${t.c2}"/>
-                  <stop offset="100%" stop-color="${t.c3}"/>
+                <linearGradient id="${uid}_gold" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#fef08a"/>
+                  <stop offset="35%" stop-color="#e5c158"/>
+                  <stop offset="70%" stop-color="#a17419"/>
+                  <stop offset="100%" stop-color="#fef08a"/>
+                </linearGradient>
+                <linearGradient id="${uid}_core" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="${pal.bgTop}"/>
+                  <stop offset="100%" stop-color="${pal.bgBot}"/>
+                </linearGradient>
+                <linearGradient id="${uid}_num" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#ffffff"/>
+                  <stop offset="30%" stop-color="#fde68a"/>
+                  <stop offset="100%" stop-color="#b48628"/>
                 </linearGradient>
               </defs>
-              <!-- Outer Laurels / Wings -->
-              <path d="M 18 28 L 4 20 L 10 44 L 4 56 L 20 68 Z" fill="${t.wing}" opacity="0.85"/>
-              <path d="M 82 28 L 96 20 L 90 44 L 96 56 L 80 68 Z" fill="${t.wing}" opacity="0.85"/>
-              <!-- Main Metallic Shield Crest -->
-              <polygon points="50,6 86,20 80,66 50,94 20,66 14,20" fill="url(#${uid})" stroke="${t.rim}" stroke-width="4.5" stroke-linejoin="round"/>
-              <polygon points="50,13 79,25 74,62 50,86 26,62 21,25" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.55"/>
-              <!-- Top Crown Star -->
-              <polygon points="50,15 53,22 60,22 54,26 56,33 50,29 44,33 46,26 40,22 47,22" fill="${t.rim}" opacity="0.9"/>
-              <!-- Roman Numeral / Tier -->
-              <text x="50" y="${num === 0 ? 60 : 66}" font-family="'Oswald', sans-serif" font-size="${fontSize}" font-weight="900" fill="${t.text}" text-anchor="middle" letter-spacing="0.5">${t.label}</text>
+
+              ${eliteOuterWingsSvg}
+
+              <!-- Outer Beveled Champagne-Gold Shield Frame with Side Notches -->
+              <path d="M 50 4 L 86 18 L 86 42 L 82 46 L 86 50 C 86 78 68 94 50 106 C 32 94 14 78 14 50 L 18 46 L 14 42 L 14 18 Z" 
+                    fill="url(#${uid}_gold)" stroke="#422c06" stroke-width="2" stroke-linejoin="round"/>
+
+              <!-- Inner Dark / Faceted Shield Core -->
+              <path d="M 50 10 L 80 22 L 80 41 L 77 46 L 80 51 C 80 74 64 88 50 99 C 36 88 20 74 20 51 L 23 46 L 20 41 L 20 22 Z" 
+                    fill="url(#${uid}_core)" stroke="url(#${uid}_gold)" stroke-width="1.5"/>
+
+              <!-- Low-Poly Geometric Facet Highlights (Top Right & Center) -->
+              <polygon points="50,10 80,22 65,42 50,28" fill="${pal.facet}" opacity="0.55"/>
+              <polygon points="50,28 65,42 50,62 35,42" fill="${pal.facet}" opacity="0.28"/>
+
+              ${innerWreathSvg}
+              ${centerSymbolSvg}
+
+              <!-- Official EA Clubs 'C' Monogram at Bottom of Shield -->
+              <path d="M 53 82 C 48 80 45 83 45 86 C 45 89 48 92 53 90" fill="none" stroke="url(#${uid}_num)" stroke-width="2.5" stroke-linecap="round"/>
+              <circle cx="51" cy="86" r="1.2" fill="#fde68a"/>
+
+              ${bottomGemSvg}
             </svg>
           </div>
           ${size === 'lg' ? `<span class="text-xs font-black uppercase tracking-wider text-emerald-400">${num === 0 ? 'Elite' : `Div ${num}`}</span>` : ''}
@@ -863,20 +947,15 @@
       `;
     }
 
-    // Mini Kit Jersey SVG Renderer (Home, Away & 3rd Kit Colours)
     function renderMiniJerseySvg(colors = ['#10b981', '#ffffff', '#064e3b'], label = 'Home') {
       const [c1, c2, c3] = colors;
       return `
         <div class="flex items-center gap-1" title="${label} Kit (${c1} / ${c2})">
           <svg viewBox="0 0 36 34" class="w-5 h-5 drop-shadow-sm">
-            <!-- Sleeves -->
             <path d="M 8 6 L 2 14 L 7 18 L 11 12 Z" fill="${c2}" stroke="#0f172a" stroke-width="1.5"/>
             <path d="M 28 6 L 34 14 L 29 18 L 25 12 Z" fill="${c2}" stroke="#0f172a" stroke-width="1.5"/>
-            <!-- Main Torso -->
             <path d="M 10 6 L 26 6 L 26 30 L 10 30 Z" fill="${c1}" stroke="#0f172a" stroke-width="1.5"/>
-            <!-- Vertical Center Stripe / Trim -->
             <rect x="16" y="6" width="4" height="24" fill="${c2}" opacity="0.85"/>
-            <!-- Collar -->
             <path d="M 14 6 Q 18 11 22 6" fill="none" stroke="${c3}" stroke-width="2.2"/>
           </svg>
           <span class="text-[10px] font-bold text-gray-400">${label}</span>
@@ -884,7 +963,6 @@
       `;
     }
 
-    // Computes Match Grade (S, A+, A, B, C, D) + Attacking (ATK) & Defending (DEF) Ratings out of 10.0
     function computeMatchGradeAndUnitRatings(myGoals, oppGoals, playerStats = []) {
       let totalShots = 0, totalPassesMade = 0, totalPassAtt = 0, totalTackles = 0;
       playerStats.forEach(p => {
@@ -897,11 +975,9 @@
       const passPct = totalPassAtt > 0 ? (totalPassesMade / totalPassAtt) * 100 : 75;
       const shotConv = totalShots > 0 ? (myGoals / totalShots) : (myGoals > 0 ? 0.5 : 0);
 
-      // Attacking Rating (4.0 to 9.9)
       const atkRaw = 5.6 + (myGoals * 0.95) + (shotConv * 1.6) + ((passPct - 70) * 0.04);
       const atkRating = Math.min(9.9, Math.max(4.0, atkRaw));
 
-      // Defending Rating (4.0 to 9.9)
       const cleanSheetBonus = oppGoals === 0 ? 1.4 : 0;
       const defRaw = 7.4 + cleanSheetBonus - (oppGoals * 0.85) + Math.min(1.5, totalTackles * 0.14);
       const defRating = Math.min(9.9, Math.max(3.8, defRaw));
@@ -1495,7 +1571,219 @@
       card.classList.remove('hidden');
     }
 
-    // Computes Session Recap, Own Party Factor, VS Opponent Lobby Sizes (2, 3, 4, 5+ Man), Shame Board, Dynamic Duo & Nemesis
+    // Toggles the Session Recap Banner between 'session' (Latest Session) and 'last10' (Last 10 Matches)
+    function switchRecapMode(mode) {
+      CURRENT_RECAP_MODE = mode;
+      const btnSess = document.getElementById('btnRecapSession');
+      const btn10 = document.getElementById('btnRecapLast10');
+
+      if (mode === 'session') {
+        btnSess.className = 'px-3 py-1 rounded text-xs font-black bg-amber-400 text-black transition shadow';
+        btn10.className = 'px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
+      } else {
+        btn10.className = 'px-3 py-1 rounded text-xs font-black bg-amber-400 text-black transition shadow';
+        btnSess.className = 'px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
+      }
+
+      const activeFixtures = mode === 'session' ? SESSION_MATCHES_CACHE : GLOBAL_MATCHES.slice(0, 10);
+      updateRecapMetricsDisplay(GLOBAL_CLUB_ID, activeFixtures, mode);
+    }
+
+    function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
+      const section = document.getElementById('sessionRecapSection');
+      if (!fixtures || fixtures.length === 0) {
+        section.classList.add('hidden');
+        return;
+      }
+      section.classList.remove('hidden');
+
+      let sW = 0, sD = 0, sL = 0, sGF = 0, sGA = 0;
+      const playerMap = {};
+
+      fixtures.forEach(m => {
+        const clubsData = m.clubs || m.aggregate || {};
+        const clubIds = Object.keys(clubsData);
+        let thisId = clubIds.find(id => String(id) === String(clubId)) || clubIds[0];
+        let oppId = clubIds.find(id => String(id) !== String(clubId)) || clubIds[1];
+
+        const myGoals = Number(clubsData[thisId]?.goals ?? clubsData[thisId]?.score ?? 0);
+        const oppGoals = Number(clubsData[oppId]?.goals ?? clubsData[oppId]?.score ?? 0);
+        sGF += myGoals;
+        sGA += oppGoals;
+        if (myGoals > oppGoals) sW++;
+        else if (myGoals < oppGoals) sL++;
+        else sD++;
+
+        const pData = m.players?.[thisId] || {};
+        Object.values(pData).forEach(p => {
+          const pName = p.playername || p.name || 'Pro';
+          if (!playerMap[pName]) {
+            playerMap[pName] = { name: pName, games: 0, goals: 0, assists: 0, ratingSum: 0 };
+          }
+          playerMap[pName].games += 1;
+          playerMap[pName].goals += Number(p.goals || 0);
+          playerMap[pName].assists += Number(p.assists || 0);
+          playerMap[pName].ratingSum += parseFloat(p.rating || 7.0);
+        });
+      });
+
+      const gd = sGF - sGA;
+      const gdLabel = gd >= 0 ? `+${gd} GD` : `${gd} GD`;
+      const prefix = mode === 'session' ? 'Session' : 'Last 10';
+
+      document.getElementById('recapRecordTitle').innerText = `${prefix} Record`;
+      document.getElementById('recapMvpTitle').innerText = `👑 ${prefix} MVP`;
+      document.getElementById('recapLiabilityTitle').innerText = `⚓ ${prefix} Passenger`;
+
+      document.getElementById('sessionTimeWindow').innerText = mode === 'session'
+        ? `${fixtures.length} Match Evening Stint`
+        : `Last ${fixtures.length} Club Matches`;
+
+      document.getElementById('sessionRecordText').innerText = `${sW}W - ${sD}D - ${sL}L`;
+      document.getElementById('sessionGoalDiffText').innerText = `${sGF} GF / ${sGA} GA (${gdLabel})`;
+
+      const tiltBadge = document.getElementById('sessionTiltBadge');
+      if (sL > sW && sL >= 2) {
+        tiltBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40';
+        tiltBadge.innerText = '🚨 HIGH TILT: Controller Danger';
+      } else if (sW > sL) {
+        tiltBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+        tiltBadge.innerText = '🔥 VIBES IMMACULATE';
+      } else {
+        tiltBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40';
+        tiltBadge.innerText = '⚖️ MIXED BAG RUN';
+      }
+
+      const sPlayers = Object.values(playerMap).map(sp => ({
+        ...sp,
+        avgRat: sp.ratingSum / sp.games,
+        impact: (sp.ratingSum / sp.games) * 10 + (sp.goals * 4) + (sp.assists * 3)
+      })).sort((a, b) => b.impact - a.impact);
+
+      if (sPlayers.length > 0) {
+        const mvp = sPlayers[0];
+        document.getElementById('sessionMvpName').innerText = mvp.name;
+        document.getElementById('sessionMvpStats').innerText = `${mvp.avgRat.toFixed(1)} AVG • ${mvp.goals}G ${mvp.assists}A (${mvp.games} GP)`;
+        document.getElementById('sessionMvpAvatar').src = getPlayerAvatarUrl(mvp.name);
+
+        const liability = sPlayers[sPlayers.length - 1];
+        document.getElementById('sessionLiabilityName').innerText = liability.name;
+        document.getElementById('sessionLiabilityStats').innerText = `${liability.avgRat.toFixed(1)} AVG • ${liability.goals}G ${liability.assists}A (${liability.games} GP)`;
+        document.getElementById('sessionLiabilityAvatar').src = getPlayerAvatarUrl(liability.name);
+      }
+    }
+
+    // Generates the 4-Pillar Club Tactical Review & Scouting Report
+    function renderClubReviewReport(clubData = {}, members = [], matches = [], shameList = []) {
+      const section = document.getElementById('clubReviewSection');
+      const grid = document.getElementById('clubReviewGrid');
+      if (!members || members.length === 0) {
+        section.classList.add('hidden');
+        return;
+      }
+      section.classList.remove('hidden');
+
+      const statObj = clubData.overall || {};
+      const wins = Number(statObj.wins ?? statObj.overallWins ?? 0);
+      const ties = Number(statObj.ties ?? statObj.overallTies ?? 0);
+      const losses = Number(statObj.losses ?? statObj.overallLosses ?? 0);
+      const totalGames = Math.max(1, wins + ties + losses);
+      const winPct = Math.round((wins / totalGames) * 100);
+      const gf = Number(statObj.goals ?? statObj.overallGoals ?? 0);
+      const ga = Number(statObj.goalsAgainst ?? statObj.overallGoalsAgainst ?? 0);
+      const gpg = (gf / totalGames).toFixed(2);
+      const gapg = (ga / totalGames).toFixed(2);
+      const sr = Number(statObj.skillRating ?? statObj.rating ?? 1500);
+      const divLabel = clubData.division || 'Div 2';
+
+      // Recent 10 form
+      let r10Wins = 0, r10Losses = 0, r10GF = 0, r10GA = 0;
+      matches.slice(0, 10).forEach(m => {
+        const clubsData = m.clubs || m.aggregate || {};
+        const cIds = Object.keys(clubsData);
+        const myId = cIds.find(id => String(id) === String(GLOBAL_CLUB_ID)) || cIds[0];
+        const oppId = cIds.find(id => String(id) !== String(GLOBAL_CLUB_ID)) || cIds[1];
+        const mG = Number(clubsData[myId]?.goals ?? clubsData[myId]?.score ?? 0);
+        const oG = Number(clubsData[oppId]?.goals ?? clubsData[oppId]?.score ?? 0);
+        r10GF += mG;
+        r10GA += oG;
+        if (mG > oG) r10Wins++;
+        else if (mG < oG) r10Losses++;
+      });
+
+      const squadAvgPass = Math.round(members.reduce((a, b) => a + Number(b.passSuccessRate || 75), 0) / members.length);
+      const totalMissedPasses = shameList.reduce((a, b) => a + (b.missedPasses || 0), 0);
+      const totalDispossessed = shameList.reduce((a, b) => a + (b.nonPassPossLost || 0), 0);
+
+      // Overall Health Grade
+      const healthBadge = document.getElementById('clubReviewGradeBadge');
+      if (winPct >= 52 && r10Wins >= r10Losses) {
+        healthBadge.className = 'px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+        healthBadge.innerText = 'CLUB STATUS: PROMOTION CONTENDERS (A)';
+      } else if (r10Losses >= 6) {
+        healthBadge.className = 'px-3 py-1 rounded-full text-xs font-black bg-rose-500/20 text-rose-400 border border-rose-500/40';
+        healthBadge.innerText = 'CLUB STATUS: REBUILD / FORM SLUMP (C+)';
+      } else {
+        healthBadge.className = 'px-3 py-1 rounded-full text-xs font-black bg-amber-500/20 text-amber-300 border border-amber-500/40';
+        healthBadge.innerText = 'CLUB STATUS: COMPETITIVE BATTLERS (B+)';
+      }
+
+      // 1. Current Status
+      const statusBullets = [
+        `Competing in <b>${divLabel}</b> with a <b>${sr} Skill Rating</b> (${clubData.globalRank?.label || 'Top 10%'}).`,
+        `All-time win rate sits at <b>${winPct}%</b> (${wins}W-${ties}D-${losses}L), averaging <b>${gpg} goals scored</b> per match.`,
+        `Recent 10-game momentum: <b>${r10Wins}W - ${10 - r10Wins - r10Losses}D - ${r10Losses}L</b> (${r10GF} GF / ${r10GA} GA).`
+      ];
+
+      // 2. Strengths
+      const strengthsBullets = [];
+      if (Number(gpg) >= 2.2) strengthsBullets.push(`<b>High-Octane Attack:</b> Averaging ${gpg} goals/game with strong multi-scorer threat.`);
+      if (squadAvgPass >= 78) strengthsBullets.push(`<b>Crisp Ball Retention:</b> Squad averages ${squadAvgPass}% pass completion across all roles.`);
+      const topScorer = [...members].sort((a, b) => Number(b.goals || 0) - Number(a.goals || 0))[0];
+      if (topScorer) strengthsBullets.push(`<b>Focal Point:</b> ${topScorer.name || topScorer.proName} leads the line with ${topScorer.goals} career goals.`);
+      if (strengthsBullets.length < 3) strengthsBullets.push(`<b>Resilience:</b> Proven ability to compete against high-SR division opponents.`);
+
+      // 3. Weaknesses
+      const weakBullets = [];
+      if (Number(gapg) >= 2.1 || r10GA >= 22) {
+        weakBullets.push(`<b>Defensive Leakage:</b> Conceding ${gapg} goals/game career (${(r10GA / Math.max(1, matches.length)).toFixed(1)}/g in last 10).`);
+      }
+      if (totalDispossessed >= 25) {
+        weakBullets.push(`<b>Over-Dribbling in Traffic:</b> Dispossessed ${totalDispossessed}x on the ball in the last 10 fixtures.`);
+      }
+      if (totalMissedPasses >= 60) {
+        weakBullets.push(`<b>Transition Turnovers:</b> ${totalMissedPasses} misplaced passes over the last 10 games inviting counter-attacks.`);
+      }
+      if (weakBullets.length === 0) {
+        weakBullets.push(`<b>Late-Game Concentration:</b> Occasional narrow 1-goal defeats against compact mid-blocks.`);
+      }
+
+      // 4. Areas to Address
+      const fixBullets = [
+        `<b>Protect the BackFour:</b> Keep at least one holding midfielder (CDM) anchored behind the ball during wide attacks.`,
+        `<b>Release Early:</b> Cut down the ${totalDispossessed} dribble turnovers by triggering 1-2s before the second defender closes.`,
+        `<b>Clinical Conversion:</b> Look for the extra sweat/cutback pass inside the box rather than forcing low-percentage long shots.`
+      ];
+
+      const pillars = [
+        { title: '📊 Current Status', icon: 'fa-signal text-sky-400', border: 'border-sky-500/30', items: statusBullets },
+        { title: '💪 Key Strengths', icon: 'fa-dumbbell text-emerald-400', border: 'border-emerald-500/30', items: strengthsBullets },
+        { title: '⚠️ Weaknesses', icon: 'fa-triangle-exclamation text-rose-400', border: 'border-rose-500/30', items: weakBullets },
+        { title: '🎯 Areas to Address', icon: 'fa-bullseye text-amber-400', border: 'border-amber-500/30', items: fixBullets }
+      ];
+
+      grid.innerHTML = pillars.map(p => `
+        <div class="bg-gray-900/60 border ${p.border} rounded-xl p-4 space-y-2.5">
+          <div class="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2 border-b border-gray-800 pb-2">
+            <i class="fa-solid ${p.icon}"></i> ${p.title}
+          </div>
+          <ul class="space-y-2 text-xs text-gray-300 leading-relaxed">
+            ${p.items.map(item => `<li class="flex items-start gap-1.5"><span class="text-emerald-400 font-bold">•</span><span>${item}</span></li>`).join('')}
+          </ul>
+        </div>
+      `).join('');
+    }
+
     function computeMatchIntelligence(clubId, matchesPayload) {
       RECENT_FORM_MAP = {};
       RECENT_10_STATS_MAP = {};
@@ -1510,7 +1798,6 @@
       let smallLobbyGames = 0, smallLobbyWins = 0;
       let largeLobbyGames = 0, largeLobbyWins = 0;
 
-      // Opponent Party Size Buckets (2-Man, 3-Man, 4-Man, 5+ Man Opponents)
       const oppSizeBuckets = {
         2: { label: 'vs. 2-Man Opponents', w: 0, d: 0, l: 0, total: 0 },
         3: { label: 'vs. 3-Man Opponents', w: 0, d: 0, l: 0, total: 0 },
@@ -1562,7 +1849,6 @@
           highestSrOpp = opponentCounts[oppName];
         }
 
-        // Count Opponent Lobby Size (2-Man, 3-Man, 4-Man, 5+ Man)
         const oppPlayersObj = m.players?.[oppId] || {};
         const oppHumanCount = Object.keys(oppPlayersObj).length;
         if (oppHumanCount > 0) {
@@ -1667,6 +1953,7 @@
         RECENT_FORM_MAP[name] = arr.reduce((a, b) => a + b, 0) / arr.length;
       });
 
+      SESSION_MATCHES_CACHE = sessionMatches;
       const shameArr = Object.values(shameMap);
       if (shameArr.length > 0) {
         const topSkiller = [...shameArr].sort((a, b) => b.skillMoves - a.skillMoves)[0];
@@ -1710,81 +1997,13 @@
       } else {
         intelSection.classList.add('hidden');
       }
+
+      return shameArr;
     }
 
     function renderSessionRecapAndSquadFactor(clubId, sessionMatches, smallGames, smallWins, largeGames, largeWins, oppSizeBuckets = {}) {
-      const section = document.getElementById('sessionRecapSection');
-      if (!sessionMatches || sessionMatches.length === 0) {
-        section.classList.add('hidden');
-        return;
-      }
-      section.classList.remove('hidden');
-
-      let sW = 0, sD = 0, sL = 0, sGF = 0, sGA = 0;
-      const sessionPlayerMap = {};
-
-      sessionMatches.forEach(m => {
-        const clubsData = m.clubs || m.aggregate || {};
-        const clubIds = Object.keys(clubsData);
-        let thisId = clubIds.find(id => String(id) === String(clubId)) || clubIds[0];
-        let oppId = clubIds.find(id => String(id) !== String(clubId)) || clubIds[1];
-
-        const myGoals = Number(clubsData[thisId]?.goals ?? clubsData[thisId]?.score ?? 0);
-        const oppGoals = Number(clubsData[oppId]?.goals ?? clubsData[oppId]?.score ?? 0);
-        sGF += myGoals;
-        sGA += oppGoals;
-        if (myGoals > oppGoals) sW++;
-        else if (myGoals < oppGoals) sL++;
-        else sD++;
-
-        const pData = m.players?.[thisId] || {};
-        Object.values(pData).forEach(p => {
-          const pName = p.playername || p.name || 'Pro';
-          if (!sessionPlayerMap[pName]) {
-            sessionPlayerMap[pName] = { name: pName, games: 0, goals: 0, assists: 0, ratingSum: 0 };
-          }
-          sessionPlayerMap[pName].games += 1;
-          sessionPlayerMap[pName].goals += Number(p.goals || 0);
-          sessionPlayerMap[pName].assists += Number(p.assists || 0);
-          sessionPlayerMap[pName].ratingSum += parseFloat(p.rating || 7.0);
-        });
-      });
-
-      const gd = sGF - sGA;
-      const gdLabel = gd >= 0 ? `+${gd} GD` : `${gd} GD`;
-      document.getElementById('sessionTimeWindow').innerText = `${sessionMatches.length} Match Stint Detected`;
-      document.getElementById('sessionRecordText').innerText = `${sW}W - ${sD}D - ${sL}L`;
-      document.getElementById('sessionGoalDiffText').innerText = `${sGF} GF / ${sGA} GA (${gdLabel})`;
-
-      const tiltBadge = document.getElementById('sessionTiltBadge');
-      if (sL >= 2 && sW === 0) {
-        tiltBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40';
-        tiltBadge.innerText = '🚨 HIGH TILT: Controller Danger';
-      } else if (sW > sL) {
-        tiltBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
-        tiltBadge.innerText = '🔥 VIBES IMMACULATE';
-      } else {
-        tiltBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40';
-        tiltBadge.innerText = '⚖️ MIXED BAG SESSION';
-      }
-
-      const sPlayers = Object.values(sessionPlayerMap).map(sp => ({
-        ...sp,
-        avgRat: sp.ratingSum / sp.games,
-        impact: (sp.ratingSum / sp.games) * 10 + (sp.goals * 4) + (sp.assists * 3)
-      })).sort((a, b) => b.impact - a.impact);
-
-      if (sPlayers.length > 0) {
-        const mvp = sPlayers[0];
-        document.getElementById('sessionMvpName').innerText = mvp.name;
-        document.getElementById('sessionMvpStats').innerText = `${mvp.avgRat.toFixed(1)} AVG • ${mvp.goals}G ${mvp.assists}A`;
-        document.getElementById('sessionMvpAvatar').src = getPlayerAvatarUrl(mvp.name);
-
-        const liability = sPlayers[sPlayers.length - 1];
-        document.getElementById('sessionLiabilityName').innerText = liability.name;
-        document.getElementById('sessionLiabilityStats').innerText = `${liability.avgRat.toFixed(1)} AVG • ${liability.goals}G ${liability.assists}A`;
-        document.getElementById('sessionLiabilityAvatar').src = getPlayerAvatarUrl(liability.name);
-      }
+      const activeFixtures = CURRENT_RECAP_MODE === 'session' ? sessionMatches : GLOBAL_MATCHES.slice(0, 10);
+      updateRecapMetricsDisplay(clubId, activeFixtures, CURRENT_RECAP_MODE);
 
       const smallPct = smallGames > 0 ? Math.round((smallWins / smallGames) * 100) : null;
       const largePct = largeGames > 0 ? Math.round((largeWins / largeGames) * 100) : null;
@@ -1797,7 +2016,6 @@
       }
       document.getElementById('squadFactorVerdict').innerText = verdict;
 
-      // Render Performance vs. Opponent Lobby Sizes (2-Man, 3-Man, 4-Man, 5+ Man)
       const oppGrid = document.getElementById('vsOpponentSizeGrid');
       oppGrid.innerHTML = [2, 3, 4, 5].map(k => {
         const b = oppSizeBuckets[k] || { label: `vs. ${k}-Man`, w: 0, d: 0, l: 0, total: 0 };
@@ -2062,12 +2280,14 @@
         }
 
         GLOBAL_CLUB_ID = clubId;
+        GLOBAL_COMBINED_DATA = combined;
         GLOBAL_MEMBERS = Array.isArray(memData) ? memData : (memData?.members || Object.values(memData || {}));
         GLOBAL_MATCHES = Array.isArray(matchesPayload) ? matchesPayload : (matchesPayload?.matches || []);
 
-        computeMatchIntelligence(clubId, GLOBAL_MATCHES);
+        const shameList = computeMatchIntelligence(clubId, GLOBAL_MATCHES);
         const membersList = renderMembers(GLOBAL_MEMBERS);
         renderClub(clubId, combined, platform, membersList, GLOBAL_MATCHES);
+        renderClubReviewReport(combined, membersList, GLOBAL_MATCHES, shameList);
         renderSeasonsHistory(combined.seasonsHistory, combined.trophies);
         renderCareerMilestones(membersList);
         buildDynamicPitchTactic(membersList, GLOBAL_MATCHES);
@@ -2121,7 +2341,6 @@
 
       document.getElementById('clubName').innerText = name;
 
-      // Render Official Division Shield Emblem next to Club Name
       const divShieldContainer = document.getElementById('clubDivShieldContainer');
       if (data.division) {
         divShieldContainer.innerHTML = renderDivisionShieldHtml(data.divisionNum ?? data.division, 'lg');
@@ -2130,7 +2349,6 @@
         divShieldContainer.classList.add('hidden');
       }
 
-      // Render Club Identity Strip: Region Flag, Stadium Name & Home/Away/3rd Kit Colours
       const identityBar = document.getElementById('clubIdentityBar');
       identityBar.classList.remove('hidden');
 
@@ -2152,7 +2370,6 @@
         ${renderMiniJerseySvg(kits.third, '3rd')}
       `;
 
-      // Render Global Percentile Rank Badge
       const rankBadge = document.getElementById('globalRankBadge');
       if (data.globalRank) {
         rankBadge.innerText = `🌍 ${data.globalRank.label}`;
@@ -2160,7 +2377,6 @@
         rankBadge.classList.remove('hidden');
       }
 
-      // Render Trophy Cabinet & Peak Division Shield Emblem
       const trophyBar = document.getElementById('trophyBar');
       if (data.trophies) {
         trophyBar.classList.remove('hidden');
@@ -2483,7 +2699,6 @@
       modal.classList.remove('flex');
     }
 
-    // Recent 10 Matches with Official Division Shields, Match Grades (ATK & DEF Ratings) & Full Box-Score Dropdowns
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
       const formContainer = document.getElementById('formBadges');
@@ -2519,7 +2734,6 @@
         const oppGoals = Number(oppClub.goals ?? oppClub.score ?? m.goalsAgainst ?? 0);
         const oppName = oppClub.details?.name || oppClub.name || 'Opponent FC';
 
-        // Official Division Shield Emblem for Opponent
         const oppDiv = oppClub.division || 'Div 2';
         const oppDivShield = renderDivisionShieldHtml(oppDiv, 'sm');
 
@@ -2581,7 +2795,6 @@
         const playersData = m.players?.[thisId] || {};
         const playerStats = Object.values(playersData);
 
-        // Compute Match Grade + Attacking & Defending Ratings
         const matchGradeObj = computeMatchGradeAndUnitRatings(myGoals, oppGoals, playerStats);
         const matchGradeCell = `
           <div class="inline-flex items-center gap-2">
