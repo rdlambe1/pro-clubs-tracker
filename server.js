@@ -61,14 +61,13 @@ function resolveCrestId(infoObj = {}, statObj = {}, matchClubObj = {}) {
   return null;
 }
 
-// Strict Division Number Parser (1 = Div 1, 2 = Div 2 ... 6 = Elite in some EA schemas, or 0 = Elite only when explicitly earned)
 function parseDivisionNumber(raw, allowZeroAsElite = false) {
   if (raw === undefined || raw === null || raw === '') return null;
   const str = String(raw).trim().toLowerCase();
   if (str === 'elite') return 0;
   const num = parseInt(str.replace(/[^0-9-]/g, ''), 10);
   if (isNaN(num) || num < 0 || num > 10) return null;
-  if (num === 0 && !allowZeroAsElite) return null; // Prevent uninitialized 0 from faking Elite
+  if (num === 0 && !allowZeroAsElite) return null;
   return num;
 }
 
@@ -91,7 +90,6 @@ function parseDivisionFromPayload(seasonData, statObj, infoObj) {
   return num !== null ? formatDivisionLabel(num) : null;
 }
 
-// Converts EA's decimal RGB integer (e.g. 16711680) into a CSS Hex Color (#ff0000)
 function eaIntToHex(val, fallback = '#10b981') {
   if (val === undefined || val === null || val === '') return fallback;
   const num = parseInt(val, 10);
@@ -100,7 +98,6 @@ function eaIntToHex(val, fallback = '#10b981') {
   return `#${hex}`;
 }
 
-// Maps EA Region IDs to Region Name + ISO Flag Code
 function resolveClubRegion(regionId) {
   const r = String(regionId || '').trim();
   const map = {
@@ -117,7 +114,6 @@ function resolveClubRegion(regionId) {
   return map[r] || { name: 'British Isles / EU', flag: 'ie', label: 'British Isles / Europe' };
 }
 
-// Computes Global Percentile Rank ("Top X% Worldwide") from Skill Rating & Win Rate
 function computeGlobalPercentile(skillRating, wins, losses, ties, currDivNum) {
   const sr = Number(skillRating || 0);
   const total = wins + losses + ties;
@@ -135,7 +131,6 @@ function computeGlobalPercentile(skillRating, wins, losses, ties, currDivNum) {
   else if (sr >= 1150) pct = 42;
   else pct = 55;
 
-  // Adjust slightly for Division & Win Ratio
   if (currDivNum === 0) pct = Math.min(pct, 2);
   else if (currDivNum === 1) pct = Math.min(pct, 6);
   else if (currDivNum === 2) pct = Math.min(pct, 12);
@@ -145,11 +140,10 @@ function computeGlobalPercentile(skillRating, wins, losses, ties, currDivNum) {
   return {
     percentile: pct,
     label: `Top ${pct}% Worldwide`,
-    tierName: pct <= 2 ? 'Elite Global Tier' : (pct <= 10 ? ' Prestige Tier' : (pct <= 25 ? 'Challenger Tier' : 'Contender Tier'))
+    tierName: pct <= 2 ? 'Elite Global Tier' : (pct <= 10 ? 'Prestige Tier' : (pct <= 25 ? 'Challenger Tier' : 'Contender Tier'))
   };
 }
 
-// Automatically calculates the active FC 27 Season count from the official EA live-service calendar
 function getOfficialFc27SeasonCount(totalMatches) {
   if (totalMatches === 0) return 1;
   const fc27LaunchDate = new Date('2026-09-24T00:00:00Z').getTime();
@@ -343,8 +337,6 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     if (Array.isArray(seasonalPayload)) seasonObj = seasonalPayload[0] || {};
     else if (seasonalPayload && typeof seasonalPayload === 'object') seasonObj = seasonalPayload[clubId] || Object.values(seasonalPayload)[0] || seasonalPayload;
 
-    // 1. Accurate Current Division & Peak Division Calculation
-    // Note: In EA's API, bestDivision is often 0 when uninitialized. Only allow 0 (Elite) if currentDivision is 0 or skillRating >= 1950.
     const currDivRaw = seasonObj.currentDivision ?? seasonObj.division ?? statObj.currentDivision ?? infoObj.currentDivision;
     const currDivNum = parseDivisionNumber(currDivRaw, true) ?? 2;
 
@@ -362,7 +354,6 @@ app.get('/api/club/:clubId/info', async (req, res) => {
 
     const crestId = resolveCrestId(infoObj, statObj);
 
-    // 2. Extract Stadium Name, Region & Home/Away/3rd Kit Colours from customKit
     const customKit = infoObj.customKit || statObj.customKit || {};
     const stadiumName = customKit.stadName || infoObj.stadName || infoObj.stadiumName || 'Pro Clubs Arena';
     const regionInfo = resolveClubRegion(infoObj.regionId || statObj.regionId);
@@ -385,7 +376,6 @@ app.get('/api/club/:clubId/info', async (req, res) => {
       ]
     };
 
-    // 3. Global Club Percentile Rank
     const wins = Number(statObj.wins ?? statObj.overallWins ?? 0);
     const losses = Number(statObj.losses ?? statObj.overallLosses ?? 0);
     const ties = Number(statObj.ties ?? statObj.overallTies ?? 0);
@@ -422,7 +412,7 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 });
 
-// 3. Member / Squad Stats
+// 3. Member / Squad Stats (Merges Club Stats + Career Stats for Clean Sheets & One-Club Loyalty vs Mercenary Tracking)
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -462,6 +452,18 @@ app.get('/api/club/:clubId/members', async (req, res) => {
       if (!m.proWeight && careerObj.proWeight) m.proWeight = careerObj.proWeight;
       if (!m.proOverall && careerObj.proOverall) m.proOverall = careerObj.proOverall;
       if (!m.proNationality && careerObj.proNationality) m.proNationality = careerObj.proNationality;
+
+      // Clean Sheets (Defenders + Goalkeepers)
+      const csDef = Number(m.cleanSheetsDef ?? m.cleansheetsdef ?? careerObj.cleanSheetsDef ?? 0);
+      const csGk = Number(m.cleanSheetsGK ?? m.cleansheetsgk ?? careerObj.cleanSheetsGK ?? 0);
+      m.totalCleanSheets = csDef + csGk;
+
+      // Club vs Career Games (One-Club Man vs Mercenary Tracking)
+      const clubGames = Number(m.gamesPlayed ?? m.games ?? 0);
+      const careerGames = Math.max(clubGames, Number(careerObj.gamesPlayed ?? careerObj.games ?? clubGames));
+      m.careerGamesTotal = careerGames;
+      m.otherClubsGames = Math.max(0, careerGames - clubGames);
+      m.loyaltyPct = careerGames > 0 ? Math.min(100, Math.round((clubGames / careerGames) * 100)) : 100;
     });
 
     res.json(list);
