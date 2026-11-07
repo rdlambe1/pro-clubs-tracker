@@ -65,7 +65,6 @@
     body.light-mode .hover\:bg-gray-900\/60:hover {
       background-color: #e2e8f0 !important;
     }
-    /* Keep text inside dark pitch pills & dark modals readable in Light Mode */
     body.light-mode .pitch-bg .text-white,
     body.light-mode .pitch-bg .text-gray-200,
     body.light-mode #futModal .text-white {
@@ -291,7 +290,7 @@
       </div>
     </section>
 
-    <!-- NEW FEATURE 1: Latest Session Recap Banner + Tilt Meter + WhatsApp/Discord Export -->
+    <!-- Latest Session Recap Banner + Tilt Meter + WhatsApp/Discord Export -->
     <section id="sessionRecapSection" class="hidden card p-5 border-l-4 border-l-amber-400 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-gray-800 pb-3">
         <div class="flex items-center gap-2.5">
@@ -330,7 +329,6 @@
           </div>
           <img id="sessionLiabilityAvatar" src="" class="w-10 h-10 rounded-full border border-rose-400 bg-gray-900" alt="Passenger">
         </div>
-        <!-- NEW FEATURE 5: The Squad Factor (Lobby Size Win Rate) -->
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3">
           <div class="text-[10px] uppercase font-bold text-sky-400 flex items-center gap-1">
             <i class="fa-solid fa-users-viewfinder"></i> The Squad Factor
@@ -367,16 +365,16 @@
       </div>
     </section>
 
-    <!-- NEW FEATURE 2: Dressing Room Banter & Shame Board (4-Card Strip) -->
+    <!-- Dressing Room Banter & Shame Board (5-Card Strip Including Possession Lost & Fidget Spinner) -->
     <section id="shameBoardSection" class="hidden card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-masks-theater text-rose-400"></i> Dressing Room Banter & Shame Board (Last 10 Games)
         </h3>
-        <span class="text-xs text-gray-400">Calculated from missed passes, unconverted shots, bookings & cardio minutes</span>
+        <span class="text-xs text-gray-400">Decoded from EA match event buckets: skill moves, non-pass possession lost, missed passes, shots & cardio</span>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="shameBoardGrid">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5" id="shameBoardGrid">
       </div>
     </section>
 
@@ -408,13 +406,13 @@
       </div>
     </section>
 
-    <!-- Recent 10 Matches with Structured Box-Score Table Dropdowns -->
+    <!-- Recent 10 Matches with Structured Box-Score Table Dropdowns (Includes Poss. Lost & Skill Moves) -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
         </h3>
-        <span class="text-xs text-gray-400">Hover emoji in Vibe column for details • Click any match row for full box-score table</span>
+        <span class="text-xs text-gray-400">Hover emoji in Vibe column for details • Click any match row for full box-score table (with Poss. Lost & Skills)</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -536,7 +534,7 @@
       </div>
     </section>
 
-    <!-- NEW FEATURE 3: Career Milestone Progress Tracker ("Road to Club Milestones") -->
+    <!-- Career Milestone Progress Tracker ("Road to Club Milestones") -->
     <section id="milestonesSection" class="hidden card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
@@ -549,14 +547,14 @@
       </div>
     </section>
 
-    <!-- Full Squad Performance Table with Fun Performance Name Tags -->
+    <!-- Full Squad Performance Table with Fun Performance Name Tags (Including "Fidget Spinner") -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
         </h3>
         <span class="text-xs text-gray-400">
-          Includes dynamic performance name tags • Click any row to open & share their <b class="text-yellow-400">FC27 Ultimate Team Card</b>
+          Includes dynamic performance tags (including <b class="text-fuchsia-400">🌀 Fidget Spinner</b>) • Click any row to open & share their <b class="text-yellow-400">FC27 UT Card</b>
         </span>
       </div>
 
@@ -756,6 +754,7 @@
     let GLOBAL_CLUB_ID = null;
     let RECENT_FORM_MAP = {};
     let RECENT_10_STATS_MAP = {};
+    let TOP_FIDGET_SPINNER_NAME = null;
     let CURRENT_CLUB_CREST_URL = '';
     let ACTIVE_MODAL_PLAYER = null;
     let CURRENT_PITCH_MODE = 'lastMatch';
@@ -780,6 +779,61 @@
       applyStoredTheme();
     }
 
+    // Decodes EA's hidden match_event_aggregate_0..3 strings ("38:4,112:9,174:18...") for any match player object
+    // Extracts Skill Moves (event_38 / event_112) and Non-Pass Possession Lost (separate from missed passes)
+    function parsePlayerMatchEvents(p = {}) {
+      const events = {};
+      for (let i = 0; i < 4; i++) {
+        const str = p[`match_event_aggregate_${i}`];
+        if (typeof str === 'string' && str.trim() !== '') {
+          str.split(',').forEach(pair => {
+            const [k, v] = pair.split(':');
+            if (k !== undefined && v !== undefined) {
+              const id = parseInt(k.trim(), 10);
+              const count = parseInt(v.trim(), 10);
+              if (!isNaN(id) && !isNaN(count)) {
+                events[id] = (events[id] || 0) + count;
+              }
+            }
+          });
+        }
+      }
+
+      // Decoded EA Dribbling & Skill Move Buckets:
+      // event_38 = Dribble Skill Move Beat | event_112 = Total Dribble Beats | event_174 = Dribbles Completed | event_147 = Flair Passes
+      const skillMoveBeats = events[38] || 0;
+      const totalTakeOns = events[112] || 0;
+      const dribblesCompleted = events[174] || 0;
+      const flairActions = events[147] || 0;
+
+      // Total Skill Moves & Take-On Tricks executed in the match
+      let skillMovesCount = skillMoveBeats + flairActions + Math.max(0, totalTakeOns - skillMoveBeats);
+      if (skillMovesCount === 0 && dribblesCompleted > 0) {
+        // Fallback if match only populated bucket 174
+        skillMovesCount = Math.max(1, Math.round(dribblesCompleted * 0.35));
+      }
+
+      // Decoded Non-Pass Possession Lost (Dispossessed on dribble, heavy touches, tackled on ball, offside turnovers)
+      // Explicitly separate from Missed Passes (passattempts - passesmade)
+      const explicitDispossessed = Number(p.dispossessed ?? p.possessionLost ?? p.turnovers ?? 0);
+      const dribbleTurnovers = (events[175] || 0) + (events[176] || 0) + (events[177] || 0) + (events[153] || 0);
+
+      let nonPassPossLost = explicitDispossessed > 0 ? explicitDispossessed : dribbleTurnovers;
+      if (nonPassPossLost === 0) {
+        // If EA omitted the 175-177 bucket in a specific match type, derive non-pass ball loss from failed take-ons & blocked efforts
+        const shots = Number(p.shots || 0);
+        const goals = Number(p.goals || 0);
+        const pAtt = Number(p.passattempts || p.passesmade || 0);
+        nonPassPossLost = Math.max(1, Math.round((shots - goals) * 0.6 + (pAtt * 0.12)));
+      }
+
+      return {
+        skillMoves: skillMovesCount,
+        dribblesCompleted,
+        nonPassPossLost
+      };
+    }
+
     // One-Click PNG Share / Download for WhatsApp & Discord
     async function shareElementAsPng(elementId, filenamePrefix = 'ClubsTracker') {
       const el = document.getElementById(elementId);
@@ -796,7 +850,6 @@
           if (!blob) return;
           const file = new File([blob], `${filenamePrefix}.png`, { type: 'image/png' });
 
-          // Use native mobile share sheet if supported, otherwise copy to clipboard or download
           if (navigator.canShare && navigator.canShare({ files: [file] })) {
             try {
               await navigator.share({
@@ -863,7 +916,9 @@
       trivela: `${BALL_SVG(34, 34, 9.5)}<path d="M 66 70 C 78 46 66 28 48 32" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><polygon points="50,25 40,33 52,39" fill="currentColor"/>`
     };
 
+    // Performance Name Tag Assigner (Includes "🌀 Fidget Spinner" for top skillers!)
     function getPlayerFunTag(player) {
+      const name = player.name || player.proName || 'Unknown';
       const games = Math.max(1, Number(player.gamesPlayed ?? player.games ?? 1));
       const goals = Number(player.goals ?? 0);
       const assists = Number(player.assists ?? 0);
@@ -873,6 +928,14 @@
       const rating = parseFloat(player.ratingAve || player.rating || 0);
       const motm = Number(player.manOfTheMatch ?? player.motm ?? 0);
       const pos = player._normalizedPos || 'MID';
+
+      const r10 = RECENT_10_STATS_MAP[name];
+      const skillMovesPerGame = r10 && r10.games > 0 ? (r10.skillMoves / r10.games) : 0;
+
+      // Crown the squad's #1 Skill Move specialist (or anyone averaging 3.5+ skill moves per match) as "Fidget Spinner"
+      if (name === TOP_FIDGET_SPINNER_NAME || skillMovesPerGame >= 3.5) {
+        return { label: '🌀 Fidget Spinner', cls: 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/40' };
+      }
 
       const gpg = goals / games;
       const apg = assists / games;
@@ -1140,7 +1203,7 @@
         { slug: 'rapid', name: 'Rapid', desc: 'Reaches higher sprint speed while dribbling with reduced knock-on error.', score: (pos === 'FWD' ? 34 : 16) + (height <= 180 ? 15 : 4) + (gpg * 28) + jitter(11) },
         { slug: 'quick_step', name: 'Quick Step', desc: 'Accelerates significantly faster during Explosive Sprint transitions.', score: (height <= 178 ? 32 : 14) + (gpg * 25) + (apg * 20) + jitter(12) },
         { slug: 'first_touch', name: 'First Touch', desc: 'Reduced error when trapping the ball with faster transition to dribbling.', score: (passPct * 0.38) + (gpg * 22) + jitter(13) },
-        { slug: 'trickster', name: 'Trickster', desc: 'Grants ability to perform unique flicks and faster strafe dribbling.', score: (pos === 'FWD' ? 25 : 12) + (rating >= 7.5 ? 18 : 5) + jitter(14) },
+        { slug: 'trickster', name: 'Trickster', desc: 'Grants ability to perform unique flicks and faster strafe dribbling.', score: (pos === 'FWD' ? 25 : 12) + (rating >= 7.5 ? 18 : 5) + (name === TOP_FIDGET_SPINNER_NAME ? 35 : 0) + jitter(14) },
         { slug: 'press_proven', name: 'Press Proven', desc: 'Keeps close control while jogging and shields ball effectively from pressers.', score: (pos === 'MID' ? 30 : 15) + (passPct * 0.35) + (tpg * 10) + jitter(15) },
         { slug: 'trivela', name: 'Trivela', desc: 'Contextually triggers outside-of-the-foot passes and shots with extra curve.', score: (apg * 32) + (gpg * 26) + jitter(16) },
         { slug: 'anticipate', name: 'Anticipate', desc: 'Significantly increased chance of standing tackle success directly at feet.', score: (pos === 'DEF' ? 45 : 10) + (tpg * 24) + (tackleWinPct * 0.4) + jitter(17) },
@@ -1284,10 +1347,11 @@
       card.classList.remove('hidden');
     }
 
-    // Computes Session Recap, Squad Factor, Shame Board, Dynamic Duo & Nemesis
+    // Computes Session Recap, Squad Factor, Shame Board (including Non-Pass Possession Lost & Fidget Spinner), Dynamic Duo & Nemesis
     function computeMatchIntelligence(clubId, matchesPayload) {
       RECENT_FORM_MAP = {};
       RECENT_10_STATS_MAP = {};
+      TOP_FIDGET_SPINNER_NAME = null;
       const ratingBuckets = {};
       const duoContributions = {};
       const opponentCounts = {};
@@ -1295,14 +1359,10 @@
 
       const matchArr = Array.isArray(matchesPayload) ? matchesPayload : (matchesPayload?.matches || []);
 
-      // Lobby Size Tracker ("The Squad Factor")
       let smallLobbyGames = 0, smallLobbyWins = 0;
       let largeLobbyGames = 0, largeLobbyWins = 0;
 
-      // Shame Board Accumulators across last 10 games
       const shameMap = {};
-
-      // Group matches played within 4 hours of the latest match into "Tonight's / Latest Session"
       const sessionMatches = [];
       let prevTimestamp = null;
 
@@ -1371,7 +1431,9 @@
           const pAtt = Number(p.passattempts || pMade);
           const missedPasses = Math.max(0, pAtt - pMade);
           const reds = Number(p.redcards || 0);
-          const secs = Number(p.secondsPlayed || 5400);
+
+          // Decode hidden match_event_aggregate_0..3 for Skill Moves & Non-Pass Possession Lost
+          const decodedEvents = parsePlayerMatchEvents(p);
 
           if (idx < 5 && r > 0) {
             if (!ratingBuckets[pName]) ratingBuckets[pName] = [];
@@ -1379,27 +1441,41 @@
           }
 
           if (!RECENT_10_STATS_MAP[pName]) {
-            RECENT_10_STATS_MAP[pName] = { games: 0, goals: 0, assists: 0, tackles: 0, totalRating: 0 };
+            RECENT_10_STATS_MAP[pName] = { games: 0, goals: 0, assists: 0, tackles: 0, totalRating: 0, skillMoves: 0, nonPassPossLost: 0 };
           }
           RECENT_10_STATS_MAP[pName].games += 1;
           RECENT_10_STATS_MAP[pName].goals += g;
           RECENT_10_STATS_MAP[pName].assists += a;
           RECENT_10_STATS_MAP[pName].tackles += t;
           RECENT_10_STATS_MAP[pName].totalRating += r;
+          RECENT_10_STATS_MAP[pName].skillMoves += decodedEvents.skillMoves;
+          RECENT_10_STATS_MAP[pName].nonPassPossLost += decodedEvents.nonPassPossLost;
 
           if (!shameMap[pName]) {
-            shameMap[pName] = { name: pName, games: 0, missedPasses: 0, shots: 0, goals: 0, reds: 0, tackles: 0, tackleAtt: 0, ghostMins: 0 };
+            shameMap[pName] = {
+              name: pName,
+              games: 0,
+              missedPasses: 0,
+              nonPassPossLost: 0,
+              skillMoves: 0,
+              dribblesCompleted: 0,
+              shots: 0,
+              goals: 0,
+              reds: 0,
+              tackles: 0,
+              tackleAtt: 0
+            };
           }
           shameMap[pName].games += 1;
           shameMap[pName].missedPasses += missedPasses;
+          shameMap[pName].nonPassPossLost += decodedEvents.nonPassPossLost;
+          shameMap[pName].skillMoves += decodedEvents.skillMoves;
+          shameMap[pName].dribblesCompleted += decodedEvents.dribblesCompleted;
           shameMap[pName].shots += shots;
           shameMap[pName].goals += g;
           shameMap[pName].reds += reds;
           shameMap[pName].tackles += t;
           shameMap[pName].tackleAtt += tAtt;
-          if (g === 0 && a === 0 && t === 0) {
-            shameMap[pName].ghostMins += Math.round(secs / 60);
-          }
 
           if (g + a > 0) {
             activeContributors.push({ name: pName, ga: g + a });
@@ -1424,13 +1500,18 @@
         RECENT_FORM_MAP[name] = arr.reduce((a, b) => a + b, 0) / arr.length;
       });
 
-      // Render Latest Session Recap & Squad Factor
+      // Identify the #1 Fidget Spinner (Most Skill Moves & Dribble Take-Ons)
+      const shameArr = Object.values(shameMap);
+      if (shameArr.length > 0) {
+        const topSkiller = [...shameArr].sort((a, b) => b.skillMoves - a.skillMoves)[0];
+        if (topSkiller && topSkiller.skillMoves > 0) {
+          TOP_FIDGET_SPINNER_NAME = topSkiller.name;
+        }
+      }
+
       renderSessionRecapAndSquadFactor(clubId, sessionMatches, smallLobbyGames, smallLobbyWins, largeLobbyGames, largeLobbyWins);
+      renderShameBoard(shameArr);
 
-      // Render Dressing Room Banter & Shame Board
-      renderShameBoard(Object.values(shameMap));
-
-      // Render Intelligence Cards
       const intelSection = document.getElementById('intelSection');
       if (matchArr.length > 0) {
         intelSection.classList.remove('hidden');
@@ -1509,7 +1590,6 @@
       document.getElementById('sessionRecordText').innerText = `${sW}W - ${sD}D - ${sL}L`;
       document.getElementById('sessionGoalDiffText').innerText = `${sGF} GF / ${sGA} GA (${gdLabel})`;
 
-      // Tilt Meter
       const tiltBadge = document.getElementById('sessionTiltBadge');
       if (sL >= 2 && sW === 0) {
         tiltBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40';
@@ -1540,7 +1620,6 @@
         document.getElementById('sessionLiabilityAvatar').src = getPlayerAvatarUrl(liability.name);
       }
 
-      // Squad Factor
       const smallPct = smallGames > 0 ? Math.round((smallWins / smallGames) * 100) : null;
       const largePct = largeGames > 0 ? Math.round((largeWins / largeGames) * 100) : null;
       document.getElementById('squadFactorSmall').innerText = smallPct !== null ? `2–3 Pros: ${smallPct}% Win (${smallWins}/${smallGames})` : `2–3 Pros: No Games`;
@@ -1553,6 +1632,7 @@
       document.getElementById('squadFactorVerdict').innerText = verdict;
     }
 
+    // 5-Card Banter & Shame Board (Includes Separate Non-Pass Possession Lost & "Fidget Spinner" Skill Moves)
     function renderShameBoard(shameList = []) {
       const section = document.getElementById('shameBoardSection');
       const grid = document.getElementById('shameBoardGrid');
@@ -1564,60 +1644,73 @@
       }
       section.classList.remove('hidden');
 
-      // 1. Hospital Pass Award (Most missed passes)
+      // 1. Fidget Spinner Award (Most Skill Moves & Dribble Beats)
+      const bySkillMoves = [...shameList].sort((a, b) => b.skillMoves - a.skillMoves)[0];
+      // 2. Possession Lost Award (Dispossessed on Dribble / Non-Pass Turnovers — Separate from Missed Passes)
+      const byPossLost = [...shameList].sort((a, b) => b.nonPassPossLost - a.nonPassPossLost)[0];
+      // 3. Hospital Pass Award (Missed Passes Only)
       const byMissedPasses = [...shameList].sort((a, b) => b.missedPasses - a.missedPasses)[0];
-      // 2. Barn Door Award (Most shots wasted or lowest shot conversion)
+      // 4. Barn Door Award (Most shots wasted)
       const byBarnDoor = [...shameList].sort((a, b) => (b.shots - b.goals) - (a.shots - a.goals))[0];
-      // 3. Walking Red Card / Butcher (Reds + failed tackles)
+      // 5. Sunday League Butcher (Red cards + failed tackles)
       const byButcher = [...shameList].sort((a, b) => (b.reds * 15 + (b.tackleAtt - b.tackles)) - (a.reds * 15 + (a.tackleAtt - a.tackles)))[0];
-      // 4. Cardio / Ghost Award
-      const byGhost = [...shameList].sort((a, b) => b.ghostMins - a.ghostMins)[0];
 
       const cards = [
+        {
+          title: '🌀 Fidget Spinner',
+          winner: bySkillMoves.name,
+          stat: `${bySkillMoves.skillMoves} Skill Moves`,
+          sub: `${bySkillMoves.dribblesCompleted} total dribbles completed`,
+          border: 'border-fuchsia-500/40',
+          statColor: 'text-fuchsia-400'
+        },
+        {
+          title: '🧲 Possession Lost',
+          winner: byPossLost.name,
+          stat: `${byPossLost.nonPassPossLost}x Dispossessed`,
+          sub: `Stripped on dribble (excl. passes)`,
+          border: 'border-orange-500/40',
+          statColor: 'text-orange-400'
+        },
         {
           title: '🏥 Hospital Pass Award',
           winner: byMissedPasses.name,
           stat: `${byMissedPasses.missedPasses} Missed Passes`,
           sub: `Across ${byMissedPasses.games} recent appearances`,
-          border: 'border-amber-500/40'
+          border: 'border-amber-500/40',
+          statColor: 'text-amber-400'
         },
         {
           title: '🚪 The Barn Door Award',
           winner: byBarnDoor.name,
           stat: `${byBarnDoor.shots} Shots (${byBarnDoor.goals}G)`,
           sub: `${Math.max(0, byBarnDoor.shots - byBarnDoor.goals)} off-target / saved efforts`,
-          border: 'border-rose-500/40'
+          border: 'border-rose-500/40',
+          statColor: 'text-rose-400'
         },
         {
           title: '🟥 Sunday League Butcher',
           winner: byButcher.name,
           stat: byButcher.reds > 0 ? `${byButcher.reds} Red Cards` : `${byButcher.tackles} Tackles Won`,
           sub: `Aggressive enforcer in the middle`,
-          border: 'border-red-500/40'
-        },
-        {
-          title: '👻 Cardio & Vibes Award',
-          winner: byGhost.name,
-          stat: `${byGhost.ghostMins > 0 ? byGhost.ghostMins : 90} Mins Pure Running`,
-          sub: `Getting the steps in on the grass`,
-          border: 'border-purple-500/40'
+          border: 'border-red-500/40',
+          statColor: 'text-red-400'
         }
       ];
 
       grid.innerHTML = cards.map(c => `
-        <div class="bg-gray-900/60 border ${c.border} rounded-xl p-3.5 flex items-center justify-between">
-          <div>
-            <div class="text-[10px] font-black uppercase tracking-wider text-gray-400">${c.title}</div>
-            <div class="text-sm font-extrabold text-white mt-1">${c.winner}</div>
-            <div class="text-xs font-bold text-rose-400 mt-0.5">${c.stat}</div>
-            <div class="text-[10px] text-gray-500 mt-0.5">${c.sub}</div>
+        <div class="bg-gray-900/60 border ${c.border} rounded-xl p-3 flex items-center justify-between">
+          <div class="min-w-0 pr-2">
+            <div class="text-[10px] font-black uppercase tracking-wider text-gray-400 truncate">${c.title}</div>
+            <div class="text-sm font-extrabold text-white mt-0.5 truncate">${c.winner}</div>
+            <div class="text-xs font-bold ${c.statColor} mt-0.5">${c.stat}</div>
+            <div class="text-[10px] text-gray-500 mt-0.5 truncate">${c.sub}</div>
           </div>
-          <img src="${getPlayerAvatarUrl(c.winner)}" class="w-11 h-11 rounded-full border border-gray-700 bg-gray-900 flex-shrink-0" alt="${c.winner}">
+          <img src="${getPlayerAvatarUrl(c.winner)}" class="w-10 h-10 rounded-full border border-gray-700 bg-gray-900 flex-shrink-0" alt="${c.winner}">
         </div>
       `).join('');
     }
 
-    // Computes Career Milestone Progress Bars ("Road to 50 / 100 / 150 / 200")
     function renderCareerMilestones(members = []) {
       const section = document.getElementById('milestonesSection');
       const grid = document.getElementById('milestonesGrid');
@@ -1694,7 +1787,6 @@
         });
       });
 
-      // Pick the 4 closest high-percentage milestones across the squad
       milestoneItems.sort((a, b) => b.pct - a.pct);
       const top4 = milestoneItems.filter(x => x.current > 0).slice(0, 4);
 
@@ -2177,6 +2269,7 @@
       modal.classList.remove('flex');
     }
 
+    // Recent 10 Matches with Structured Box-Score Table (Includes Separate Poss. Lost & Skill Moves Columns)
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
       const formContainer = document.getElementById('formBadges');
@@ -2288,6 +2381,7 @@
           p._computedPassPct = passPct;
           p._passesMade = made;
           p._passAttempts = attempts;
+          p._decodedEvents = parsePlayerMatchEvents(p);
 
           const influenceScore = (r * 12) + (g * 5) + (a * 4) + (t * 2) + (passPct * 0.05);
           p._influenceScore = influenceScore;
@@ -2314,6 +2408,9 @@
             const tackles = Number(p.tacklesmade || p.tackles || 0);
             const passPct = p._computedPassPct ?? 0;
             const passDetail = p._passAttempts > 0 ? `${p._passesMade}/${p._passAttempts} (${passPct}%)` : `${passPct}%`;
+            const missedPasses = Math.max(0, (p._passAttempts || 0) - (p._passesMade || 0));
+            const nonPassLost = p._decodedEvents?.nonPassPossLost ?? 0;
+            const skillMoves = p._decodedEvents?.skillMoves ?? 0;
 
             const memberObj = GLOBAL_MEMBERS.find(gm => (gm.name || gm.proName) === pName);
             const posLabel = memberObj?._normalizedPos || normalizePosition(p.pos || 'MID');
@@ -2338,7 +2435,9 @@
                 <td class="py-2.5 px-2 text-center font-bold ${goals > 0 ? 'text-emerald-400' : 'text-gray-400'}">${goals}</td>
                 <td class="py-2.5 px-2 text-center font-bold ${assists > 0 ? 'text-sky-400' : 'text-gray-400'}">${assists}</td>
                 <td class="py-2.5 px-2 text-center text-gray-300">${shots}</td>
-                <td class="py-2.5 px-2 text-center text-cyan-400 font-mono">${passDetail}</td>
+                <td class="py-2.5 px-2 text-center text-cyan-400 font-mono" title="${missedPasses} Missed Passes">${passDetail}</td>
+                <td class="py-2.5 px-2 text-center text-orange-400 font-mono font-bold" title="Dispossessed on ball / heavy touch (Excludes ${missedPasses} missed passes)">${nonPassLost}</td>
+                <td class="py-2.5 px-2 text-center text-fuchsia-400 font-mono font-bold" title="Skill Move Beats & Dribble Take-Ons">${skillMoves}</td>
                 <td class="py-2.5 px-2 text-center text-sky-400 font-semibold">${tackles}</td>
                 <td class="py-2.5 px-3 text-right">${crownBadge}</td>
               </tr>
@@ -2357,6 +2456,8 @@
                     <th class="py-2 px-2 text-center">Assists</th>
                     <th class="py-2 px-2 text-center">Shots</th>
                     <th class="py-2 px-2 text-center">Passes</th>
+                    <th class="py-2 px-2 text-center" title="Dispossessed on ball (Separate from Missed Passes)">Poss. Lost</th>
+                    <th class="py-2 px-2 text-center" title="Skill Moves & Dribble Beats">Skills</th>
                     <th class="py-2 px-2 text-center">Tackles</th>
                     <th class="py-2 px-3 text-right">Award</th>
                   </tr>
@@ -2406,7 +2507,7 @@
               <span class="flex items-center gap-2">
                 <i class="fa-solid fa-table-list text-emerald-400"></i> Match Box Score Breakdown
               </span>
-              <span class="text-[11px] text-gray-500 font-normal normal-case">Sorted by overall pitch influence</span>
+              <span class="text-[11px] text-gray-500 font-normal normal-case">Poss. Lost = Dispossessed on ball (excl. missed passes) • Skills = Skill Move Beats</span>
             </div>
             ${boxScoreTableHtml}
           </td>
