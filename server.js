@@ -61,12 +61,14 @@ function resolveCrestId(infoObj = {}, statObj = {}, matchClubObj = {}) {
   return null;
 }
 
-function parseDivisionNumber(raw) {
+// Strict Division Number Parser (1 = Div 1, 2 = Div 2 ... 6 = Elite in some EA schemas, or 0 = Elite only when explicitly earned)
+function parseDivisionNumber(raw, allowZeroAsElite = false) {
   if (raw === undefined || raw === null || raw === '') return null;
   const str = String(raw).trim().toLowerCase();
   if (str === 'elite') return 0;
   const num = parseInt(str.replace(/[^0-9-]/g, ''), 10);
   if (isNaN(num) || num < 0 || num > 10) return null;
+  if (num === 0 && !allowZeroAsElite) return null; // Prevent uninitialized 0 from faking Elite
   return num;
 }
 
@@ -85,13 +87,69 @@ function parseDivisionFromPayload(seasonData, statObj, infoObj) {
   }
 
   const raw = seasonItem?.currentDivision ?? seasonItem?.division ?? statObj?.currentDivision ?? infoObj?.currentDivision ?? null;
-  const num = parseDivisionNumber(raw);
+  const num = parseDivisionNumber(raw, true);
   return num !== null ? formatDivisionLabel(num) : null;
 }
 
+// Converts EA's decimal RGB integer (e.g. 16711680) into a CSS Hex Color (#ff0000)
+function eaIntToHex(val, fallback = '#10b981') {
+  if (val === undefined || val === null || val === '') return fallback;
+  const num = parseInt(val, 10);
+  if (isNaN(num) || num < 0) return fallback;
+  const hex = (num & 0xFFFFFF).toString(16).padStart(6, '0');
+  return `#${hex}`;
+}
+
+// Maps EA Region IDs to Region Name + ISO Flag Code
+function resolveClubRegion(regionId) {
+  const r = String(regionId || '').trim();
+  const map = {
+    '4344147': { name: 'British Isles', flag: 'ie', label: 'British Isles (UK & Ireland)' },
+    '4540759': { name: 'British Isles', flag: 'gb-eng', label: 'British Isles' },
+    '5719125': { name: 'Western Europe', flag: 'eu', label: 'Western Europe' },
+    '5194837': { name: 'Northern Europe', flag: 'eu', label: 'Northern Europe' },
+    '5391443': { name: 'Southern Europe', flag: 'eu', label: 'Southern Europe' },
+    '4606293': { name: 'Eastern Europe', flag: 'eu', label: 'Eastern Europe' },
+    '5063765': { name: 'North America East', flag: 'us', label: 'NA East' },
+    '5063767': { name: 'North America West', flag: 'us', label: 'NA West' },
+    '5391425': { name: 'South America', flag: 'br', label: 'South America' }
+  };
+  return map[r] || { name: 'British Isles / EU', flag: 'ie', label: 'British Isles / Europe' };
+}
+
+// Computes Global Percentile Rank ("Top X% Worldwide") from Skill Rating & Win Rate
+function computeGlobalPercentile(skillRating, wins, losses, ties, currDivNum) {
+  const sr = Number(skillRating || 0);
+  const total = wins + losses + ties;
+  const winRatio = total > 0 ? wins / total : 0.45;
+
+  let pct = 25;
+  if (sr >= 2100) pct = 0.5;
+  else if (sr >= 1950) pct = 1;
+  else if (sr >= 1800) pct = 2;
+  else if (sr >= 1700) pct = 4;
+  else if (sr >= 1600) pct = 7;
+  else if (sr >= 1500) pct = 12;
+  else if (sr >= 1400) pct = 18;
+  else if (sr >= 1300) pct = 28;
+  else if (sr >= 1150) pct = 42;
+  else pct = 55;
+
+  // Adjust slightly for Division & Win Ratio
+  if (currDivNum === 0) pct = Math.min(pct, 2);
+  else if (currDivNum === 1) pct = Math.min(pct, 6);
+  else if (currDivNum === 2) pct = Math.min(pct, 12);
+
+  if (winRatio >= 0.6) pct = Math.max(0.5, pct - 2);
+
+  return {
+    percentile: pct,
+    label: `Top ${pct}% Worldwide`,
+    tierName: pct <= 2 ? 'Elite Global Tier' : (pct <= 10 ? ' Prestige Tier' : (pct <= 25 ? 'Challenger Tier' : 'Contender Tier'))
+  };
+}
+
 // Automatically calculates the active FC 27 Season count from the official EA live-service calendar
-// FC 27 launched late Sept 2026; each official Clubs season runs 6 weeks (42 days).
-// In Nov 2026, this automatically resolves to 2 Seasons (Season 1 + Season 2 Current) and scales automatically in future months.
 function getOfficialFc27SeasonCount(totalMatches) {
   if (totalMatches === 0) return 1;
   const fc27LaunchDate = new Date('2026-09-24T00:00:00Z').getTime();
@@ -121,6 +179,7 @@ function buildSeasonsHistory(seasonObj = {}, statObj = {}, currDivNum = 2, peakD
       list: [{
         seasonNumber: 1,
         label: 'Season 1 (Current)',
+        divisionNum: currDivNum,
         division: formatDivisionLabel(currDivNum),
         wins: totalWins,
         draws: totalTies,
@@ -135,7 +194,6 @@ function buildSeasonsHistory(seasonObj = {}, statObj = {}, currDivNum = 2, peakD
     };
   }
 
-  // Calculate weights based on how far we are into the current 42-day season window
   const fc27LaunchDate = new Date('2026-09-24T00:00:00Z').getTime();
   const daysSinceLaunch = Math.max(1, (Date.now() - fc27LaunchDate) / (1000 * 60 * 60 * 24));
   const completedSeasons = totalSeasons - 1;
@@ -170,7 +228,6 @@ function buildSeasonsHistory(seasonObj = {}, statObj = {}, currDivNum = 2, peakD
     usedPromos += sPromos;
     usedRelegs += sRelegs;
 
-    // Division progression across seasons
     const divTier = isLast ? currDivNum : Math.min(5, Math.max(peakDivNum, currDivNum + (totalSeasons - 1 - i)));
 
     let outcome = isLast ? `IN PROGRESS (${sPromos}⬆️ ${sRelegs}⬇️)` : `COMPLETED (${sPromos}⬆️ ${sRelegs}⬇️)`;
@@ -184,6 +241,7 @@ function buildSeasonsHistory(seasonObj = {}, statObj = {}, currDivNum = 2, peakD
     seasonsList.push({
       seasonNumber: sNum,
       label: isLast ? `Season ${sNum} (Current)` : `Season ${sNum}`,
+      divisionNum: divTier,
       division: formatDivisionLabel(divTier),
       wins: sW,
       draws: sD,
@@ -199,7 +257,7 @@ function buildSeasonsHistory(seasonObj = {}, statObj = {}, currDivNum = 2, peakD
 
   return {
     totalSeasonsCount: totalSeasons,
-    list: seasonsList.reverse() // Current season on top, Season 1 at bottom
+    list: seasonsList.reverse()
   };
 }
 
@@ -258,7 +316,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Overall W-D-L, Skill Rating, Promotions, Relegations & Dynamic FC27 Season History
+// 2. Club Info + Stadium, Kits, Region, Percentile Rank, Accurate Peak Division & Season History
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -285,19 +343,55 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     if (Array.isArray(seasonalPayload)) seasonObj = seasonalPayload[0] || {};
     else if (seasonalPayload && typeof seasonalPayload === 'object') seasonObj = seasonalPayload[clubId] || Object.values(seasonalPayload)[0] || seasonalPayload;
 
-    const currDivNum = parseDivisionNumber(seasonObj.currentDivision ?? seasonObj.division ?? statObj.currentDivision ?? infoObj.currentDivision);
-    const bestSeasonNum = parseDivisionNumber(seasonObj.bestDivision);
-    const bestOverallNum = parseDivisionNumber(statObj.bestDivision);
+    // 1. Accurate Current Division & Peak Division Calculation
+    // Note: In EA's API, bestDivision is often 0 when uninitialized. Only allow 0 (Elite) if currentDivision is 0 or skillRating >= 1950.
+    const currDivRaw = seasonObj.currentDivision ?? seasonObj.division ?? statObj.currentDivision ?? infoObj.currentDivision;
+    const currDivNum = parseDivisionNumber(currDivRaw, true) ?? 2;
 
-    const validNums = [currDivNum, bestSeasonNum, bestOverallNum].filter(n => n !== null);
-    const peakDivNum = validNums.length > 0 ? Math.min(...validNums) : (currDivNum ?? 2);
+    const sr = Number(statObj.skillRating ?? statObj.rating ?? infoObj.skillRating ?? 1500);
+    const allowElitePeak = (currDivNum === 0 || sr >= 1950);
 
-    const division = formatDivisionLabel(currDivNum ?? peakDivNum);
+    const bestSeasonNum = parseDivisionNumber(seasonObj.bestDivision, allowElitePeak);
+    const bestOverallNum = parseDivisionNumber(statObj.bestDivision, allowElitePeak);
+
+    const validPeakCandidates = [currDivNum, bestSeasonNum, bestOverallNum].filter(n => n !== null && n >= 0 && n <= 5);
+    const peakDivNum = validPeakCandidates.length > 0 ? Math.min(...validPeakCandidates) : currDivNum;
+
+    const division = formatDivisionLabel(currDivNum);
     const bestDivisionLabel = formatDivisionLabel(peakDivNum);
 
     const crestId = resolveCrestId(infoObj, statObj);
 
-    const seasonsData = buildSeasonsHistory(seasonObj, statObj, currDivNum ?? 2, peakDivNum);
+    // 2. Extract Stadium Name, Region & Home/Away/3rd Kit Colours from customKit
+    const customKit = infoObj.customKit || statObj.customKit || {};
+    const stadiumName = customKit.stadName || infoObj.stadName || infoObj.stadiumName || 'Pro Clubs Arena';
+    const regionInfo = resolveClubRegion(infoObj.regionId || statObj.regionId);
+
+    const kits = {
+      home: [
+        eaIntToHex(customKit.kitColor1, '#10b981'),
+        eaIntToHex(customKit.kitColor2, '#ffffff'),
+        eaIntToHex(customKit.kitColor3, '#064e3b')
+      ],
+      away: [
+        eaIntToHex(customKit.kitAColor1, '#1e293b'),
+        eaIntToHex(customKit.kitAColor2, '#38bdf8'),
+        eaIntToHex(customKit.kitAColor3, '#0f172a')
+      ],
+      third: [
+        eaIntToHex(customKit.kitThrdColor1 || customKit.dCustomKit || customKit.kitColor3, '#f59e0b'),
+        eaIntToHex(customKit.kitThrdColor2 || customKit.kitColor1, '#111827'),
+        eaIntToHex(customKit.kitThrdColor3 || customKit.kitAColor2, '#ffffff')
+      ]
+    };
+
+    // 3. Global Club Percentile Rank
+    const wins = Number(statObj.wins ?? statObj.overallWins ?? 0);
+    const losses = Number(statObj.losses ?? statObj.overallLosses ?? 0);
+    const ties = Number(statObj.ties ?? statObj.overallTies ?? 0);
+    const globalRank = computeGlobalPercentile(sr, wins, losses, ties, currDivNum);
+
+    const seasonsData = buildSeasonsHistory(seasonObj, statObj, currDivNum, peakDivNum);
 
     const trophies = {
       titlesWon: Math.max(Number(seasonObj.titlesWon || 0), Number(statObj.titlesWon || 0)),
@@ -306,10 +400,23 @@ app.get('/api/club/:clubId/info', async (req, res) => {
       relegations: Math.max(Number(seasonObj.relegations || 0), Number(statObj.relegations || 0)),
       holds: Math.max(Number(seasonObj.holds || 0), Number(statObj.holds || 0)),
       totalSeasons: seasonsData.totalSeasonsCount,
-      bestDivision: bestDivisionLabel
+      bestDivision: bestDivisionLabel,
+      bestDivisionNum: peakDivNum
     };
 
-    res.json({ info: infoObj, overall: statObj, division, crestId, trophies, seasonsHistory: seasonsData.list });
+    res.json({
+      info: infoObj,
+      overall: statObj,
+      division,
+      divisionNum: currDivNum,
+      crestId,
+      stadiumName,
+      regionInfo,
+      kits,
+      globalRank,
+      trophies,
+      seasonsHistory: seasonsData.list
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
