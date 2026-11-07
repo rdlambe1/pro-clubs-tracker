@@ -313,7 +313,6 @@
     <section id="sessionRecapSection" class="hidden card p-5 border-l-4 border-l-amber-400 space-y-4">
       <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 border-b border-gray-800 pb-3">
         <div class="flex flex-wrap items-center gap-3">
-          <!-- Mode Toggle: Latest Session vs Last 10 Matches -->
           <div class="flex items-center bg-gray-900 p-1 rounded-lg border border-gray-800">
             <button id="btnRecapSession" onclick="switchRecapMode('session')" class="px-3 py-1 rounded text-xs font-black bg-amber-400 text-black transition shadow">
               <i class="fa-solid fa-bolt mr-1"></i> Latest Session
@@ -375,7 +374,7 @@
       </div>
     </section>
 
-    <!-- NEW SECTION: Club Tactical Review & Scouting Report (Status, Strengths, Weaknesses, Areas to Address) -->
+    <!-- Club Tactical Review & Scouting Report -->
     <section id="clubReviewSection" class="hidden card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-800 pb-3">
         <div>
@@ -390,7 +389,6 @@
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4" id="clubReviewGrid">
-        <!-- Populated dynamically with Current Status, Strengths, Weaknesses & Areas to Address -->
       </div>
     </section>
 
@@ -419,16 +417,16 @@
       </div>
     </section>
 
-    <!-- Dressing Room Banter & Shame Board -->
+    <!-- Dressing Room Banter & Shame Board (4-Card Strip: Fidget Spinner, Hospital Pass, Barn Door, Sunday League Butcher) -->
     <section id="shameBoardSection" class="hidden card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-masks-theater text-rose-400"></i> Dressing Room Banter & Shame Board (Last 10 Games)
         </h3>
-        <span class="text-xs text-gray-400">Decoded from EA match event buckets: skill moves, non-pass possession lost, missed passes, shots & bookings</span>
+        <span class="text-xs text-gray-400">Calculated from real EA match telemetry: skill moves, missed passes, unconverted shots & bookings</span>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5" id="shameBoardGrid">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="shameBoardGrid">
       </div>
     </section>
 
@@ -581,7 +579,7 @@
       </div>
     </section>
 
-    <!-- MOVED TO BOTTOM: Tactical Pitch Section ("Last Match XI" & "Suggested Best XI (Builds & Attributes)") -->
+    <!-- Tactical Pitch Section (At Bottom of Page) -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-4 border-b border-gray-800 pb-4">
         <div>
@@ -815,7 +813,7 @@
     let CURRENT_CLUB_CREST_URL = '';
     let ACTIVE_MODAL_PLAYER = null;
     let CURRENT_PITCH_MODE = 'lastMatch';
-    let CURRENT_RECAP_MODE = 'session'; // 'session' or 'last10'
+    let CURRENT_RECAP_MODE = 'session';
 
     function applyStoredTheme() {
       const saved = localStorage.getItem('proClubsTheme') || 'dark';
@@ -836,10 +834,7 @@
       applyStoredTheme();
     }
 
-    // EXACT EA SPORTS FC CLUBS DIVISION CREST LOGOS (Replicating the attached reference image 1:1)
-    // - Div 5, 4, 3, 2: Beveled gold shield with side notches, dark obsidian/teal faceted core, gold serif numeral ('5','4','3','2') & bottom 'C' monogram
-    // - Div 1: Deep crimson-red shield with gold laurel wreath, gold '1', bottom ruby gem & 'C' monogram
-    // - Elite: Royal purple shield with external golden laurel wings, gold rampant lion + crown + stars, and amethyst gem
+    // EXACT EA SPORTS FC CLUBS DIVISION CREST LOGOS
     function renderDivisionShieldHtml(divLabelOrNum, size = 'md') {
       const str = String(divLabelOrNum ?? 'Div 2').trim().toLowerCase();
       let num = 2;
@@ -852,7 +847,6 @@
       const uid = `eaDiv_${num}_${Math.random().toString(36).substring(2, 7)}`;
       const dims = size === 'lg' ? 'w-12 h-14' : (size === 'sm' ? 'w-7 h-8' : 'w-10 h-11');
 
-      // Core color palettes matching the attached reference image
       const palettes = {
         5: { bgTop: '#1c1917', bgBot: '#09090b', facet: '#292524', gem: null, wreath: false },
         4: { bgTop: '#1e293b', bgBot: '#090d16', facet: '#334155', gem: '#10b981', wreath: true },
@@ -863,13 +857,11 @@
       };
       const pal = palettes[num] || palettes[2];
 
-      // Interior Laurel Wreath SVG path (used on Div 4, 3, 2, 1, Elite)
       const innerWreathSvg = pal.wreath ? `
         <path d="M 34 78 C 22 68 20 46 28 32" fill="none" stroke="url(#${uid}_gold)" stroke-width="2.5" stroke-dasharray="4 2" stroke-linecap="round" opacity="${num <= 1 ? '0.95' : '0.45'}"/>
         <path d="M 66 78 C 78 68 80 46 72 32" fill="none" stroke="url(#${uid}_gold)" stroke-width="2.5" stroke-dasharray="4 2" stroke-linecap="round" opacity="${num <= 1 ? '0.95' : '0.45'}"/>
       ` : '';
 
-      // External Golden Laurel Wings for Elite Division
       const eliteOuterWingsSvg = num === 0 ? `
         <path d="M 16 74 C 2 62 2 38 12 22 C 6 40 10 58 20 70 Z" fill="url(#${uid}_gold)"/>
         <path d="M 18 82 C 4 72 0 52 8 34 C 6 50 12 66 24 78 Z" fill="url(#${uid}_gold)"/>
@@ -879,19 +871,15 @@
         <path d="M 76 90 C 90 82 96 66 90 48 C 90 64 84 76 70 86 Z" fill="url(#${uid}_gold)"/>
       ` : '';
 
-      // Center Content: Rampant Lion + Crown for Elite, or Serif Numeral ('1','2','3','4','5')
       const centerSymbolSvg = num === 0 ? `
-        <!-- 3-Point Gold Crown -->
         <polygon points="38,28 43,19 50,25 57,19 62,28" fill="url(#${uid}_num)" stroke="#2e1065" stroke-width="0.8"/>
         <circle cx="33" cy="25" r="1.8" fill="#fde68a"/>
         <circle cx="67" cy="25" r="1.8" fill="#fde68a"/>
-        <!-- Rampant Gold Lion Silhouette -->
         <path d="M 46 34 C 52 32 58 35 58 41 C 58 45 55 47 57 52 C 60 56 64 54 64 59 C 64 63 58 63 55 61 L 58 72 L 52 72 L 49 62 L 44 62 L 41 72 L 36 72 L 40 58 C 36 55 34 49 38 45 C 35 42 36 37 41 38 L 46 34 Z" fill="url(#${uid}_num)"/>
       ` : `
         <text x="50" y="64" font-family="'Cinzel', Georgia, serif" font-size="44" font-weight="900" fill="url(#${uid}_num)" text-anchor="middle" filter="drop-shadow(0px 3px 3px rgba(0,0,0,0.85))">${num}</text>
       `;
 
-      // Bottom Jewel Clasp
       const bottomGemSvg = pal.gem ? `
         <circle cx="50" cy="105" r="4.5" fill="${pal.gem}" stroke="url(#${uid}_gold)" stroke-width="1.8"/>
       ` : '';
@@ -920,22 +908,18 @@
 
               ${eliteOuterWingsSvg}
 
-              <!-- Outer Beveled Champagne-Gold Shield Frame with Side Notches -->
               <path d="M 50 4 L 86 18 L 86 42 L 82 46 L 86 50 C 86 78 68 94 50 106 C 32 94 14 78 14 50 L 18 46 L 14 42 L 14 18 Z" 
                     fill="url(#${uid}_gold)" stroke="#422c06" stroke-width="2" stroke-linejoin="round"/>
 
-              <!-- Inner Dark / Faceted Shield Core -->
               <path d="M 50 10 L 80 22 L 80 41 L 77 46 L 80 51 C 80 74 64 88 50 99 C 36 88 20 74 20 51 L 23 46 L 20 41 L 20 22 Z" 
                     fill="url(#${uid}_core)" stroke="url(#${uid}_gold)" stroke-width="1.5"/>
 
-              <!-- Low-Poly Geometric Facet Highlights (Top Right & Center) -->
               <polygon points="50,10 80,22 65,42 50,28" fill="${pal.facet}" opacity="0.55"/>
               <polygon points="50,28 65,42 50,62 35,42" fill="${pal.facet}" opacity="0.28"/>
 
               ${innerWreathSvg}
               ${centerSymbolSvg}
 
-              <!-- Official EA Clubs 'C' Monogram at Bottom of Shield -->
               <path d="M 53 82 C 48 80 45 83 45 86 C 45 89 48 92 53 90" fill="none" stroke="url(#${uid}_num)" stroke-width="2.5" stroke-linecap="round"/>
               <circle cx="51" cy="86" r="1.2" fill="#fde68a"/>
 
@@ -1015,6 +999,7 @@
       };
     }
 
+    // Decodes Skill Moves from EA's match_event_aggregate_0..3 strings (Estimated Possession Lost Removed)
     function parsePlayerMatchEvents(p = {}) {
       const events = {};
       for (let i = 0; i < 4; i++) {
@@ -1043,21 +1028,9 @@
         skillMovesCount = Math.max(1, Math.round(dribblesCompleted * 0.35));
       }
 
-      const explicitDispossessed = Number(p.dispossessed ?? p.possessionLost ?? p.turnovers ?? 0);
-      const dribbleTurnovers = (events[175] || 0) + (events[176] || 0) + (events[177] || 0) + (events[153] || 0);
-
-      let nonPassPossLost = explicitDispossessed > 0 ? explicitDispossessed : dribbleTurnovers;
-      if (nonPassPossLost === 0) {
-        const shots = Number(p.shots || 0);
-        const goals = Number(p.goals || 0);
-        const pAtt = Number(p.passattempts || p.passesmade || 0);
-        nonPassPossLost = Math.max(1, Math.round((shots - goals) * 0.6 + (pAtt * 0.12)));
-      }
-
       return {
         skillMoves: skillMovesCount,
-        dribblesCompleted,
-        nonPassPossLost
+        dribblesCompleted
       };
     }
 
@@ -1571,7 +1544,6 @@
       card.classList.remove('hidden');
     }
 
-    // Toggles the Session Recap Banner between 'session' (Latest Session) and 'last10' (Last 10 Matches)
     function switchRecapMode(mode) {
       CURRENT_RECAP_MODE = mode;
       const btnSess = document.getElementById('btnRecapSession');
@@ -1673,7 +1645,6 @@
       }
     }
 
-    // Generates the 4-Pillar Club Tactical Review & Scouting Report
     function renderClubReviewReport(clubData = {}, members = [], matches = [], shameList = []) {
       const section = document.getElementById('clubReviewSection');
       const grid = document.getElementById('clubReviewGrid');
@@ -1696,7 +1667,6 @@
       const sr = Number(statObj.skillRating ?? statObj.rating ?? 1500);
       const divLabel = clubData.division || 'Div 2';
 
-      // Recent 10 form
       let r10Wins = 0, r10Losses = 0, r10GF = 0, r10GA = 0;
       matches.slice(0, 10).forEach(m => {
         const clubsData = m.clubs || m.aggregate || {};
@@ -1713,9 +1683,8 @@
 
       const squadAvgPass = Math.round(members.reduce((a, b) => a + Number(b.passSuccessRate || 75), 0) / members.length);
       const totalMissedPasses = shameList.reduce((a, b) => a + (b.missedPasses || 0), 0);
-      const totalDispossessed = shameList.reduce((a, b) => a + (b.nonPassPossLost || 0), 0);
+      const totalMissedShots = shameList.reduce((a, b) => a + Math.max(0, (b.shots || 0) - (b.goals || 0)), 0);
 
-      // Overall Health Grade
       const healthBadge = document.getElementById('clubReviewGradeBadge');
       if (winPct >= 52 && r10Wins >= r10Losses) {
         healthBadge.className = 'px-3 py-1 rounded-full text-xs font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
@@ -1728,14 +1697,12 @@
         healthBadge.innerText = 'CLUB STATUS: COMPETITIVE BATTLERS (B+)';
       }
 
-      // 1. Current Status
       const statusBullets = [
         `Competing in <b>${divLabel}</b> with a <b>${sr} Skill Rating</b> (${clubData.globalRank?.label || 'Top 10%'}).`,
         `All-time win rate sits at <b>${winPct}%</b> (${wins}W-${ties}D-${losses}L), averaging <b>${gpg} goals scored</b> per match.`,
         `Recent 10-game momentum: <b>${r10Wins}W - ${10 - r10Wins - r10Losses}D - ${r10Losses}L</b> (${r10GF} GF / ${r10GA} GA).`
       ];
 
-      // 2. Strengths
       const strengthsBullets = [];
       if (Number(gpg) >= 2.2) strengthsBullets.push(`<b>High-Octane Attack:</b> Averaging ${gpg} goals/game with strong multi-scorer threat.`);
       if (squadAvgPass >= 78) strengthsBullets.push(`<b>Crisp Ball Retention:</b> Squad averages ${squadAvgPass}% pass completion across all roles.`);
@@ -1743,25 +1710,23 @@
       if (topScorer) strengthsBullets.push(`<b>Focal Point:</b> ${topScorer.name || topScorer.proName} leads the line with ${topScorer.goals} career goals.`);
       if (strengthsBullets.length < 3) strengthsBullets.push(`<b>Resilience:</b> Proven ability to compete against high-SR division opponents.`);
 
-      // 3. Weaknesses
       const weakBullets = [];
       if (Number(gapg) >= 2.1 || r10GA >= 22) {
         weakBullets.push(`<b>Defensive Leakage:</b> Conceding ${gapg} goals/game career (${(r10GA / Math.max(1, matches.length)).toFixed(1)}/g in last 10).`);
       }
-      if (totalDispossessed >= 25) {
-        weakBullets.push(`<b>Over-Dribbling in Traffic:</b> Dispossessed ${totalDispossessed}x on the ball in the last 10 fixtures.`);
-      }
-      if (totalMissedPasses >= 60) {
+      if (totalMissedPasses >= 50) {
         weakBullets.push(`<b>Transition Turnovers:</b> ${totalMissedPasses} misplaced passes over the last 10 games inviting counter-attacks.`);
+      }
+      if (totalMissedShots >= 15) {
+        weakBullets.push(`<b>Final-Third Wastefulness:</b> ${totalMissedShots} unconverted shots across the last 10 matches.`);
       }
       if (weakBullets.length === 0) {
         weakBullets.push(`<b>Late-Game Concentration:</b> Occasional narrow 1-goal defeats against compact mid-blocks.`);
       }
 
-      // 4. Areas to Address
       const fixBullets = [
         `<b>Protect the BackFour:</b> Keep at least one holding midfielder (CDM) anchored behind the ball during wide attacks.`,
-        `<b>Release Early:</b> Cut down the ${totalDispossessed} dribble turnovers by triggering 1-2s before the second defender closes.`,
+        `<b>Cut Out Hospital Passes:</b> Reduce the ${totalMissedPasses} missed passes by playing simple short triangles before forcing through-balls.`,
         `<b>Clinical Conversion:</b> Look for the extra sweat/cutback pass inside the box rather than forcing low-percentage long shots.`
       ];
 
@@ -1894,7 +1859,7 @@
           }
 
           if (!RECENT_10_STATS_MAP[pName]) {
-            RECENT_10_STATS_MAP[pName] = { games: 0, goals: 0, assists: 0, tackles: 0, totalRating: 0, skillMoves: 0, nonPassPossLost: 0 };
+            RECENT_10_STATS_MAP[pName] = { games: 0, goals: 0, assists: 0, tackles: 0, totalRating: 0, skillMoves: 0 };
           }
           RECENT_10_STATS_MAP[pName].games += 1;
           RECENT_10_STATS_MAP[pName].goals += g;
@@ -1902,14 +1867,12 @@
           RECENT_10_STATS_MAP[pName].tackles += t;
           RECENT_10_STATS_MAP[pName].totalRating += r;
           RECENT_10_STATS_MAP[pName].skillMoves += decodedEvents.skillMoves;
-          RECENT_10_STATS_MAP[pName].nonPassPossLost += decodedEvents.nonPassPossLost;
 
           if (!shameMap[pName]) {
             shameMap[pName] = {
               name: pName,
               games: 0,
               missedPasses: 0,
-              nonPassPossLost: 0,
               skillMoves: 0,
               dribblesCompleted: 0,
               shots: 0,
@@ -1921,7 +1884,6 @@
           }
           shameMap[pName].games += 1;
           shameMap[pName].missedPasses += missedPasses;
-          shameMap[pName].nonPassPossLost += decodedEvents.nonPassPossLost;
           shameMap[pName].skillMoves += decodedEvents.skillMoves;
           shameMap[pName].dribblesCompleted += decodedEvents.dribblesCompleted;
           shameMap[pName].shots += shots;
@@ -2036,6 +1998,7 @@
       }).join('');
     }
 
+    // 4-Card Dressing Room Shame Board (Possession Lost Removed, Missed Passes Kept)
     function renderShameBoard(shameList = []) {
       const section = document.getElementById('shameBoardSection');
       const grid = document.getElementById('shameBoardGrid');
@@ -2048,7 +2011,6 @@
       section.classList.remove('hidden');
 
       const bySkillMoves = [...shameList].sort((a, b) => b.skillMoves - a.skillMoves)[0];
-      const byPossLost = [...shameList].sort((a, b) => b.nonPassPossLost - a.nonPassPossLost)[0];
       const byMissedPasses = [...shameList].sort((a, b) => b.missedPasses - a.missedPasses)[0];
       const byBarnDoor = [...shameList].sort((a, b) => (b.shots - b.goals) - (a.shots - a.goals))[0];
       const byButcher = [...shameList].sort((a, b) => (b.reds * 15 + (b.tackleAtt - b.tackles)) - (a.reds * 15 + (a.tackleAtt - a.tackles)))[0];
@@ -2061,14 +2023,6 @@
           sub: `${bySkillMoves.dribblesCompleted} total dribbles completed`,
           border: 'border-fuchsia-500/40',
           statColor: 'text-fuchsia-400'
-        },
-        {
-          title: '🧲 Possession Lost',
-          winner: byPossLost.name,
-          stat: `${byPossLost.nonPassPossLost}x Dispossessed`,
-          sub: `Stripped on dribble (excl. passes)`,
-          border: 'border-orange-500/40',
-          statColor: 'text-orange-400'
         },
         {
           title: '🏥 Hospital Pass Award',
@@ -2097,14 +2051,14 @@
       ];
 
       grid.innerHTML = cards.map(c => `
-        <div class="bg-gray-900/60 border ${c.border} rounded-xl p-3 flex items-center justify-between">
+        <div class="bg-gray-900/60 border ${c.border} rounded-xl p-3.5 flex items-center justify-between">
           <div class="min-w-0 pr-2">
             <div class="text-[10px] font-black uppercase tracking-wider text-gray-400 truncate">${c.title}</div>
             <div class="text-sm font-extrabold text-white mt-0.5 truncate">${c.winner}</div>
             <div class="text-xs font-bold ${c.statColor} mt-0.5">${c.stat}</div>
             <div class="text-[10px] text-gray-500 mt-0.5 truncate">${c.sub}</div>
           </div>
-          <img src="${getPlayerAvatarUrl(c.winner)}" class="w-10 h-10 rounded-full border border-gray-700 bg-gray-900 flex-shrink-0" alt="${c.winner}">
+          <img src="${getPlayerAvatarUrl(c.winner)}" class="w-11 h-11 rounded-full border border-gray-700 bg-gray-900 flex-shrink-0" alt="${c.winner}">
         </div>
       `).join('');
     }
@@ -2699,6 +2653,7 @@
       modal.classList.remove('flex');
     }
 
+    // Recent 10 Matches with Box-Score Table (Possession Lost Removed, Missed Passes & Skill Moves Kept)
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
       const formContainer = document.getElementById('formBadges');
@@ -2852,7 +2807,6 @@
             const passPct = p._computedPassPct ?? 0;
             const passDetail = p._passAttempts > 0 ? `${p._passesMade}/${p._passAttempts} (${passPct}%)` : `${passPct}%`;
             const missedPasses = Math.max(0, (p._passAttempts || 0) - (p._passesMade || 0));
-            const nonPassLost = p._decodedEvents?.nonPassPossLost ?? 0;
             const skillMoves = p._decodedEvents?.skillMoves ?? 0;
 
             const memberObj = GLOBAL_MEMBERS.find(gm => (gm.name || gm.proName) === pName);
@@ -2878,8 +2832,8 @@
                 <td class="py-2.5 px-2 text-center font-bold ${goals > 0 ? 'text-emerald-400' : 'text-gray-400'}">${goals}</td>
                 <td class="py-2.5 px-2 text-center font-bold ${assists > 0 ? 'text-sky-400' : 'text-gray-400'}">${assists}</td>
                 <td class="py-2.5 px-2 text-center text-gray-300">${shots}</td>
-                <td class="py-2.5 px-2 text-center text-cyan-400 font-mono" title="${missedPasses} Missed Passes">${passDetail}</td>
-                <td class="py-2.5 px-2 text-center text-orange-400 font-mono font-bold" title="Dispossessed on ball / heavy touch (Excludes ${missedPasses} missed passes)">${nonPassLost}</td>
+                <td class="py-2.5 px-2 text-center text-cyan-400 font-mono">${passDetail}</td>
+                <td class="py-2.5 px-2 text-center text-amber-400 font-mono font-bold">${missedPasses}</td>
                 <td class="py-2.5 px-2 text-center text-fuchsia-400 font-mono font-bold" title="Skill Move Beats & Dribble Take-Ons">${skillMoves}</td>
                 <td class="py-2.5 px-2 text-center text-sky-400 font-semibold">${tackles}</td>
                 <td class="py-2.5 px-3 text-right">${crownBadge}</td>
@@ -2899,7 +2853,7 @@
                     <th class="py-2 px-2 text-center">Assists</th>
                     <th class="py-2 px-2 text-center">Shots</th>
                     <th class="py-2 px-2 text-center">Passes</th>
-                    <th class="py-2 px-2 text-center" title="Dispossessed on ball (Separate from Missed Passes)">Poss. Lost</th>
+                    <th class="py-2 px-2 text-center" title="Incomplete / Missed Passes">Missed Pass</th>
                     <th class="py-2 px-2 text-center" title="Skill Moves & Dribble Beats">Skills</th>
                     <th class="py-2 px-2 text-center">Tackles</th>
                     <th class="py-2 px-3 text-right">Award</th>
@@ -2952,7 +2906,7 @@
               <span class="flex items-center gap-2">
                 <i class="fa-solid fa-table-list text-emerald-400"></i> Match Box Score Breakdown
               </span>
-              <span class="text-[11px] text-gray-500 font-normal normal-case">Poss. Lost = Dispossessed on ball (excl. missed passes) • Skills = Skill Move Beats</span>
+              <span class="text-[11px] text-gray-500 font-normal normal-case">Sorted by overall pitch influence • Skills = Skill Move Beats</span>
             </div>
             ${boxScoreTableHtml}
           </td>
