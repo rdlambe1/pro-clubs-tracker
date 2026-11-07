@@ -177,7 +177,7 @@
         </div>
       </div>
 
-      <!-- Trophy, Promotions & Relegations Bar (Net Climb Removed) -->
+      <!-- Trophy, Promotions & Relegations Bar -->
       <div id="trophyBar" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-gray-800/80">
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center gap-3">
           <i class="fa-solid fa-trophy text-yellow-400 text-xl"></i>
@@ -193,7 +193,6 @@
             <div id="trophyLeagues" class="text-sm font-black text-white">0</div>
           </div>
         </div>
-        <!-- Promotions & Relegations Side-by-Side -->
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center justify-around">
           <div class="flex items-center gap-2.5">
             <i class="fa-solid fa-angles-up text-emerald-400 text-xl"></i>
@@ -246,13 +245,13 @@
       </div>
     </section>
 
-    <!-- FC27 Club Seasons Progression Table (Season 1 to Season 3) -->
+    <!-- FC27 Club Seasons History Table (Automatically Synced with Official Live Service Calendar) -->
     <section id="seasonsSection" class="hidden card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-layer-group text-emerald-400"></i> FC 27 Club Seasons History (From Season 1)
         </h3>
-        <span id="seasonsSummaryMeta" class="text-xs text-gray-400">Official FC 27 Live Service Seasons</span>
+        <span id="seasonsSummaryMeta" class="text-xs text-gray-400">Automatically synced with official FC 27 live-service seasons</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -274,13 +273,13 @@
       </div>
     </section>
 
-    <!-- Recent Matches (Exclusive Home of Single-Match MVP) -->
+    <!-- Recent 10 Matches with Structured Box-Score Table Dropdowns -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
         </h3>
-        <span class="text-xs text-gray-400">Hover emoji in Vibe column for details • Click row for match breakdown & MVP</span>
+        <span class="text-xs text-gray-400">Hover emoji in Vibe column for details • Click any match row for full box-score table</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -304,7 +303,7 @@
       </div>
     </section>
 
-    <!-- Tactical Pitch Section: 2 Modes Only ("Last Match XI" & "Suggested Best XI (Builds & Attributes)") -->
+    <!-- Tactical Pitch Section: "Last Match XI" & "Suggested Best XI (Builds & Attributes)" -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-4 border-b border-gray-800 pb-4">
         <div>
@@ -317,7 +316,6 @@
           <p id="formationSubtitle" class="text-xs text-gray-400 mt-1">Click any player on the pitch to inspect their FC27 Ultimate Team Card</p>
         </div>
 
-        <!-- 2-Option Lineup Mode Switcher -->
         <div class="flex flex-wrap items-center gap-1.5 bg-gray-900 p-1 rounded-lg border border-gray-800">
           <button id="btnModeLastMatch" onclick="switchPitchMode('lastMatch')" class="px-3.5 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition shadow">
             <i class="fa-solid fa-clock-rotate-left mr-1"></i> Last Match XI
@@ -328,7 +326,6 @@
         </div>
       </div>
 
-      <!-- Tactical Summary Metrics Bar -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between">
           <span class="text-[10px] uppercase font-bold text-gray-400">Human Pros in XI</span>
@@ -348,7 +345,6 @@
         </div>
       </div>
 
-      <!-- 11-Slot Tactical Pitch -->
       <div class="pitch-bg w-full h-[620px] py-6 px-4 flex flex-col justify-between relative shadow-inner">
         <div class="pitch-penalty-top"></div>
         <div class="pitch-center-line"></div>
@@ -363,14 +359,60 @@
       </div>
     </section>
 
-    <!-- Full Squad Performance Table -->
+    <!-- Dual Spider / Radar Graph Comparison Section (Attributes vs Performance Stats) -->
+    <section id="radarSection" class="hidden card p-6 space-y-5">
+      <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-gray-800 pb-4">
+        <div>
+          <h3 class="text-lg font-bold text-white flex items-center gap-2">
+            <i class="fa-solid fa-chart-pie text-emerald-400"></i> Head-to-Head Pro Radar Comparison
+          </h3>
+          <p class="text-xs text-gray-400 mt-0.5">Compare any two squad members across Build Attributes and Match Output</p>
+        </div>
+
+        <!-- Player Selectors -->
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-2 bg-gray-900 px-3 py-1.5 rounded-lg border border-emerald-500/40">
+            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            <select id="radarSelectP1" onchange="updateRadarCharts()" class="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"></select>
+          </div>
+          <span class="text-xs font-black text-gray-500">VS</span>
+          <div class="flex items-center gap-2 bg-gray-900 px-3 py-1.5 rounded-lg border border-sky-500/40">
+            <span class="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+            <select id="radarSelectP2" onchange="updateRadarCharts()" class="bg-transparent text-xs font-bold text-white focus:outline-none cursor-pointer"></select>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2 Side-by-Side Spider Graphs -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Spider Graph 1: Build Attributes -->
+        <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-4 flex flex-col items-center">
+          <div class="text-xs font-black uppercase tracking-wider text-gray-300 mb-2 flex items-center gap-2">
+            <i class="fa-solid fa-bolt text-yellow-400"></i> 1. Build Attributes (PAC / SHO / PAS / DRI / DEF / PHY)
+          </div>
+          <div id="radarChartAttributes" class="w-full max-w-[320px] h-[290px] flex items-center justify-center"></div>
+          <div id="radarLegendAttr" class="w-full grid grid-cols-6 gap-1 text-center text-[11px] font-mono pt-2 border-t border-gray-800/80 mt-2"></div>
+        </div>
+
+        <!-- Spider Graph 2: Match Output & Efficiency -->
+        <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-4 flex flex-col items-center">
+          <div class="text-xs font-black uppercase tracking-wider text-gray-300 mb-2 flex items-center gap-2">
+            <i class="fa-solid fa-chart-line text-emerald-400"></i> 2. Match Output (Goals/G • Assists/G • Rating • Pass% • Tackles/G • MoTM%)
+          </div>
+          <div id="radarChartStats" class="w-full max-w-[320px] h-[290px] flex items-center justify-center"></div>
+          <div id="radarLegendStats" class="w-full grid grid-cols-6 gap-1 text-center text-[11px] font-mono pt-2 border-t border-gray-800/80 mt-2"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Full Squad Performance Table with Fun Performance Name Tags -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
         </h3>
         <span class="text-xs text-gray-400">
-          Click any player row to open their <b class="text-yellow-400">FC27 Ultimate Team Card</b> & customize skin/hair
+          Includes dynamic performance name tags • Click any row to open their <b class="text-yellow-400">FC27 Ultimate Team Card</b>
         </span>
       </div>
 
@@ -378,7 +420,7 @@
         <table class="w-full text-left text-sm">
           <thead class="border-b border-gray-800 text-gray-400 uppercase text-xs">
             <tr>
-              <th class="py-3 px-2">Player</th>
+              <th class="py-3 px-2">Player & Performance Tag</th>
               <th class="py-3 px-2 text-center">OVR (Tier)</th>
               <th class="py-3 px-2 text-center">Pos</th>
               <th class="py-3 px-2 text-center">Matches</th>
@@ -569,127 +611,99 @@
     let RECENT_10_STATS_MAP = {};
     let CURRENT_CLUB_CREST_URL = '';
     let ACTIVE_MODAL_PLAYER = null;
-    let CURRENT_PITCH_MODE = 'lastMatch'; // Default to Last Match XI
+    let CURRENT_PITCH_MODE = 'lastMatch';
 
-    // Reusable Soccer Ball SVG Motif (Matches the spotted soccer ball in EA's Official PlayStyle Icons)
     const BALL_SVG = (cx, cy, r) => `
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="currentColor" stroke-width="2.8"/>
       <polygon points="${cx},${cy-r*0.45} ${cx+r*0.42},${cy-r*0.12} ${cx+r*0.26},${cy+r*0.38} ${cx-r*0.26},${cy+r*0.38} ${cx-r*0.42},${cy-r*0.12}" fill="currentColor"/>
     `;
 
-    // 1:1 Official EA Sports FC PlayStyle Glyphs (Matches https://www.ea.com/games/ea-sports-fc/ratings & Screenshot)
+    // Expanded 24 Official EA Sports FC PlayStyle Vector Glyphs (So players get distinct, role-accurate PlayStyles)
     const OFFICIAL_EA_PLAYSTYLE_VECTORS = {
-      // Goalkeeper PlayStyles (Directly matching your screenshot)
-      cross_claimer: `
-        ${BALL_SVG(62, 32, 10.5)}
-        <path d="M 24 68 L 42 46 L 52 54 L 34 74 Z" fill="currentColor"/>
-        <path d="M 40 44 C 38 36 44 30 50 34 L 56 42 C 58 46 54 52 48 50 Z" fill="currentColor"/>
-      `,
-      deflector: `
-        <path d="M 44 18 L 68 27 L 68 48 C 68 64 44 76 44 76 C 44 76 20 64 20 48 L 20 27 Z" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linejoin="round"/>
-        <path d="M 44 38 L 76 26 M 44 38 L 74 54" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
-        <polygon points="72,20 82,24 75,33" fill="currentColor"/>
-        <polygon points="71,48 80,57 69,59" fill="currentColor"/>
-      `,
-      far_reach: `
-        ${BALL_SVG(36, 30, 10)}
-        <path d="M 30 48 C 32 42 40 40 46 44 L 66 56 L 58 72 L 36 58 Z" fill="currentColor"/>
-        <path d="M 24 38 Q 22 24 34 20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
-      `,
-      far_throw: `
-        ${BALL_SVG(28, 34, 8.5)}
-        <circle cx="52" cy="36" r="7.5" fill="currentColor"/>
-        <path d="M 34 44 Q 50 48 64 68 L 44 72 L 42 54 Z" fill="currentColor"/>
-        <path d="M 52 48 L 78 36" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>
-        <polygon points="73,30 84,33 77,43" fill="currentColor"/>
-      `,
-      footwork: `
-        <path d="M 22 22 L 38 22 L 46 52 L 62 56 C 66 57 68 62 64 66 L 34 66 L 26 42 Z" fill="currentColor"/>
-        ${BALL_SVG(62, 42, 10.5)}
-      `,
-      rush_out: `
-        <path d="M 42 20 L 22 34 L 22 66 L 42 74 Z" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linejoin="round"/>
-        <circle cx="58" cy="30" r="6.5" fill="currentColor"/>
-        <path d="M 46 42 L 62 40 L 72 52 M 54 42 L 48 58 L 36 66 M 52 54 L 66 64 L 74 74" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
-      `,
-      // Outfield PlayStyles (Official EA Ratings Glyphs)
-      finesse_shot: `
-        ${BALL_SVG(64, 32, 10.5)}
-        <path d="M 24 68 C 22 40 40 28 54 30" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>
-        <polygon points="50,23 61,30 50,37" fill="currentColor"/>
-        <path d="M 34 74 C 34 52 46 44 60 44" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="4 4" stroke-linecap="round"/>
-      `,
-      power_shot: `
-        ${BALL_SVG(64, 34, 11)}
-        <path d="M 18 70 L 50 44 M 18 54 L 42 34 M 34 74 L 58 54" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>
-      `,
-      incisive_pass: `
-        <circle cx="28" cy="42" r="6.5" fill="currentColor"/>
-        <circle cx="28" cy="66" r="6.5" fill="currentColor"/>
-        <path d="M 38 64 L 70 32" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>
-        <polygon points="62,26 76,26 76,40" fill="currentColor"/>
-        <line x1="38" y1="42" x2="62" y2="42" stroke="currentColor" stroke-width="3.2" stroke-dasharray="4 4" stroke-linecap="round"/>
-      `,
-      tiki_taka: `
-        <polygon points="50,22 74,64 26,64" fill="none" stroke="currentColor" stroke-width="3.8" stroke-dasharray="5 3" stroke-linejoin="round"/>
-        <circle cx="50" cy="22" r="7" fill="currentColor"/>
-        <circle cx="74" cy="64" r="7" fill="currentColor"/>
-        <circle cx="26" cy="64" r="7" fill="currentColor"/>
-      `,
-      whipped_pass: `
-        ${BALL_SVG(66, 44, 10)}
-        <path d="M 20 62 Q 44 20 62 34" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
-        <path d="M 20 46 Q 44 10 66 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
-      `,
-      pinged_pass: `
-        ${BALL_SVG(66, 46, 10.5)}
-        <line x1="16" y1="46" x2="50" y2="46" stroke="currentColor" stroke-width="4.8" stroke-linecap="round"/>
-        <line x1="22" y1="34" x2="44" y2="34" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
-        <line x1="22" y1="58" x2="44" y2="58" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
-      `,
-      technical: `
-        ${BALL_SVG(50, 28, 9.5)}
-        <path d="M 26 68 Q 38 44 50 50 T 74 36" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
-        <circle cx="31" cy="46" r="4" fill="currentColor"/>
-        <circle cx="69" cy="56" r="4" fill="currentColor"/>
-      `,
-      rapid: `
-        <polygon points="56,16 28,48 47,48 39,76 72,40 52,40" fill="currentColor"/>
-      `,
-      first_touch: `
-        ${BALL_SVG(50, 34, 10.5)}
-        <path d="M 26 62 L 74 62 M 34 71 L 66 71" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
-        <line x1="50" y1="47" x2="50" y2="59" stroke="currentColor" stroke-width="3.8" stroke-linecap="round"/>
-      `,
-      anticipate: `
-        <path d="M 50 18 L 74 28 L 74 48 C 74 64 50 76 50 76 C 50 76 26 64 26 48 L 26 28 Z" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linejoin="round"/>
-        ${BALL_SVG(50, 46, 10)}
-      `,
-      intercept: `
-        <line x1="18" y1="46" x2="82" y2="46" stroke="currentColor" stroke-width="4" stroke-dasharray="5 4" stroke-linecap="round"/>
-        ${BALL_SVG(50, 46, 10.5)}
-        <line x1="50" y1="18" x2="50" y2="31" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
-        <line x1="50" y1="74" x2="50" y2="61" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
-      `,
-      jockey: `
-        <line x1="22" y1="50" x2="78" y2="50" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
-        <polygon points="16,50 28,40 28,60" fill="currentColor"/>
-        <polygon points="84,50 72,40 72,60" fill="currentColor"/>
-        <circle cx="50" cy="30" r="8.5" fill="currentColor"/>
-      `,
-      bruiser: `
-        <circle cx="38" cy="28" r="7" fill="currentColor"/>
-        <path d="M 24 64 L 30 40 L 52 40 L 58 64 Z" fill="currentColor"/>
-        <path d="M 58 36 L 78 28 M 60 48 L 80 48 M 58 60 L 78 68" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
-      `,
-      aerial_fortress: `
-        <polygon points="50,16 74,42 59,42 59,70 41,70 41,42 26,42" fill="currentColor"/>
-      `,
-      relentless: `
-        <path d="M 50 26 C 38 14 20 24 20 40 C 20 58 50 74 50 74 C 50 74 80 58 80 40 C 80 24 62 14 50 26 Z" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linejoin="round"/>
-        <polyline points="28,44 42,44 47,32 54,56 59,44 72,44" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
-      `
+      cross_claimer: `${BALL_SVG(62, 32, 10.5)}<path d="M 24 68 L 42 46 L 52 54 L 34 74 Z" fill="currentColor"/><path d="M 40 44 C 38 36 44 30 50 34 L 56 42 C 58 46 54 52 48 50 Z" fill="currentColor"/>`,
+      deflector: `<path d="M 44 18 L 68 27 L 68 48 C 68 64 44 76 44 76 C 44 76 20 64 20 48 L 20 27 Z" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linejoin="round"/><path d="M 44 38 L 76 26 M 44 38 L 74 54" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><polygon points="72,20 82,24 75,33" fill="currentColor"/><polygon points="71,48 80,57 69,59" fill="currentColor"/>`,
+      far_reach: `${BALL_SVG(36, 30, 10)}<path d="M 30 48 C 32 42 40 40 46 44 L 66 56 L 58 72 L 36 58 Z" fill="currentColor"/><path d="M 24 38 Q 22 24 34 20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>`,
+      far_throw: `${BALL_SVG(28, 34, 8.5)}<circle cx="52" cy="36" r="7.5" fill="currentColor"/><path d="M 34 44 Q 50 48 64 68 L 44 72 L 42 54 Z" fill="currentColor"/><path d="M 52 48 L 78 36" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/><polygon points="73,30 84,33 77,43" fill="currentColor"/>`,
+      footwork: `<path d="M 22 22 L 38 22 L 46 52 L 62 56 C 66 57 68 62 64 66 L 34 66 L 26 42 Z" fill="currentColor"/>${BALL_SVG(62, 42, 10.5)}`,
+      rush_out: `<path d="M 42 20 L 22 34 L 22 66 L 42 74 Z" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linejoin="round"/><circle cx="58" cy="30" r="6.5" fill="currentColor"/><path d="M 46 42 L 62 40 L 72 52 M 54 42 L 48 58 L 36 66 M 52 54 L 66 64 L 74 74" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>`,
+      finesse_shot: `${BALL_SVG(64, 32, 10.5)}<path d="M 24 68 C 22 40 40 28 54 30" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/><polygon points="50,23 61,30 50,37" fill="currentColor"/><path d="M 34 74 C 34 52 46 44 60 44" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="4 4" stroke-linecap="round"/>`,
+      power_shot: `${BALL_SVG(64, 34, 11)}<path d="M 18 70 L 50 44 M 18 54 L 42 34 M 34 74 L 58 54" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>`,
+      chip_shot: `${BALL_SVG(68, 42, 9.5)}<path d="M 20 66 Q 42 12 64 34" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><line x1="18" y1="68" x2="78" y2="68" stroke="currentColor" stroke-width="2.5" stroke-dasharray="4 4"/>`,
+      dead_ball: `${BALL_SVG(42, 54, 10.5)}<path d="M 52 46 Q 68 26 78 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><polygon points="72,18 83,22 76,31" fill="currentColor"/><line x1="24" y1="66" x2="60" y2="66" stroke="currentColor" stroke-width="3.5"/>`,
+      incisive_pass: `<circle cx="28" cy="42" r="6.5" fill="currentColor"/><circle cx="28" cy="66" r="6.5" fill="currentColor"/><path d="M 38 64 L 70 32" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/><polygon points="62,26 76,26 76,40" fill="currentColor"/><line x1="38" y1="42" x2="62" y2="42" stroke="currentColor" stroke-width="3.2" stroke-dasharray="4 4" stroke-linecap="round"/>`,
+      tiki_taka: `<polygon points="50,22 74,64 26,64" fill="none" stroke="currentColor" stroke-width="3.8" stroke-dasharray="5 3" stroke-linejoin="round"/><circle cx="50" cy="22" r="7" fill="currentColor"/><circle cx="74" cy="64" r="7" fill="currentColor"/><circle cx="26" cy="64" r="7" fill="currentColor"/>`,
+      whipped_pass: `${BALL_SVG(66, 44, 10)}<path d="M 20 62 Q 44 20 62 34" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><path d="M 20 46 Q 44 10 66 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>`,
+      pinged_pass: `${BALL_SVG(66, 46, 10.5)}<line x1="16" y1="46" x2="50" y2="46" stroke="currentColor" stroke-width="4.8" stroke-linecap="round"/><line x1="22" y1="34" x2="44" y2="34" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><line x1="22" y1="58" x2="44" y2="58" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>`,
+      long_ball_pass: `${BALL_SVG(26, 60, 9)}<path d="M 34 52 Q 54 14 78 46" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><polygon points="73,40 83,50 70,51" fill="currentColor"/>`,
+      technical: `${BALL_SVG(50, 28, 9.5)}<path d="M 26 68 Q 38 44 50 50 T 74 36" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><circle cx="31" cy="46" r="4" fill="currentColor"/><circle cx="69" cy="56" r="4" fill="currentColor"/>`,
+      rapid: `<polygon points="56,16 28,48 47,48 39,76 72,40 52,40" fill="currentColor"/>`,
+      quick_step: `<path d="M 22 60 L 48 60 L 62 42 L 78 42" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/><polygon points="72,34 84,42 72,50" fill="currentColor"/><line x1="18" y1="46" x2="42" y2="46" stroke="currentColor" stroke-width="3.5" stroke-dasharray="4 4"/>`,
+      trickster: `${BALL_SVG(50, 46, 10)}<path d="M 24 46 A 26 16 0 1 1 76 46" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round"/><path d="M 76 46 A 26 16 0 1 1 24 46" fill="none" stroke="currentColor" stroke-width="3.8" stroke-dasharray="4 4" stroke-linecap="round"/>`,
+      press_proven: `<path d="M 50 18 L 76 30 L 70 64 L 50 76 L 30 64 L 24 30 Z" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="50" cy="46" r="9" fill="currentColor"/>`,
+      first_touch: `${BALL_SVG(50, 34, 10.5)}<path d="M 26 62 L 74 62 M 34 71 L 66 71" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><line x1="50" y1="47" x2="50" y2="59" stroke="currentColor" stroke-width="3.8" stroke-linecap="round"/>`,
+      anticipate: `<path d="M 50 18 L 74 28 L 74 48 C 74 64 50 76 50 76 C 50 76 26 64 26 48 L 26 28 Z" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linejoin="round"/>${BALL_SVG(50, 46, 10)}`,
+      intercept: `<line x1="18" y1="46" x2="82" y2="46" stroke="currentColor" stroke-width="4" stroke-dasharray="5 4" stroke-linecap="round"/>${BALL_SVG(50, 46, 10.5)}<line x1="50" y1="18" x2="50" y2="31" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><line x1="50" y1="74" x2="50" y2="61" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>`,
+      jockey: `<line x1="22" y1="50" x2="78" y2="50" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><polygon points="16,50 28,40 28,60" fill="currentColor"/><polygon points="84,50 72,40 72,60" fill="currentColor"/><circle cx="50" cy="30" r="8.5" fill="currentColor"/>`,
+      block: `<rect x="26" y="24" width="48" height="44" rx="6" fill="none" stroke="currentColor" stroke-width="4.2"/>${BALL_SVG(50, 46, 10)}`,
+      slide_tackle: `<path d="M 18 62 L 62 62 L 76 44" fill="none" stroke="currentColor" stroke-width="4.8" stroke-linecap="round"/>${BALL_SVG(34, 42, 9.5)}`,
+      bruiser: `<circle cx="38" cy="28" r="7" fill="currentColor"/><path d="M 24 64 L 30 40 L 52 40 L 58 64 Z" fill="currentColor"/><path d="M 58 36 L 78 28 M 60 48 L 80 48 M 58 60 L 78 68" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>`,
+      aerial_fortress: `<polygon points="50,16 74,42 59,42 59,70 41,70 41,42 26,42" fill="currentColor"/>`,
+      relentless: `<path d="M 50 26 C 38 14 20 24 20 40 C 20 58 50 74 50 74 C 50 74 80 58 80 40 C 80 24 62 14 50 26 Z" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linejoin="round"/><polyline points="28,44 42,44 47,32 54,56 59,44 72,44" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>`,
+      trivela: `${BALL_SVG(34, 34, 9.5)}<path d="M 66 70 C 78 46 66 28 48 32" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><polygon points="50,25 40,33 52,39" fill="currentColor"/>`
     };
+
+    // Generates Fun Performance Name Tags for every player based on statistical habits
+    function getPlayerFunTag(player) {
+      const games = Math.max(1, Number(player.gamesPlayed ?? player.games ?? 1));
+      const goals = Number(player.goals ?? 0);
+      const assists = Number(player.assists ?? 0);
+      const tackles = Number(player.tacklesmade ?? player.tackles ?? 0);
+      const tacklePct = Number(player.tacklesuccessrate ?? player.tackleSuccessRate ?? 0);
+      const passPct = Number(player.passSuccessRate ?? player.passSuccess ?? 0);
+      const rating = parseFloat(player.ratingAve || player.rating || 0);
+      const motm = Number(player.manOfTheMatch ?? player.motm ?? 0);
+      const pos = player._normalizedPos || 'MID';
+
+      const gpg = goals / games;
+      const apg = assists / games;
+      const tpg = tackles / games;
+      const motmRate = motm / games;
+
+      if (motmRate >= 0.28 && games >= 5) {
+        return { label: '👑 MoTM Merchant', cls: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/40' };
+      }
+      if (gpg >= 0.75) {
+        return { label: '🎯 Clinical Poacher', cls: 'bg-rose-500/15 text-rose-300 border-rose-500/40' };
+      }
+      if (gpg >= 0.45 && assists <= goals * 0.25) {
+        return { label: '🔫 Shoot on Sight', cls: 'bg-orange-500/15 text-orange-300 border-orange-500/40' };
+      }
+      if (apg >= 0.5) {
+        return { label: '🎩 Chief Creator', cls: 'bg-purple-500/15 text-purple-300 border-purple-500/40' };
+      }
+      if (passPct >= 84 && apg >= 0.25) {
+        return { label: '📐 Pass Master', cls: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40' };
+      }
+      if (tpg >= 1.8 && tacklePct >= 30) {
+        return { label: '🧱 Brick Wall', cls: 'bg-blue-500/15 text-blue-300 border-blue-500/40' };
+      }
+      if (tpg >= 1.6 && tacklePct < 30) {
+        return { label: '🦵 Ankle Breaker', cls: 'bg-red-500/15 text-red-300 border-red-500/40' };
+      }
+      if (gpg >= 0.35 && apg >= 0.35) {
+        return { label: '⚡ Double Threat', cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40' };
+      }
+      if (passPct >= 82) {
+        return { label: '🧭 Metronome', cls: 'bg-teal-500/15 text-teal-300 border-teal-500/40' };
+      }
+      if (pos === 'DEF') {
+        return { label: '🛡️ Backline Guardian', cls: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/40' };
+      }
+      if (rating >= 7.6) {
+        return { label: '🔥 Big Game Player', cls: 'bg-amber-500/15 text-amber-300 border-amber-500/40' };
+      }
+      return { label: '🫁 Box-to-Box Engine', cls: 'bg-slate-700/60 text-slate-300 border-slate-600' };
+    }
 
     function getAppearanceMap() {
       try {
@@ -820,7 +834,6 @@
       document.getElementById('futLowerTextContainer').style.color = theme.textColor;
     }
 
-    // Instant (0ms) Official EA PlayStyle & PlayStyle+ Diamond-Pentagon Renderer (Exact Shape & Inner Frame from Screenshot)
     function renderPlaystyleDiamondHtml(ps, isPlus = false) {
       const vectorArt = OFFICIAL_EA_PLAYSTYLE_VECTORS[ps.slug] || OFFICIAL_EA_PLAYSTYLE_VECTORS.technical;
 
@@ -835,7 +848,6 @@
                   <stop offset="100%" stop-color="#c48b11"/>
                 </linearGradient>
               </defs>
-              <!-- Official EA PlayStyle+ 5-Sided Flat-Top Diamond Pentagon with Dark Inner Border Line -->
               <polygon points="22,6 78,6 96,34 50,88 4,34" fill="url(#psGoldGrad_${ps.slug})" stroke="#1c1608" stroke-width="4.5" stroke-linejoin="round"/>
               <polygon points="25,13 75,13 88,34 50,79 12,34" fill="none" stroke="#1c1608" stroke-width="2.2" stroke-linejoin="round" opacity="0.85"/>
               <g transform="translate(0, -2)">
@@ -874,27 +886,41 @@
       `;
     }
 
+    // Weighted Multi-Trait PlayStyle Scorer (Prevents Power Shot / Whipped Pass cloning across cards)
     function computeArchetypeAndPlaystyles(player) {
+      const name = String(player.name || player.proName || 'Pro');
       const pos = player._normalizedPos || 'MID';
       const rawPos = String(player._rawPos || '').toUpperCase();
       const games = Math.max(1, Number(player.gamesPlayed || 1));
-      const goalsPerGame = Number(player.goals || 0) / games;
-      const assistsPerGame = Number(player.assists || 0) / games;
-      const tacklesPerGame = Number(player.tacklesmade || player.tackles || 0) / games;
+      const goals = Number(player.goals || 0);
+      const assists = Number(player.assists || 0);
+      const tackles = Number(player.tacklesmade || player.tackles || 0);
+      const tackleWinPct = Number(player.tacklesuccessrate || player.tackleSuccessRate || 25);
+      const gpg = goals / games;
+      const apg = assists / games;
+      const tpg = tackles / games;
       const passPct = Number(player.passSuccessRate || 75);
+      const rating = parseFloat(player.ratingAve || 7.2);
       const height = parseInt(player.proHeight || 180, 10);
+
+      // Unique deterministic player seed so teammates with similar stats still get individualized secondary traits
+      let seed = 0;
+      for (let i = 0; i < name.length; i++) seed = (seed * 31 + name.charCodeAt(i)) % 1000;
+      const jitter = (idx) => ((seed + idx * 17) % 11) * 0.8;
 
       let archetype = 'Maestro';
       if (pos === 'FWD') {
         if (height >= 188) archetype = 'Target';
-        else if (goalsPerGame >= 0.6) archetype = 'Finisher';
-        else if (assistsPerGame >= 0.4) archetype = 'Creator';
+        else if (gpg >= 0.65) archetype = 'Finisher';
+        else if (apg >= 0.42) archetype = 'Creator';
+        else if (height <= 175) archetype = 'Spark';
         else archetype = 'Hawk';
       } else if (pos === 'MID') {
-        if (tacklesPerGame >= 1.4) archetype = 'Destroyer';
-        else if (passPct >= 82 || assistsPerGame >= 0.4) archetype = 'Maestro';
-        else if (goalsPerGame >= 0.35) archetype = 'Shadow Striker';
-        else archetype = 'Catalyst';
+        if (tpg >= 1.45) archetype = 'Destroyer';
+        else if (passPct >= 83 && apg >= 0.35) archetype = 'Maestro';
+        else if (gpg >= 0.38) archetype = 'Shadow Striker';
+        else if (passPct >= 80) archetype = 'Architect';
+        else archetype = 'Engine';
       } else if (pos === 'DEF') {
         if (rawPos.includes('B') && !rawPos.includes('CB')) archetype = 'Marauder';
         else if (height >= 188) archetype = 'Titan';
@@ -903,52 +929,51 @@
         archetype = 'Sweeper Keeper';
       }
 
-      let psPlus = { slug: 'technical', name: 'Technical', desc: 'Higher speed Controlled Sprint and precise wide turns while dribbling.' };
-      if (pos === 'FWD') {
-        if (goalsPerGame >= 0.5) {
-          psPlus = { slug: 'finesse_shot', name: 'Finesse Shot', desc: 'Faster finesse shots with maximum curve and exceptional accuracy.' };
-        } else if (height >= 188) {
-          psPlus = { slug: 'aerial_fortress', name: 'Aerial Fortress', desc: 'Performs higher jumps with dominant physical aerial presence.' };
-        } else {
-          psPlus = { slug: 'rapid', name: 'Rapid', desc: 'Reaches higher sprint speed while dribbling with reduced knock-on error.' };
-        }
-      } else if (pos === 'MID') {
-        if (passPct >= 80 || assistsPerGame >= 0.35) {
-          psPlus = { slug: 'incisive_pass', name: 'Incisive Pass', desc: 'Through passes are far more accurate with maximum swerve and speed.' };
-        } else if (tacklesPerGame >= 1.3) {
-          psPlus = { slug: 'intercept', name: 'Intercept', desc: 'Increased reach and ball retention when performing interceptions.' };
-        } else {
-          psPlus = { slug: 'tiki_taka', name: 'Tiki Taka', desc: 'Executes difficult first-time ground passes with high accuracy.' };
-        }
-      } else if (pos === 'DEF') {
-        if (tacklesPerGame >= 1.1) {
-          psPlus = { slug: 'anticipate', name: 'Anticipate', desc: 'Significantly increased chance of standing tackle success directly at feet.' };
-        } else {
-          psPlus = { slug: 'jockey', name: 'Jockey', desc: 'Increased max speed of Sprint Jockey and transition responsiveness.' };
-        }
-      } else {
-        psPlus = { slug: 'footwork', name: 'Footwork', desc: 'Saves shots with feet more frequently with boosted close-range reactions.' };
+      if (pos === 'GK') {
+        return {
+          archetype,
+          psPlus: { slug: 'footwork', name: 'Footwork', desc: 'Saves shots with feet more frequently with boosted close-range reactions.' },
+          activePlaystyles: [
+            { slug: 'far_reach', name: 'Far Reach', desc: 'More effective at saving shots from outside the box with extended reach.' },
+            { slug: 'cross_claimer', name: 'Cross Claimer', desc: 'Comes off the line to intercept high crosses before attackers arrive.' }
+          ]
+        };
       }
 
-      const silverPool = [];
-      if (pos === 'GK') {
-        silverPool.push({ slug: 'far_reach', name: 'Far Reach', desc: 'More effective at saving shots from outside the box with extended reach.' });
-        silverPool.push({ slug: 'cross_claimer', name: 'Cross Claimer', desc: 'Comes off the line to intercept high crosses before attackers arrive.' });
-        silverPool.push({ slug: 'deflector', name: 'Deflector', desc: 'Pushes shots cleanly into safe areas away from onrushing forwards.' });
-        silverPool.push({ slug: 'rush_out', name: 'Rush Out', desc: 'Faster sprint speed when rushing out in 1v1 situations.' });
-      } else {
-        if (goalsPerGame >= 0.3) silverPool.push({ slug: 'power_shot', name: 'Power Shot', desc: 'Faster power shots with significant velocity increase.' });
-        if (assistsPerGame >= 0.25) silverPool.push({ slug: 'whipped_pass', name: 'Whipped Pass', desc: 'Accurate, faster driven crosses with more curve.' });
-        if (passPct >= 76) silverPool.push({ slug: 'pinged_pass', name: 'Pinged Pass', desc: 'Passes travel faster along the ground without impacting trapping.' });
-        if (tacklesPerGame >= 0.8) silverPool.push({ slug: 'bruiser', name: 'Bruiser', desc: 'Greater physical strength when performing physical tackles.' });
-        silverPool.push({ slug: 'first_touch', name: 'First Touch', desc: 'Reduced error when trapping the ball with faster transition to dribbling.' });
-        silverPool.push({ slug: 'relentless', name: 'Relentless', desc: 'Reduces fatigue loss during play and increases halftime stamina recovery.' });
-      }
+      // Score all candidate PlayStyles based on actual player telemetry + position + unique seed
+      const candidates = [
+        { slug: 'finesse_shot', name: 'Finesse Shot', desc: 'Faster finesse shots with maximum curve and exceptional accuracy.', score: (pos === 'FWD' ? 40 : 18) + (gpg * 45) + jitter(1) },
+        { slug: 'power_shot', name: 'Power Shot', desc: 'Faster power shots with significant velocity increase.', score: (gpg * 38) + (assists === 0 ? 15 : 0) + (height >= 182 ? 10 : 0) + jitter(2) },
+        { slug: 'chip_shot', name: 'Chip Shot', desc: 'Faster, more accurate chip shots over rushing goalkeepers.', score: (gpg * 32) + (rating >= 7.6 ? 14 : 0) + jitter(3) },
+        { slug: 'dead_ball', name: 'Dead Ball', desc: 'Set pieces are delivered with increased speed, curve, and accuracy.', score: (apg * 30) + (gpg * 20) + jitter(4) },
+        { slug: 'incisive_pass', name: 'Incisive Pass', desc: 'Through passes are far more accurate with maximum swerve and speed.', score: (pos === 'MID' ? 32 : 15) + (apg * 55) + (passPct * 0.3) + jitter(5) },
+        { slug: 'tiki_taka', name: 'Tiki Taka', desc: 'Executes difficult first-time ground passes with high accuracy.', score: (passPct >= 80 ? 42 : 10) + (passPct * 0.45) + jitter(6) },
+        { slug: 'pinged_pass', name: 'Pinged Pass', desc: 'Passes travel faster along the ground without impacting trapping.', score: (pos === 'MID' ? 28 : 12) + (passPct * 0.4) + (apg * 25) + jitter(7) },
+        { slug: 'whipped_pass', name: 'Whipped Pass', desc: 'Accurate, faster driven crosses with more curve.', score: ((rawPos.includes('W') || rawPos.includes('M') || rawPos.includes('B')) ? 28 : 5) + (apg * 38) + jitter(8) },
+        { slug: 'long_ball_pass', name: 'Long Ball Pass', desc: 'Lob and lofted through passes are more accurate and harder to intercept.', score: (pos === 'DEF' || pos === 'MID' ? 26 : 6) + (passPct * 0.35) + jitter(9) },
+        { slug: 'technical', name: 'Technical', desc: 'Higher speed Controlled Sprint and precise wide turns while dribbling.', score: (rating * 5.5) + (gpg * 20) + (apg * 20) + jitter(10) },
+        { slug: 'rapid', name: 'Rapid', desc: 'Reaches higher sprint speed while dribbling with reduced knock-on error.', score: (pos === 'FWD' ? 34 : 16) + (height <= 180 ? 15 : 4) + (gpg * 28) + jitter(11) },
+        { slug: 'quick_step', name: 'Quick Step', desc: 'Accelerates significantly faster during Explosive Sprint transitions.', score: (height <= 178 ? 32 : 14) + (gpg * 25) + (apg * 20) + jitter(12) },
+        { slug: 'first_touch', name: 'First Touch', desc: 'Reduced error when trapping the ball with faster transition to dribbling.', score: (passPct * 0.38) + (gpg * 22) + jitter(13) },
+        { slug: 'trickster', name: 'Trickster', desc: 'Grants ability to perform unique flicks and faster strafe dribbling.', score: (pos === 'FWD' ? 25 : 12) + (rating >= 7.5 ? 18 : 5) + jitter(14) },
+        { slug: 'press_proven', name: 'Press Proven', desc: 'Keeps close control while jogging and shields ball effectively from pressers.', score: (pos === 'MID' ? 30 : 15) + (passPct * 0.35) + (tpg * 10) + jitter(15) },
+        { slug: 'trivela', name: 'Trivela', desc: 'Contextually triggers outside-of-the-foot passes and shots with extra curve.', score: (apg * 32) + (gpg * 26) + jitter(16) },
+        { slug: 'anticipate', name: 'Anticipate', desc: 'Significantly increased chance of standing tackle success directly at feet.', score: (pos === 'DEF' ? 45 : 10) + (tpg * 24) + (tackleWinPct * 0.4) + jitter(17) },
+        { slug: 'intercept', name: 'Intercept', desc: 'Increased reach and ball retention when performing interceptions.', score: (pos === 'DEF' || pos === 'MID' ? 32 : 5) + (tpg * 26) + jitter(18) },
+        { slug: 'jockey', name: 'Jockey', desc: 'Increased max speed of Sprint Jockey and transition responsiveness.', score: (pos === 'DEF' ? 38 : 12) + (tackleWinPct * 0.45) + jitter(19) },
+        { slug: 'block', name: 'Block', desc: 'Increased reach when performing blocking animations and higher block success.', score: (pos === 'DEF' ? 40 : 6) + (tpg * 18) + jitter(20) },
+        { slug: 'slide_tackle', name: 'Slide Tackle', desc: 'Grants the ability to stop the ball directly at feet when performing a slide tackle.', score: (pos === 'DEF' ? 34 : 8) + (tpg * 20) + jitter(21) },
+        { slug: 'bruiser', name: 'Bruiser', desc: 'Greater physical strength when performing physical tackles.', score: (height >= 184 ? 28 : 8) + (tpg * 22) + jitter(22) },
+        { slug: 'aerial_fortress', name: 'Aerial Fortress', desc: 'Performs higher jumps with dominant physical aerial presence.', score: (height >= 187 ? 52 : 4) + (gpg * 15) + jitter(23) },
+        { slug: 'relentless', name: 'Relentless', desc: 'Reduces fatigue loss during play and increases halftime stamina recovery.', score: (games >= 25 ? 28 : 14) + (tpg * 14) + (apg * 14) + jitter(24) }
+      ];
+
+      candidates.sort((a, b) => b.score - a.score);
 
       return {
         archetype,
-        psPlus,
-        activePlaystyles: silverPool.slice(0, 2)
+        psPlus: candidates[0],
+        activePlaystyles: [candidates[1], candidates[2]]
       };
     }
 
@@ -1205,7 +1230,7 @@
       }
 
       section.classList.remove('hidden');
-      document.getElementById('seasonsSummaryMeta').innerText = `${seasonsHistory.length} FC 27 Seasons • ${trophies.promotions || 0} Total Promotions • ${trophies.relegations || 0} Total Relegations`;
+      document.getElementById('seasonsSummaryMeta').innerText = `${seasonsHistory.length} Official FC 27 Seasons • ${trophies.promotions || 0} Total Promotions • ${trophies.relegations || 0} Total Relegations`;
 
       seasonsHistory.forEach(s => {
         const totalGames = Math.max(1, s.wins + s.draws + s.losses);
@@ -1270,6 +1295,7 @@
         renderClub(clubId, combined, platform, membersList, GLOBAL_MATCHES);
         renderSeasonsHistory(combined.seasonsHistory, combined.trophies);
         buildDynamicPitchTactic(membersList, GLOBAL_MATCHES);
+        initRadarComparison(membersList);
         renderRecentMatches(clubId, GLOBAL_MATCHES);
         setStatus('');
       } catch (e) {
@@ -1391,6 +1417,8 @@
         m._normalizedPos = normPos;
         m._rawPos = rawPos;
 
+        const funTag = getPlayerFunTag(m);
+
         const badgeColor = normPos === 'FWD' ? 'text-rose-400 bg-rose-500/10' :
                            normPos === 'MID' ? 'text-amber-400 bg-amber-500/10' :
                            normPos === 'DEF' ? 'text-blue-400 bg-blue-500/10' : 'text-purple-400 bg-purple-500/10';
@@ -1400,10 +1428,11 @@
         tr.onclick = () => openFutModal(name);
         tr.innerHTML = `
           <td class="py-3 px-2 font-medium text-white">
-            <div class="flex items-center gap-2.5">
+            <div class="flex flex-wrap items-center gap-2">
               <img src="${getPlayerAvatarUrl(name)}" class="w-8 h-8 rounded-full border border-emerald-500/40 bg-gray-900 flex-shrink-0" alt="${name}">
               <img src="${getFlagUrl(nationId)}" class="w-4 h-3 object-cover rounded-[2px] shadow-sm flex-shrink-0" alt="Flag">
-              <span class="hover:text-yellow-400 transition font-semibold">${name}</span>
+              <span class="hover:text-yellow-400 transition font-bold">${name}</span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${funTag.cls}">${funTag.label}</span>
             </div>
           </td>
           <td class="py-3 px-2 text-center">
@@ -1423,6 +1452,166 @@
       });
 
       return list;
+    }
+
+    // Helper: Computes 6 Build Attributes + 6 Normalized Stat Metrics for any Player
+    function getPlayerRadarMetrics(p) {
+      const ovr = Number(p.proOverall || 85);
+      const games = Math.max(1, Number(p.gamesPlayed || 1));
+      const goals = Number(p.goals || 0);
+      const assists = Number(p.assists || 0);
+      const tackles = Number(p.tacklesmade || p.tackles || 0);
+      const passPct = Number(p.passSuccessRate || 78);
+      const rating = parseFloat(p.ratingAve || 7.2);
+      const motm = Number(p.manOfTheMatch || 0);
+
+      const pac = Math.min(99, Math.max(60, Math.round(ovr + 3)));
+      const sho = Math.min(99, Math.max(55, Math.round(ovr - 4 + (goals / games) * 14)));
+      const pas = Math.min(99, Math.max(58, Math.round(passPct + 6)));
+      const dri = Math.min(99, Math.max(62, Math.round(ovr + (rating - 7.0) * 5)));
+      const def = Math.min(99, Math.max(28, Math.round((p._normalizedPos === 'DEF' ? 82 : 42) + (tackles / games) * 15)));
+      const phy = Math.min(99, Math.max(58, Math.round(ovr - 3 + (tackles / games) * 6)));
+
+      const gpg = goals / games;
+      const apg = assists / games;
+      const tpg = tackles / games;
+      const motmPct = Math.round((motm / games) * 100);
+
+      return {
+        attributes: [
+          { label: 'PAC', val: pac, raw: pac },
+          { label: 'SHO', val: sho, raw: sho },
+          { label: 'PAS', val: pas, raw: pas },
+          { label: 'DRI', val: dri, raw: dri },
+          { label: 'DEF', val: def, raw: def },
+          { label: 'PHY', val: phy, raw: phy }
+        ],
+        stats: [
+          { label: 'G/G', val: Math.min(100, Math.round(gpg * 95)), raw: gpg.toFixed(2) },
+          { label: 'A/G', val: Math.min(100, Math.round(apg * 110)), raw: apg.toFixed(2) },
+          { label: 'RAT', val: Math.min(100, Math.round((rating / 10) * 100)), raw: rating.toFixed(1) },
+          { label: 'PAS%', val: Math.min(100, Math.round(passPct)), raw: `${passPct}%` },
+          { label: 'TKL/G', val: Math.min(100, Math.round(tpg * 38)), raw: tpg.toFixed(1) },
+          { label: 'MoTM%', val: Math.min(100, Math.round(motmPct * 2.2)), raw: `${motmPct}%` }
+        ]
+      };
+    }
+
+    // Draws a 6-Axis SVG Spider / Radar Chart comparing two players
+    function buildRadarSvg(axesP1, axesP2) {
+      const size = 280;
+      const cx = size / 2;
+      const cy = size / 2;
+      const maxR = 96;
+      const levels = [0.25, 0.5, 0.75, 1.0];
+
+      const getPoint = (idx, normVal) => {
+        const angle = (Math.PI * 2 * idx) / 6 - Math.PI / 2;
+        const r = (Math.max(8, Math.min(100, normVal)) / 100) * maxR;
+        return `${(cx + r * Math.cos(angle)).toFixed(1)},${(cy + r * Math.sin(angle)).toFixed(1)}`;
+      };
+
+      const gridPolygons = levels.map(lvl => {
+        const pts = [0, 1, 2, 3, 4, 5].map(i => getPoint(i, lvl * 100)).join(' ');
+        return `<polygon points="${pts}" fill="none" stroke="#334155" stroke-width="1" stroke-dasharray="${lvl < 1 ? '3 3' : ''}"/>`;
+      }).join('');
+
+      const axisLines = [0, 1, 2, 3, 4, 5].map(i => {
+        const endPt = getPoint(i, 100).split(',');
+        const labelPt = getPoint(i, 122).split(',');
+        return `
+          <line x1="${cx}" y1="${cy}" x2="${endPt[0]}" y2="${endPt[1]}" stroke="#334155" stroke-width="1"/>
+          <text x="${labelPt[0]}" y="${Number(labelPt[1]) + 4}" text-anchor="middle" fill="#cbd5e1" font-size="11" font-weight="800">${axesP1[i].label}</text>
+        `;
+      }).join('');
+
+      const poly1Pts = axesP1.map((a, i) => getPoint(i, a.val)).join(' ');
+      const poly2Pts = axesP2.map((a, i) => getPoint(i, a.val)).join(' ');
+
+      const dots1 = axesP1.map((a, i) => {
+        const [x, y] = getPoint(i, a.val).split(',');
+        return `<circle cx="${x}" cy="${y}" r="3.5" fill="#10b981" stroke="#0b0f19" stroke-width="1.5"/>`;
+      }).join('');
+
+      const dots2 = axesP2.map((a, i) => {
+        const [x, y] = getPoint(i, a.val).split(',');
+        return `<circle cx="${x}" cy="${y}" r="3.5" fill="#38bdf8" stroke="#0b0f19" stroke-width="1.5"/>`;
+      }).join('');
+
+      return `
+        <svg viewBox="0 0 ${size} ${size}" class="w-full h-full overflow-visible">
+          ${gridPolygons}
+          ${axisLines}
+          <polygon points="${poly2Pts}" fill="rgba(56, 189, 248, 0.22)" stroke="#38bdf8" stroke-width="2.5" stroke-linejoin="round"/>
+          <polygon points="${poly1Pts}" fill="rgba(16, 185, 129, 0.28)" stroke="#10b981" stroke-width="2.5" stroke-linejoin="round"/>
+          ${dots2}
+          ${dots1}
+        </svg>
+      `;
+    }
+
+    function initRadarComparison(members = []) {
+      const section = document.getElementById('radarSection');
+      const sel1 = document.getElementById('radarSelectP1');
+      const sel2 = document.getElementById('radarSelectP2');
+
+      if (!members || members.length < 1) {
+        section.classList.add('hidden');
+        return;
+      }
+
+      section.classList.remove('hidden');
+      const sorted = [...members].sort((a, b) => Number(b.gamesPlayed || 0) - Number(a.gamesPlayed || 0));
+
+      const optionsHtml = sorted.map(m => {
+        const name = m.name || m.proName || 'Pro';
+        return `<option value="${name}" class="bg-gray-900 text-white">${name} (${m.proOverall || 85} OVR)</option>`;
+      }).join('');
+
+      sel1.innerHTML = optionsHtml;
+      sel2.innerHTML = optionsHtml;
+
+      if (sorted.length >= 2) {
+        sel2.selectedIndex = 1;
+      }
+      updateRadarCharts();
+    }
+
+    function updateRadarCharts() {
+      const name1 = document.getElementById('radarSelectP1').value;
+      const name2 = document.getElementById('radarSelectP2').value;
+
+      const p1 = GLOBAL_MEMBERS.find(m => (m.name || m.proName) === name1) || GLOBAL_MEMBERS[0];
+      const p2 = GLOBAL_MEMBERS.find(m => (m.name || m.proName) === name2) || GLOBAL_MEMBERS[0];
+      if (!p1 || !p2) return;
+
+      const m1 = getPlayerRadarMetrics(p1);
+      const m2 = getPlayerRadarMetrics(p2);
+
+      document.getElementById('radarChartAttributes').innerHTML = buildRadarSvg(m1.attributes, m2.attributes);
+      document.getElementById('radarChartStats').innerHTML = buildRadarSvg(m1.stats, m2.stats);
+
+      document.getElementById('radarLegendAttr').innerHTML = m1.attributes.map((a, i) => `
+        <div class="flex flex-col items-center">
+          <span class="text-[10px] text-gray-400 font-bold">${a.label}</span>
+          <div>
+            <span class="text-emerald-400 font-bold">${a.raw}</span>
+            <span class="text-gray-600">/</span>
+            <span class="text-sky-400 font-bold">${m2.attributes[i].raw}</span>
+          </div>
+        </div>
+      `).join('');
+
+      document.getElementById('radarLegendStats').innerHTML = m1.stats.map((s, i) => `
+        <div class="flex flex-col items-center">
+          <span class="text-[10px] text-gray-400 font-bold">${s.label}</span>
+          <div>
+            <span class="text-emerald-400 font-bold">${s.raw}</span>
+            <span class="text-gray-600">/</span>
+            <span class="text-sky-400 font-bold">${m2.stats[i].raw}</span>
+          </div>
+        </div>
+      `).join('');
     }
 
     function openFutModal(playerName) {
@@ -1452,7 +1641,6 @@
 
       const buildInfo = computeArchetypeAndPlaystyles(p);
 
-      // Clean Archetype Name Only (No "ARCHETYPE" suffix)
       document.getElementById('futArchetypeBadge').innerHTML = `<i class="fa-solid fa-crown text-[8px]"></i> ${buildInfo.archetype}`;
 
       const leftStack = document.getElementById('futLeftPlaystylesStack');
@@ -1487,6 +1675,7 @@
       modal.classList.remove('flex');
     }
 
+    // Recent 10 Matches with Structured Box-Score Table Inside Dropdown
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
       const formContainer = document.getElementById('formBadges');
@@ -1596,6 +1785,8 @@
             passPct = Math.round((made / attempts) * 100);
           }
           p._computedPassPct = passPct;
+          p._passesMade = made;
+          p._passAttempts = attempts;
 
           const influenceScore = (r * 12) + (g * 5) + (a * 4) + (t * 2) + (passPct * 0.05);
           p._influenceScore = influenceScore;
@@ -1607,46 +1798,76 @@
           }
         });
 
-        let boxScoreRows = '';
+        let boxScoreTableHtml = '';
         let crownGiven = false;
 
         if (playerStats.length > 0) {
           playerStats.sort((a, b) => (b._influenceScore || 0) - (a._influenceScore || 0));
 
-          boxScoreRows = playerStats.map(p => {
+          const rowsHtml = playerStats.map(p => {
             const pName = p.playername || p.name || 'Pro';
             const rating = parseFloat(p.rating || 0).toFixed(1);
-            const goals = p.goals || 0;
-            const assists = p.assists || 0;
-            const tackles = p.tacklesmade || p.tackles || 0;
+            const goals = Number(p.goals || 0);
+            const assists = Number(p.assists || 0);
+            const shots = Number(p.shots || 0);
+            const tackles = Number(p.tacklesmade || p.tackles || 0);
             const passPct = p._computedPassPct ?? 0;
+            const passDetail = p._passAttempts > 0 ? `${p._passesMade}/${p._passAttempts} (${passPct}%)` : `${passPct}%`;
+
+            const memberObj = GLOBAL_MEMBERS.find(gm => (gm.name || gm.proName) === pName);
+            const posLabel = memberObj?._normalizedPos || normalizePosition(p.pos || 'MID');
 
             const uid = p.playername || p.name || p.proName;
-            let crownBadge = '';
+            let crownBadge = '<span class="text-gray-600 font-mono text-[11px]">--</span>';
             if (!crownGiven && uid === bestMvpKey && highestInfluenceScore > 0) {
-              crownBadge = `<span class="inline-flex items-center gap-1 ml-1.5 px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-[10px] font-black" title="Match MVP (Highest Pitch Influence)"><i class="fa-solid fa-crown text-[9px]"></i> MVP</span>`;
+              crownBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-[10px] font-black"><i class="fa-solid fa-crown text-[9px]"></i> MVP</span>`;
               crownGiven = true;
             }
 
             return `
-              <div class="flex flex-col sm:flex-row justify-between sm:items-center py-2 px-1 text-xs border-b border-gray-800/50 hover:bg-gray-900/40 transition">
-                <div class="font-medium text-white flex items-center gap-2 mb-1 sm:mb-0">
-                  <img src="${getPlayerAvatarUrl(pName)}" class="w-6 h-6 rounded-full border border-gray-700 bg-gray-900">
-                  <span>${pName}</span>
-                  ${crownBadge}
-                </div>
-                <div class="flex items-center gap-4 text-gray-400">
-                  <span>Rating: <b class="text-yellow-400 font-bold">${rating}</b></span>
-                  <span>G: <b class="text-emerald-400 font-bold">${goals}</b></span>
-                  <span>A: <b class="text-white font-bold">${assists}</b></span>
-                  <span>Tackles: <b class="text-sky-400 font-bold">${tackles}</b></span>
-                  <span>Pass: <b class="text-cyan-300 font-bold">${passPct}%</b></span>
-                </div>
-              </div>
+              <tr class="border-b border-gray-800/60 hover:bg-gray-900/60 transition">
+                <td class="py-2.5 px-3 font-semibold text-white">
+                  <div class="flex items-center gap-2">
+                    <img src="${getPlayerAvatarUrl(pName)}" class="w-6 h-6 rounded-full border border-gray-700 bg-gray-900">
+                    <span>${pName}</span>
+                  </div>
+                </td>
+                <td class="py-2.5 px-2 text-center text-[11px] font-bold text-gray-400">${posLabel}</td>
+                <td class="py-2.5 px-2 text-center font-black text-yellow-400">${rating}</td>
+                <td class="py-2.5 px-2 text-center font-bold ${goals > 0 ? 'text-emerald-400' : 'text-gray-400'}">${goals}</td>
+                <td class="py-2.5 px-2 text-center font-bold ${assists > 0 ? 'text-sky-300' : 'text-gray-400'}">${assists}</td>
+                <td class="py-2.5 px-2 text-center text-gray-300">${shots}</td>
+                <td class="py-2.5 px-2 text-center text-cyan-300 font-mono">${passDetail}</td>
+                <td class="py-2.5 px-2 text-center text-sky-400 font-semibold">${tackles}</td>
+                <td class="py-2.5 px-3 text-right">${crownBadge}</td>
+              </tr>
             `;
           }).join('');
+
+          boxScoreTableHtml = `
+            <div class="overflow-x-auto rounded-lg border border-gray-800 bg-gray-950/80">
+              <table class="w-full text-left text-xs">
+                <thead class="bg-gray-900/90 text-gray-400 uppercase text-[10px] border-b border-gray-800">
+                  <tr>
+                    <th class="py-2 px-3">Player</th>
+                    <th class="py-2 px-2 text-center">Pos</th>
+                    <th class="py-2 px-2 text-center">Rating</th>
+                    <th class="py-2 px-2 text-center">Goals</th>
+                    <th class="py-2 px-2 text-center">Assists</th>
+                    <th class="py-2 px-2 text-center">Shots</th>
+                    <th class="py-2 px-2 text-center">Passes</th>
+                    <th class="py-2 px-2 text-center">Tackles</th>
+                    <th class="py-2 px-3 text-right">Award</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rowsHtml}
+                </tbody>
+              </table>
+            </div>
+          `;
         } else {
-          boxScoreRows = '<div class="text-xs text-gray-500 italic py-1">Detailed player telemetry unavailable for this session.</div>';
+          boxScoreTableHtml = '<div class="text-xs text-gray-500 italic py-2">Detailed player telemetry unavailable for this session.</div>';
         }
 
         const tr = document.createElement('tr');
@@ -1680,15 +1901,13 @@
         detailTr.className = 'hidden bg-gray-900/60 border-b border-gray-800';
         detailTr.innerHTML = `
           <td colspan="8" class="p-4">
-            <div class="text-xs uppercase font-bold text-gray-400 tracking-wider mb-2 flex items-center justify-between">
+            <div class="text-xs uppercase font-bold text-gray-400 tracking-wider mb-2.5 flex items-center justify-between">
               <span class="flex items-center gap-2">
-                <i class="fa-solid fa-chart-simple text-emerald-400"></i> Match Influence & Box Score
+                <i class="fa-solid fa-table-list text-emerald-400"></i> Match Box Score Breakdown
               </span>
-              <span class="text-[11px] text-gray-500 font-normal normal-case">Single MVP awarded for all-round pitch impact</span>
+              <span class="text-[11px] text-gray-500 font-normal normal-case">Sorted by overall pitch influence</span>
             </div>
-            <div class="space-y-1 bg-gray-950/70 p-3 rounded-lg border border-gray-800/80">
-              ${boxScoreRows}
-            </div>
+            ${boxScoreTableHtml}
           </td>
         `;
 
@@ -1699,7 +1918,6 @@
       formContainer.innerHTML = formBadgesList.join('');
     }
 
-    // 2-Mode Switcher: 'lastMatch' vs 'suggestedXI'
     function switchPitchMode(mode) {
       CURRENT_PITCH_MODE = mode;
       const btnLast = document.getElementById('btnModeLastMatch');
@@ -1716,7 +1934,6 @@
       buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
     }
 
-    // Tactical Pitch Builder: Mode 1 = Last Match XI, Mode 2 = Suggested Best XI (Based on Builds & Attributes, No MVP Crown)
     function buildDynamicPitchTactic(members = [], matches = []) {
       const rowAtk = document.getElementById('rowAttack');
       const rowCam = document.getElementById('rowCAM');
@@ -1780,7 +1997,6 @@
 
       document.getElementById('formationBadge').innerText = formationTemplate.name;
 
-      // Score each player by Build/Attributes (for Suggested Best XI) and by Last Match participation
       const scoredMembers = members.map(m => {
         const name = m.name || m.proName || 'Player';
         const ovr = Number(m.proOverall || 85);
@@ -1791,7 +2007,6 @@
         const tpg = Number(m.tacklesmade || m.tackles || 0) / games;
         const passPct = Number(m.passSuccessRate || 75);
 
-        // Compute 6-attribute build ratings
         const pac = Math.min(99, Math.max(60, Math.round(ovr + 3)));
         const sho = Math.min(99, Math.max(55, Math.round(ovr - 4 + gpg * 14)));
         const pas = Math.min(99, Math.max(58, Math.round(passPct + 6)));
@@ -1800,8 +2015,6 @@
         const phy = Math.min(99, Math.max(58, Math.round(ovr - 3 + tpg * 6)));
 
         const buildInfo = computeArchetypeAndPlaystyles(m);
-
-        // Build & Attribute Suitability Score
         const buildScore = (ovr * 3) + pac + sho + pas + dri + def + phy + (careerRating * 10);
 
         const lastMatchEntry = Object.values(latestPlayersMap).find(lp => (lp.playername || lp.name) === name);
