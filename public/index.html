@@ -5,12 +5,77 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>FC Pro Clubs Live Tracker</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;700;800&family=Inter:wght@400;600;800;900&display=swap" rel="stylesheet">
   <style>
-    body { background-color: #0b0f19; color: #cbd5e1; font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
-    .card { background-color: #111827; border: 1px solid #1f2937; border-radius: 12px; }
-    
+    body {
+      background-color: #0b0f19;
+      color: #cbd5e1;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      transition: background-color 0.25s ease, color 0.25s ease;
+    }
+    .card {
+      background-color: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 12px;
+      transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    /* Light Mode Theme Overrides */
+    body.light-mode {
+      background-color: #f1f5f9;
+      color: #1e293b;
+    }
+    body.light-mode .card {
+      background-color: #ffffff;
+      border-color: #cbd5e1;
+      box-shadow: 0 4px 15px rgba(15, 23, 42, 0.05);
+    }
+    body.light-mode .text-white {
+      color: #0f172a !important;
+    }
+    body.light-mode .text-gray-300,
+    body.light-mode .text-gray-200 {
+      color: #334155 !important;
+    }
+    body.light-mode .text-gray-400,
+    body.light-mode .text-gray-500 {
+      color: #64748b !important;
+    }
+    body.light-mode .bg-gray-900,
+    body.light-mode .bg-gray-900\/60,
+    body.light-mode .bg-gray-900\/70,
+    body.light-mode .bg-gray-900\/90,
+    body.light-mode .bg-gray-950\/80,
+    body.light-mode .bg-gray-800 {
+      background-color: #f8fafc !important;
+      border-color: #cbd5e1 !important;
+      color: #0f172a !important;
+    }
+    body.light-mode .border-gray-800,
+    body.light-mode .border-gray-800\/60,
+    body.light-mode .border-gray-800\/80,
+    body.light-mode .border-gray-800\/90,
+    body.light-mode .border-gray-700 {
+      border-color: #e2e8f0 !important;
+    }
+    body.light-mode .hover\:bg-gray-800\/40:hover,
+    body.light-mode .hover\:bg-gray-800\/50:hover,
+    body.light-mode .hover\:bg-gray-900\/60:hover {
+      background-color: #e2e8f0 !important;
+    }
+    /* Keep text inside dark pitch pills & dark modals readable in Light Mode */
+    body.light-mode .pitch-bg .text-white,
+    body.light-mode .pitch-bg .text-gray-200,
+    body.light-mode #futModal .text-white {
+      color: #ffffff !important;
+    }
+    body.light-mode #futModal .bg-gray-900\/95 {
+      background-color: #0f172a !important;
+      color: #ffffff !important;
+    }
+
     .pitch-bg {
       background: #143823;
       background-image: repeating-linear-gradient(0deg, #164027, #164027 45px, #133621 45px, #133621 90px);
@@ -63,7 +128,7 @@
       pointer-events: none;
     }
 
-    /* Authentic FC27 Ultimate Team Shield Card (Gold / Silver / Bronze) */
+    /* Authentic FC27 Ultimate Team Shield Card */
     .fc27-card-wrapper {
       width: 345px;
       height: 495px;
@@ -75,7 +140,7 @@
       font-family: 'Oswald', sans-serif;
     }
 
-    /* Instant Official EA PlayStyle & PlayStyle+ Badge Containers */
+    /* Official EA PlayStyle & PlayStyle+ Badge Containers */
     .ps-plus-badge {
       width: 48px;
       height: 44px;
@@ -107,7 +172,7 @@
 <body class="p-4 md:p-8">
   <div class="max-w-6xl mx-auto space-y-6">
 
-    <!-- Header & Search Controls -->
+    <!-- Header, Search Controls & Dark/Light Mode Toggle -->
     <header class="flex flex-col md:flex-row items-center justify-between gap-4 border-b border-gray-800 pb-6">
       <div class="flex items-center gap-3">
         <i class="fa-solid fa-shield-halved text-emerald-400 text-3xl"></i>
@@ -122,11 +187,17 @@
         </select>
 
         <input id="searchInput" type="text" placeholder="Enter Club Name or Numeric ID..." value="" 
-               class="bg-gray-800 border border-gray-700 px-4 py-2 rounded text-sm text-white focus:outline-none focus:border-emerald-500 flex-1 md:w-72"
+               class="bg-gray-800 border border-gray-700 px-4 py-2 rounded text-sm text-white focus:outline-none focus:border-emerald-500 flex-1 md:w-64"
                onkeydown="if(event.key === 'Enter') handleSearch()">
 
         <button onclick="handleSearch()" class="bg-emerald-500 hover:bg-emerald-600 text-black font-bold px-5 py-2 rounded text-sm transition">
           Search
+        </button>
+
+        <!-- Dark / Light Mode Toggle Button -->
+        <button id="themeToggleBtn" onclick="toggleThemeMode()" class="bg-gray-800 hover:bg-gray-700 border border-gray-700 text-yellow-400 px-3 py-2 rounded text-sm transition flex items-center gap-1.5" title="Switch Dark / Light Mode">
+          <i id="themeToggleIcon" class="fa-solid fa-sun"></i>
+          <span id="themeToggleText" class="text-xs font-bold text-gray-200 hidden sm:inline">Light</span>
         </button>
       </div>
     </header>
@@ -220,6 +291,57 @@
       </div>
     </section>
 
+    <!-- NEW FEATURE 1: Latest Session Recap Banner + Tilt Meter + WhatsApp/Discord Export -->
+    <section id="sessionRecapSection" class="hidden card p-5 border-l-4 border-l-amber-400 space-y-4">
+      <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-gray-800 pb-3">
+        <div class="flex items-center gap-2.5">
+          <span class="px-2.5 py-1 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 text-xs font-black uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-bolt"></i> Latest Session Report
+          </span>
+          <span id="sessionTimeWindow" class="text-xs text-gray-400 font-medium">--</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <span id="sessionTiltBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-black">--</span>
+          <button onclick="shareElementAsPng('sessionRecapSection', 'Session-Recap')" class="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 px-3 py-1 rounded text-xs font-bold transition flex items-center gap-1.5">
+            <i class="fa-solid fa-camera"></i> Share Session
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3">
+          <div class="text-[10px] uppercase font-bold text-gray-400">Session Record</div>
+          <div id="sessionRecordText" class="text-lg font-black text-white mt-0.5">--</div>
+          <div id="sessionGoalDiffText" class="text-xs text-gray-400 mt-0.5">--</div>
+        </div>
+        <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center justify-between">
+          <div>
+            <div class="text-[10px] uppercase font-bold text-emerald-400">👑 Session MVP</div>
+            <div id="sessionMvpName" class="text-sm font-black text-white mt-0.5">--</div>
+            <div id="sessionMvpStats" class="text-[11px] text-gray-400">--</div>
+          </div>
+          <img id="sessionMvpAvatar" src="" class="w-10 h-10 rounded-full border border-emerald-400 bg-gray-900" alt="MVP">
+        </div>
+        <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center justify-between">
+          <div>
+            <div class="text-[10px] uppercase font-bold text-rose-400">⚓ Session Passenger</div>
+            <div id="sessionLiabilityName" class="text-sm font-black text-white mt-0.5">--</div>
+            <div id="sessionLiabilityStats" class="text-[11px] text-gray-400">--</div>
+          </div>
+          <img id="sessionLiabilityAvatar" src="" class="w-10 h-10 rounded-full border border-rose-400 bg-gray-900" alt="Passenger">
+        </div>
+        <!-- NEW FEATURE 5: The Squad Factor (Lobby Size Win Rate) -->
+        <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3">
+          <div class="text-[10px] uppercase font-bold text-sky-400 flex items-center gap-1">
+            <i class="fa-solid fa-users-viewfinder"></i> The Squad Factor
+          </div>
+          <div id="squadFactorSmall" class="text-xs font-bold text-white mt-1">2–3 Pros: --% Win</div>
+          <div id="squadFactorLarge" class="text-xs font-bold text-white mt-0.5">4+ Pros: --% Win</div>
+          <div id="squadFactorVerdict" class="text-[10px] text-gray-400 mt-0.5 italic">--</div>
+        </div>
+      </div>
+    </section>
+
     <!-- Club Intelligence: Dynamic Duo & Nemesis Cards -->
     <section id="intelSection" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
       <div class="card p-4 flex items-center justify-between border-l-4 border-l-emerald-500">
@@ -245,7 +367,20 @@
       </div>
     </section>
 
-    <!-- FC27 Club Seasons History Table (Automatically Synced with Official Live Service Calendar) -->
+    <!-- NEW FEATURE 2: Dressing Room Banter & Shame Board (4-Card Strip) -->
+    <section id="shameBoardSection" class="hidden card p-6 space-y-4">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-masks-theater text-rose-400"></i> Dressing Room Banter & Shame Board (Last 10 Games)
+        </h3>
+        <span class="text-xs text-gray-400">Calculated from missed passes, unconverted shots, bookings & cardio minutes</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="shameBoardGrid">
+      </div>
+    </section>
+
+    <!-- FC27 Club Seasons History Table -->
     <section id="seasonsSection" class="hidden card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
@@ -359,7 +494,7 @@
       </div>
     </section>
 
-    <!-- Dual Spider / Radar Graph Comparison Section (Attributes vs Performance Stats) -->
+    <!-- Dual Spider / Radar Graph Comparison Section -->
     <section id="radarSection" class="hidden card p-6 space-y-5">
       <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-gray-800 pb-4">
         <div>
@@ -369,7 +504,6 @@
           <p class="text-xs text-gray-400 mt-0.5">Compare any two squad members across Build Attributes and Match Output</p>
         </div>
 
-        <!-- Player Selectors -->
         <div class="flex flex-wrap items-center gap-3">
           <div class="flex items-center gap-2 bg-gray-900 px-3 py-1.5 rounded-lg border border-emerald-500/40">
             <span class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
@@ -383,9 +517,7 @@
         </div>
       </div>
 
-      <!-- 2 Side-by-Side Spider Graphs -->
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Spider Graph 1: Build Attributes -->
         <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-4 flex flex-col items-center">
           <div class="text-xs font-black uppercase tracking-wider text-gray-300 mb-2 flex items-center gap-2">
             <i class="fa-solid fa-bolt text-yellow-400"></i> 1. Build Attributes (PAC / SHO / PAS / DRI / DEF / PHY)
@@ -394,7 +526,6 @@
           <div id="radarLegendAttr" class="w-full grid grid-cols-6 gap-1 text-center text-[11px] font-mono pt-2 border-t border-gray-800/80 mt-2"></div>
         </div>
 
-        <!-- Spider Graph 2: Match Output & Efficiency -->
         <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-4 flex flex-col items-center">
           <div class="text-xs font-black uppercase tracking-wider text-gray-300 mb-2 flex items-center gap-2">
             <i class="fa-solid fa-chart-line text-emerald-400"></i> 2. Match Output (Goals/G • Assists/G • Rating • Pass% • Tackles/G • MoTM%)
@@ -405,6 +536,19 @@
       </div>
     </section>
 
+    <!-- NEW FEATURE 3: Career Milestone Progress Tracker ("Road to Club Milestones") -->
+    <section id="milestonesSection" class="hidden card p-6 space-y-4">
+      <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+        <h3 class="text-lg font-bold text-white flex items-center gap-2">
+          <i class="fa-solid fa-flag-checkered text-emerald-400"></i> Road to Club Milestones
+        </h3>
+        <span class="text-xs text-gray-400">Squad members closest to hitting their next major club landmark</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="milestonesGrid">
+      </div>
+    </section>
+
     <!-- Full Squad Performance Table with Fun Performance Name Tags -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
@@ -412,7 +556,7 @@
           <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
         </h3>
         <span class="text-xs text-gray-400">
-          Includes dynamic performance name tags • Click any row to open their <b class="text-yellow-400">FC27 Ultimate Team Card</b>
+          Includes dynamic performance name tags • Click any row to open & share their <b class="text-yellow-400">FC27 Ultimate Team Card</b>
         </span>
       </div>
 
@@ -442,12 +586,12 @@
 
   </div>
 
-  <!-- Authentic FC27 Ultimate Team Card Modal -->
+  <!-- Authentic FC27 Ultimate Team Card Modal + 1-Click Share/Download PNG -->
   <div id="futModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center z-50 p-4" onclick="closeFutModal(event)">
     <div class="flex flex-col items-center gap-3" onclick="event.stopPropagation()">
       
-      <div class="fc27-card-wrapper">
-        <button onclick="closeFutModal()" class="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gray-900 border border-yellow-500/60 text-yellow-400 hover:bg-yellow-500 hover:text-black transition flex items-center justify-center z-40 shadow-lg">
+      <div id="futCardExportTarget" class="fc27-card-wrapper">
+        <button onclick="closeFutModal()" data-html2canvas-ignore="true" class="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gray-900 border border-yellow-500/60 text-yellow-400 hover:bg-yellow-500 hover:text-black transition flex items-center justify-center z-40 shadow-lg">
           <i class="fa-solid fa-xmark"></i>
         </button>
 
@@ -515,7 +659,7 @@
 
         <!-- Center Player Headshot / Avatar -->
         <div class="absolute top-[36px] right-[24px] w-[205px] h-[232px] z-10 flex items-end justify-center overflow-hidden pointer-events-none">
-          <img id="futAvatar" src="" class="w-[195px] h-[195px] object-contain drop-shadow-[0_12px_12px_rgba(0,0,0,0.45)] transform translate-y-2" alt="Pro">
+          <img id="futAvatar" src="" crossorigin="anonymous" class="w-[195px] h-[195px] object-contain drop-shadow-[0_12px_12px_rgba(0,0,0,0.45)] transform translate-y-2" alt="Pro">
         </div>
 
         <!-- Lower Section: Archetype, Name, 6-Column Stats & Bottom Crest Trio -->
@@ -556,23 +700,26 @@
           </div>
 
           <div class="flex items-center justify-center gap-5 pb-1 pt-0.5">
-            <img id="futFlag" src="" class="w-7 h-4.5 object-cover rounded-[2px] shadow-sm border border-current/30" alt="Nation">
+            <img id="futFlag" src="" crossorigin="anonymous" class="w-7 h-4.5 object-cover rounded-[2px] shadow-sm border border-current/30" alt="Nation">
             <div class="flex flex-col items-center opacity-90" title="EA Sports FC Pro Clubs">
               <i class="fa-solid fa-shield-halved text-lg leading-none"></i>
               <span class="text-[6px] font-black tracking-widest uppercase mt-0.5">CLUBS</span>
             </div>
-            <img id="futClubCrest" src="" class="w-7 h-7 object-contain drop-shadow-sm" alt="Club Crest">
+            <img id="futClubCrest" src="" crossorigin="anonymous" class="w-7 h-7 object-contain drop-shadow-sm" alt="Club Crest">
           </div>
 
         </div>
       </div>
 
-      <!-- Pro Appearance Customizer Bar (Skin Tone & Hair Colour) -->
+      <!-- Pro Appearance Customizer Bar + Share Card to WhatsApp/Discord Button -->
       <div class="bg-gray-900/95 border border-gray-700 rounded-xl px-4 py-3 w-[345px] shadow-2xl space-y-2.5">
         <div class="flex items-center justify-between border-b border-gray-800 pb-1.5">
           <span class="text-[11px] font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-            <i class="fa-solid fa-palette"></i> Customize Pro Skin & Hair
+            <i class="fa-solid fa-palette"></i> Customize Skin & Hair
           </span>
+          <button onclick="shareElementAsPng('futCardExportTarget', ACTIVE_MODAL_PLAYER || 'FUT-Card')" class="bg-yellow-500 hover:bg-yellow-400 text-black font-black px-2.5 py-1 rounded text-[11px] transition flex items-center gap-1 shadow">
+            <i class="fa-solid fa-share-nodes"></i> Share Card PNG
+          </button>
         </div>
 
         <div class="flex items-center justify-between">
@@ -613,12 +760,76 @@
     let ACTIVE_MODAL_PLAYER = null;
     let CURRENT_PITCH_MODE = 'lastMatch';
 
+    // Dark / Light Mode Theme Controller
+    function applyStoredTheme() {
+      const saved = localStorage.getItem('proClubsTheme') || 'dark';
+      const isLight = saved === 'light';
+      document.body.classList.toggle('light-mode', isLight);
+      const icon = document.getElementById('themeToggleIcon');
+      const text = document.getElementById('themeToggleText');
+      if (icon && text) {
+        icon.className = isLight ? 'fa-solid fa-moon text-indigo-500' : 'fa-solid fa-sun text-yellow-400';
+        text.innerText = isLight ? 'Dark' : 'Light';
+      }
+    }
+
+    function toggleThemeMode() {
+      const currentlyLight = document.body.classList.contains('light-mode');
+      const next = currentlyLight ? 'dark' : 'light';
+      localStorage.setItem('proClubsTheme', next);
+      applyStoredTheme();
+    }
+
+    // One-Click PNG Share / Download for WhatsApp & Discord
+    async function shareElementAsPng(elementId, filenamePrefix = 'ClubsTracker') {
+      const el = document.getElementById(elementId);
+      if (!el || typeof html2canvas === 'undefined') return;
+
+      try {
+        const canvas = await html2canvas(el, {
+          backgroundColor: null,
+          useCORS: true,
+          scale: 2
+        });
+
+        canvas.toBlob(async (blob) => {
+          if (!blob) return;
+          const file = new File([blob], `${filenamePrefix}.png`, { type: 'image/png' });
+
+          // Use native mobile share sheet if supported, otherwise copy to clipboard or download
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+              await navigator.share({
+                files: [file],
+                title: `${filenamePrefix} - FC Pro Clubs Tracker`
+              });
+              return;
+            } catch (_) {}
+          }
+
+          if (navigator.clipboard && window.ClipboardItem) {
+            try {
+              await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+              alert('📸 Image copied to clipboard! Paste it directly into WhatsApp or Discord.');
+              return;
+            } catch (_) {}
+          }
+
+          const link = document.createElement('a');
+          link.download = `${filenamePrefix}.png`;
+          link.href = URL.createObjectURL(blob);
+          link.click();
+        }, 'image/png');
+      } catch (e) {
+        console.error('Export failed:', e);
+      }
+    }
+
     const BALL_SVG = (cx, cy, r) => `
       <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="currentColor" stroke-width="2.8"/>
       <polygon points="${cx},${cy-r*0.45} ${cx+r*0.42},${cy-r*0.12} ${cx+r*0.26},${cy+r*0.38} ${cx-r*0.26},${cy+r*0.38} ${cx-r*0.42},${cy-r*0.12}" fill="currentColor"/>
     `;
 
-    // Expanded 24 Official EA Sports FC PlayStyle Vector Glyphs (So players get distinct, role-accurate PlayStyles)
     const OFFICIAL_EA_PLAYSTYLE_VECTORS = {
       cross_claimer: `${BALL_SVG(62, 32, 10.5)}<path d="M 24 68 L 42 46 L 52 54 L 34 74 Z" fill="currentColor"/><path d="M 40 44 C 38 36 44 30 50 34 L 56 42 C 58 46 54 52 48 50 Z" fill="currentColor"/>`,
       deflector: `<path d="M 44 18 L 68 27 L 68 48 C 68 64 44 76 44 76 C 44 76 20 64 20 48 L 20 27 Z" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linejoin="round"/><path d="M 44 38 L 76 26 M 44 38 L 74 54" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><polygon points="72,20 82,24 75,33" fill="currentColor"/><polygon points="71,48 80,57 69,59" fill="currentColor"/>`,
@@ -652,7 +863,6 @@
       trivela: `${BALL_SVG(34, 34, 9.5)}<path d="M 66 70 C 78 46 66 28 48 32" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><polygon points="50,25 40,33 52,39" fill="currentColor"/>`
     };
 
-    // Generates Fun Performance Name Tags for every player based on statistical habits
     function getPlayerFunTag(player) {
       const games = Math.max(1, Number(player.gamesPlayed ?? player.games ?? 1));
       const goals = Number(player.goals ?? 0);
@@ -669,39 +879,17 @@
       const tpg = tackles / games;
       const motmRate = motm / games;
 
-      if (motmRate >= 0.28 && games >= 5) {
-        return { label: '👑 MoTM Merchant', cls: 'bg-yellow-500/15 text-yellow-300 border-yellow-500/40' };
-      }
-      if (gpg >= 0.75) {
-        return { label: '🎯 Clinical Poacher', cls: 'bg-rose-500/15 text-rose-300 border-rose-500/40' };
-      }
-      if (gpg >= 0.45 && assists <= goals * 0.25) {
-        return { label: '🔫 Shoot on Sight', cls: 'bg-orange-500/15 text-orange-300 border-orange-500/40' };
-      }
-      if (apg >= 0.5) {
-        return { label: '🎩 Chief Creator', cls: 'bg-purple-500/15 text-purple-300 border-purple-500/40' };
-      }
-      if (passPct >= 84 && apg >= 0.25) {
-        return { label: '📐 Pass Master', cls: 'bg-cyan-500/15 text-cyan-300 border-cyan-500/40' };
-      }
-      if (tpg >= 1.8 && tacklePct >= 30) {
-        return { label: '🧱 Brick Wall', cls: 'bg-blue-500/15 text-blue-300 border-blue-500/40' };
-      }
-      if (tpg >= 1.6 && tacklePct < 30) {
-        return { label: '🦵 Ankle Breaker', cls: 'bg-red-500/15 text-red-300 border-red-500/40' };
-      }
-      if (gpg >= 0.35 && apg >= 0.35) {
-        return { label: '⚡ Double Threat', cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/40' };
-      }
-      if (passPct >= 82) {
-        return { label: '🧭 Metronome', cls: 'bg-teal-500/15 text-teal-300 border-teal-500/40' };
-      }
-      if (pos === 'DEF') {
-        return { label: '🛡️ Backline Guardian', cls: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/40' };
-      }
-      if (rating >= 7.6) {
-        return { label: '🔥 Big Game Player', cls: 'bg-amber-500/15 text-amber-300 border-amber-500/40' };
-      }
+      if (motmRate >= 0.28 && games >= 5) return { label: '👑 MoTM Merchant', cls: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/40' };
+      if (gpg >= 0.75) return { label: '🎯 Clinical Poacher', cls: 'bg-rose-500/15 text-rose-400 border-rose-500/40' };
+      if (gpg >= 0.45 && assists <= goals * 0.25) return { label: '🔫 Shoot on Sight', cls: 'bg-orange-500/15 text-orange-400 border-orange-500/40' };
+      if (apg >= 0.5) return { label: '🎩 Chief Creator', cls: 'bg-purple-500/15 text-purple-400 border-purple-500/40' };
+      if (passPct >= 84 && apg >= 0.25) return { label: '📐 Pass Master', cls: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/40' };
+      if (tpg >= 1.8 && tacklePct >= 30) return { label: '🧱 Brick Wall', cls: 'bg-blue-500/15 text-blue-400 border-blue-500/40' };
+      if (tpg >= 1.6 && tacklePct < 30) return { label: '🦵 Ankle Breaker', cls: 'bg-red-500/15 text-red-400 border-red-500/40' };
+      if (gpg >= 0.35 && apg >= 0.35) return { label: '⚡ Double Threat', cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' };
+      if (passPct >= 82) return { label: '🧭 Metronome', cls: 'bg-teal-500/15 text-teal-400 border-teal-500/40' };
+      if (pos === 'DEF') return { label: '🛡️ Backline Guardian', cls: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/40' };
+      if (rating >= 7.6) return { label: '🔥 Big Game Player', cls: 'bg-amber-500/15 text-amber-400 border-amber-500/40' };
       return { label: '🫁 Box-to-Box Engine', cls: 'bg-slate-700/60 text-slate-300 border-slate-600' };
     }
 
@@ -886,7 +1074,6 @@
       `;
     }
 
-    // Weighted Multi-Trait PlayStyle Scorer (Prevents Power Shot / Whipped Pass cloning across cards)
     function computeArchetypeAndPlaystyles(player) {
       const name = String(player.name || player.proName || 'Pro');
       const pos = player._normalizedPos || 'MID';
@@ -903,7 +1090,6 @@
       const rating = parseFloat(player.ratingAve || 7.2);
       const height = parseInt(player.proHeight || 180, 10);
 
-      // Unique deterministic player seed so teammates with similar stats still get individualized secondary traits
       let seed = 0;
       for (let i = 0; i < name.length; i++) seed = (seed * 31 + name.charCodeAt(i)) % 1000;
       const jitter = (idx) => ((seed + idx * 17) % 11) * 0.8;
@@ -940,7 +1126,6 @@
         };
       }
 
-      // Score all candidate PlayStyles based on actual player telemetry + position + unique seed
       const candidates = [
         { slug: 'finesse_shot', name: 'Finesse Shot', desc: 'Faster finesse shots with maximum curve and exceptional accuracy.', score: (pos === 'FWD' ? 40 : 18) + (gpg * 45) + jitter(1) },
         { slug: 'power_shot', name: 'Power Shot', desc: 'Faster power shots with significant velocity increase.', score: (gpg * 38) + (assists === 0 ? 15 : 0) + (height >= 182 ? 10 : 0) + jitter(2) },
@@ -1099,6 +1284,7 @@
       card.classList.remove('hidden');
     }
 
+    // Computes Session Recap, Squad Factor, Shame Board, Dynamic Duo & Nemesis
     function computeMatchIntelligence(clubId, matchesPayload) {
       RECENT_FORM_MAP = {};
       RECENT_10_STATS_MAP = {};
@@ -1109,7 +1295,27 @@
 
       const matchArr = Array.isArray(matchesPayload) ? matchesPayload : (matchesPayload?.matches || []);
 
+      // Lobby Size Tracker ("The Squad Factor")
+      let smallLobbyGames = 0, smallLobbyWins = 0;
+      let largeLobbyGames = 0, largeLobbyWins = 0;
+
+      // Shame Board Accumulators across last 10 games
+      const shameMap = {};
+
+      // Group matches played within 4 hours of the latest match into "Tonight's / Latest Session"
+      const sessionMatches = [];
+      let prevTimestamp = null;
+
       matchArr.slice(0, 10).forEach((m, idx) => {
+        const ts = Number(m.timestamp || 0);
+        if (idx === 0) {
+          sessionMatches.push(m);
+          prevTimestamp = ts;
+        } else if (prevTimestamp && ts > 0 && Math.abs(prevTimestamp - ts) <= 4 * 3600) {
+          sessionMatches.push(m);
+          prevTimestamp = ts;
+        }
+
         const clubsData = m.clubs || m.aggregate || {};
         const clubIds = Object.keys(clubsData);
         let thisId = clubIds.find(id => String(id) === String(clubId)) || clubIds[0];
@@ -1122,6 +1328,7 @@
         const oppCrestId = oppClub.crestId || oppClub.TEAM || oppClub.details?.customKit?.crestAssetId || oppClub.details?.crestAssetId || oppClub.details?.teamId;
         const myGoals = Number(myClub.goals ?? myClub.score ?? 0);
         const oppGoals = Number(oppClub.goals ?? oppClub.score ?? 0);
+        const isWin = myGoals > oppGoals;
 
         if (!opponentCounts[oppName]) {
           opponentCounts[oppName] = { clubId: oppId, name: oppName, played: 0, wins: 0, losses: 0, draws: 0, sr: oppSR, crestId: oppCrestId };
@@ -1130,7 +1337,7 @@
           if (!opponentCounts[oppName].clubId && oppId) opponentCounts[oppName].clubId = oppId;
         }
         opponentCounts[oppName].played += 1;
-        if (myGoals > oppGoals) opponentCounts[oppName].wins += 1;
+        if (isWin) opponentCounts[oppName].wins += 1;
         else if (myGoals < oppGoals) opponentCounts[oppName].losses += 1;
         else opponentCounts[oppName].draws += 1;
 
@@ -1139,14 +1346,32 @@
         }
 
         const playersData = m.players?.[thisId] || {};
+        const lobbyPlayers = Object.values(playersData);
+        const lobbyCount = lobbyPlayers.length;
+
+        if (lobbyCount > 0 && lobbyCount <= 3) {
+          smallLobbyGames++;
+          if (isWin) smallLobbyWins++;
+        } else if (lobbyCount >= 4) {
+          largeLobbyGames++;
+          if (isWin) largeLobbyWins++;
+        }
+
         const activeContributors = [];
 
-        Object.values(playersData).forEach(p => {
+        lobbyPlayers.forEach(p => {
           const pName = p.playername || p.name || 'Pro';
           const r = parseFloat(p.rating || 0);
           const g = Number(p.goals || 0);
           const a = Number(p.assists || 0);
           const t = Number(p.tacklesmade || p.tackles || 0);
+          const tAtt = Number(p.tackleattempts || Math.max(t, t * 2));
+          const shots = Number(p.shots || 0);
+          const pMade = Number(p.passesmade || 0);
+          const pAtt = Number(p.passattempts || pMade);
+          const missedPasses = Math.max(0, pAtt - pMade);
+          const reds = Number(p.redcards || 0);
+          const secs = Number(p.secondsPlayed || 5400);
 
           if (idx < 5 && r > 0) {
             if (!ratingBuckets[pName]) ratingBuckets[pName] = [];
@@ -1161,6 +1386,20 @@
           RECENT_10_STATS_MAP[pName].assists += a;
           RECENT_10_STATS_MAP[pName].tackles += t;
           RECENT_10_STATS_MAP[pName].totalRating += r;
+
+          if (!shameMap[pName]) {
+            shameMap[pName] = { name: pName, games: 0, missedPasses: 0, shots: 0, goals: 0, reds: 0, tackles: 0, tackleAtt: 0, ghostMins: 0 };
+          }
+          shameMap[pName].games += 1;
+          shameMap[pName].missedPasses += missedPasses;
+          shameMap[pName].shots += shots;
+          shameMap[pName].goals += g;
+          shameMap[pName].reds += reds;
+          shameMap[pName].tackles += t;
+          shameMap[pName].tackleAtt += tAtt;
+          if (g === 0 && a === 0 && t === 0) {
+            shameMap[pName].ghostMins += Math.round(secs / 60);
+          }
 
           if (g + a > 0) {
             activeContributors.push({ name: pName, ga: g + a });
@@ -1185,6 +1424,13 @@
         RECENT_FORM_MAP[name] = arr.reduce((a, b) => a + b, 0) / arr.length;
       });
 
+      // Render Latest Session Recap & Squad Factor
+      renderSessionRecapAndSquadFactor(clubId, sessionMatches, smallLobbyGames, smallLobbyWins, largeLobbyGames, largeLobbyWins);
+
+      // Render Dressing Room Banter & Shame Board
+      renderShameBoard(Object.values(shameMap));
+
+      // Render Intelligence Cards
       const intelSection = document.getElementById('intelSection');
       if (matchArr.length > 0) {
         intelSection.classList.remove('hidden');
@@ -1217,6 +1463,263 @@
       } else {
         intelSection.classList.add('hidden');
       }
+    }
+
+    function renderSessionRecapAndSquadFactor(clubId, sessionMatches, smallGames, smallWins, largeGames, largeWins) {
+      const section = document.getElementById('sessionRecapSection');
+      if (!sessionMatches || sessionMatches.length === 0) {
+        section.classList.add('hidden');
+        return;
+      }
+      section.classList.remove('hidden');
+
+      let sW = 0, sD = 0, sL = 0, sGF = 0, sGA = 0;
+      const sessionPlayerMap = {};
+
+      sessionMatches.forEach(m => {
+        const clubsData = m.clubs || m.aggregate || {};
+        const clubIds = Object.keys(clubsData);
+        let thisId = clubIds.find(id => String(id) === String(clubId)) || clubIds[0];
+        let oppId = clubIds.find(id => String(id) !== String(clubId)) || clubIds[1];
+
+        const myGoals = Number(clubsData[thisId]?.goals ?? clubsData[thisId]?.score ?? 0);
+        const oppGoals = Number(clubsData[oppId]?.goals ?? clubsData[oppId]?.score ?? 0);
+        sGF += myGoals;
+        sGA += oppGoals;
+        if (myGoals > oppGoals) sW++;
+        else if (myGoals < oppGoals) sL++;
+        else sD++;
+
+        const pData = m.players?.[thisId] || {};
+        Object.values(pData).forEach(p => {
+          const pName = p.playername || p.name || 'Pro';
+          if (!sessionPlayerMap[pName]) {
+            sessionPlayerMap[pName] = { name: pName, games: 0, goals: 0, assists: 0, ratingSum: 0 };
+          }
+          sessionPlayerMap[pName].games += 1;
+          sessionPlayerMap[pName].goals += Number(p.goals || 0);
+          sessionPlayerMap[pName].assists += Number(p.assists || 0);
+          sessionPlayerMap[pName].ratingSum += parseFloat(p.rating || 7.0);
+        });
+      });
+
+      const gd = sGF - sGA;
+      const gdLabel = gd >= 0 ? `+${gd} GD` : `${gd} GD`;
+      document.getElementById('sessionTimeWindow').innerText = `${sessionMatches.length} Match Stint Detected`;
+      document.getElementById('sessionRecordText').innerText = `${sW}W - ${sD}D - ${sL}L`;
+      document.getElementById('sessionGoalDiffText').innerText = `${sGF} GF / ${sGA} GA (${gdLabel})`;
+
+      // Tilt Meter
+      const tiltBadge = document.getElementById('sessionTiltBadge');
+      if (sL >= 2 && sW === 0) {
+        tiltBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40';
+        tiltBadge.innerText = '🚨 HIGH TILT: Controller Danger';
+      } else if (sW > sL) {
+        tiltBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40';
+        tiltBadge.innerText = '🔥 VIBES IMMACULATE';
+      } else {
+        tiltBadge.className = 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40';
+        tiltBadge.innerText = '⚖️ MIXED BAG SESSION';
+      }
+
+      const sPlayers = Object.values(sessionPlayerMap).map(sp => ({
+        ...sp,
+        avgRat: sp.ratingSum / sp.games,
+        impact: (sp.ratingSum / sp.games) * 10 + (sp.goals * 4) + (sp.assists * 3)
+      })).sort((a, b) => b.impact - a.impact);
+
+      if (sPlayers.length > 0) {
+        const mvp = sPlayers[0];
+        document.getElementById('sessionMvpName').innerText = mvp.name;
+        document.getElementById('sessionMvpStats').innerText = `${mvp.avgRat.toFixed(1)} AVG • ${mvp.goals}G ${mvp.assists}A`;
+        document.getElementById('sessionMvpAvatar').src = getPlayerAvatarUrl(mvp.name);
+
+        const liability = sPlayers[sPlayers.length - 1];
+        document.getElementById('sessionLiabilityName').innerText = liability.name;
+        document.getElementById('sessionLiabilityStats').innerText = `${liability.avgRat.toFixed(1)} AVG • ${liability.goals}G ${liability.assists}A`;
+        document.getElementById('sessionLiabilityAvatar').src = getPlayerAvatarUrl(liability.name);
+      }
+
+      // Squad Factor
+      const smallPct = smallGames > 0 ? Math.round((smallWins / smallGames) * 100) : null;
+      const largePct = largeGames > 0 ? Math.round((largeWins / largeGames) * 100) : null;
+      document.getElementById('squadFactorSmall').innerText = smallPct !== null ? `2–3 Pros: ${smallPct}% Win (${smallWins}/${smallGames})` : `2–3 Pros: No Games`;
+      document.getElementById('squadFactorLarge').innerText = largePct !== null ? `4+ Pros: ${largePct}% Win (${largeWins}/${largeGames})` : `4+ Pros: No Games`;
+
+      let verdict = 'Balanced squad chemistry';
+      if (smallPct !== null && largePct !== null) {
+        verdict = smallPct > largePct ? 'Too many cooks in big lobbies!' : 'Full squad dominance!';
+      }
+      document.getElementById('squadFactorVerdict').innerText = verdict;
+    }
+
+    function renderShameBoard(shameList = []) {
+      const section = document.getElementById('shameBoardSection');
+      const grid = document.getElementById('shameBoardGrid');
+      grid.innerHTML = '';
+
+      if (!shameList || shameList.length === 0) {
+        section.classList.add('hidden');
+        return;
+      }
+      section.classList.remove('hidden');
+
+      // 1. Hospital Pass Award (Most missed passes)
+      const byMissedPasses = [...shameList].sort((a, b) => b.missedPasses - a.missedPasses)[0];
+      // 2. Barn Door Award (Most shots wasted or lowest shot conversion)
+      const byBarnDoor = [...shameList].sort((a, b) => (b.shots - b.goals) - (a.shots - a.goals))[0];
+      // 3. Walking Red Card / Butcher (Reds + failed tackles)
+      const byButcher = [...shameList].sort((a, b) => (b.reds * 15 + (b.tackleAtt - b.tackles)) - (a.reds * 15 + (a.tackleAtt - a.tackles)))[0];
+      // 4. Cardio / Ghost Award
+      const byGhost = [...shameList].sort((a, b) => b.ghostMins - a.ghostMins)[0];
+
+      const cards = [
+        {
+          title: '🏥 Hospital Pass Award',
+          winner: byMissedPasses.name,
+          stat: `${byMissedPasses.missedPasses} Missed Passes`,
+          sub: `Across ${byMissedPasses.games} recent appearances`,
+          border: 'border-amber-500/40'
+        },
+        {
+          title: '🚪 The Barn Door Award',
+          winner: byBarnDoor.name,
+          stat: `${byBarnDoor.shots} Shots (${byBarnDoor.goals}G)`,
+          sub: `${Math.max(0, byBarnDoor.shots - byBarnDoor.goals)} off-target / saved efforts`,
+          border: 'border-rose-500/40'
+        },
+        {
+          title: '🟥 Sunday League Butcher',
+          winner: byButcher.name,
+          stat: byButcher.reds > 0 ? `${byButcher.reds} Red Cards` : `${byButcher.tackles} Tackles Won`,
+          sub: `Aggressive enforcer in the middle`,
+          border: 'border-red-500/40'
+        },
+        {
+          title: '👻 Cardio & Vibes Award',
+          winner: byGhost.name,
+          stat: `${byGhost.ghostMins > 0 ? byGhost.ghostMins : 90} Mins Pure Running`,
+          sub: `Getting the steps in on the grass`,
+          border: 'border-purple-500/40'
+        }
+      ];
+
+      grid.innerHTML = cards.map(c => `
+        <div class="bg-gray-900/60 border ${c.border} rounded-xl p-3.5 flex items-center justify-between">
+          <div>
+            <div class="text-[10px] font-black uppercase tracking-wider text-gray-400">${c.title}</div>
+            <div class="text-sm font-extrabold text-white mt-1">${c.winner}</div>
+            <div class="text-xs font-bold text-rose-400 mt-0.5">${c.stat}</div>
+            <div class="text-[10px] text-gray-500 mt-0.5">${c.sub}</div>
+          </div>
+          <img src="${getPlayerAvatarUrl(c.winner)}" class="w-11 h-11 rounded-full border border-gray-700 bg-gray-900 flex-shrink-0" alt="${c.winner}">
+        </div>
+      `).join('');
+    }
+
+    // Computes Career Milestone Progress Bars ("Road to 50 / 100 / 150 / 200")
+    function renderCareerMilestones(members = []) {
+      const section = document.getElementById('milestonesSection');
+      const grid = document.getElementById('milestonesGrid');
+      grid.innerHTML = '';
+
+      if (!members || members.length === 0) {
+        section.classList.add('hidden');
+        return;
+      }
+      section.classList.remove('hidden');
+
+      const getNextTarget = (val, steps = [25, 50, 75, 100, 150, 200, 250, 300, 500]) => {
+        for (const t of steps) {
+          if (val < t) return t;
+        }
+        return Math.ceil((val + 1) / 100) * 100;
+      };
+
+      const milestoneItems = [];
+
+      members.forEach(m => {
+        const name = m.name || m.proName || 'Pro';
+        const games = Number(m.gamesPlayed ?? m.games ?? 0);
+        const goals = Number(m.goals ?? 0);
+        const assists = Number(m.assists ?? 0);
+        const motm = Number(m.manOfTheMatch ?? m.motm ?? 0);
+
+        const gTarget = getNextTarget(goals);
+        milestoneItems.push({
+          name,
+          category: 'Club Goals',
+          icon: 'fa-futbol text-emerald-400',
+          barColor: 'bg-emerald-500',
+          current: goals,
+          target: gTarget,
+          remaining: gTarget - goals,
+          pct: Math.round((goals / gTarget) * 100)
+        });
+
+        const aTarget = getNextTarget(assists);
+        milestoneItems.push({
+          name,
+          category: 'Club Assists',
+          icon: 'fa-shoe-prints text-sky-400',
+          barColor: 'bg-sky-500',
+          current: assists,
+          target: aTarget,
+          remaining: aTarget - assists,
+          pct: Math.round((assists / aTarget) * 100)
+        });
+
+        const gpTarget = getNextTarget(games, [50, 100, 150, 200, 250, 300, 400, 500]);
+        milestoneItems.push({
+          name,
+          category: 'Appearances',
+          icon: 'fa-shirt text-amber-400',
+          barColor: 'bg-amber-500',
+          current: games,
+          target: gpTarget,
+          remaining: gpTarget - games,
+          pct: Math.round((games / gpTarget) * 100)
+        });
+
+        const mTarget = getNextTarget(motm, [10, 25, 50, 75, 100, 150]);
+        milestoneItems.push({
+          name,
+          category: 'MoTM Awards',
+          icon: 'fa-crown text-purple-400',
+          barColor: 'bg-purple-500',
+          current: motm,
+          target: mTarget,
+          remaining: mTarget - motm,
+          pct: Math.round((motm / mTarget) * 100)
+        });
+      });
+
+      // Pick the 4 closest high-percentage milestones across the squad
+      milestoneItems.sort((a, b) => b.pct - a.pct);
+      const top4 = milestoneItems.filter(x => x.current > 0).slice(0, 4);
+
+      grid.innerHTML = top4.map(item => `
+        <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3.5 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <img src="${getPlayerAvatarUrl(item.name)}" class="w-8 h-8 rounded-full border border-gray-700 bg-gray-900">
+              <div>
+                <div class="text-xs font-extrabold text-white">${item.name}</div>
+                <div class="text-[10px] font-bold text-gray-400 flex items-center gap-1">
+                  <i class="fa-solid ${item.icon}"></i> ${item.category}
+                </div>
+              </div>
+            </div>
+            <span class="text-xs font-black text-white font-mono">${item.current} / ${item.target}</span>
+          </div>
+          <div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden">
+            <div class="h-full ${item.barColor} rounded-full" style="width: ${Math.min(100, item.pct)}%"></div>
+          </div>
+          <div class="text-[10px] text-gray-400 font-semibold">
+            Only <b class="text-white">${item.remaining}</b> away from <b class="text-emerald-400">${item.target} ${item.category}</b>!
+          </div>
+        </div>
+      `).join('');
     }
 
     function renderSeasonsHistory(seasonsHistory = [], trophies = {}) {
@@ -1294,6 +1797,7 @@
         const membersList = renderMembers(GLOBAL_MEMBERS);
         renderClub(clubId, combined, platform, membersList, GLOBAL_MATCHES);
         renderSeasonsHistory(combined.seasonsHistory, combined.trophies);
+        renderCareerMilestones(membersList);
         buildDynamicPitchTactic(membersList, GLOBAL_MATCHES);
         initRadarComparison(membersList);
         renderRecentMatches(clubId, GLOBAL_MATCHES);
@@ -1454,7 +1958,6 @@
       return list;
     }
 
-    // Helper: Computes 6 Build Attributes + 6 Normalized Stat Metrics for any Player
     function getPlayerRadarMetrics(p) {
       const ovr = Number(p.proOverall || 85);
       const games = Math.max(1, Number(p.gamesPlayed || 1));
@@ -1497,7 +2000,6 @@
       };
     }
 
-    // Draws a 6-Axis SVG Spider / Radar Chart comparing two players
     function buildRadarSvg(axesP1, axesP2) {
       const size = 280;
       const cx = size / 2;
@@ -1513,15 +2015,15 @@
 
       const gridPolygons = levels.map(lvl => {
         const pts = [0, 1, 2, 3, 4, 5].map(i => getPoint(i, lvl * 100)).join(' ');
-        return `<polygon points="${pts}" fill="none" stroke="#334155" stroke-width="1" stroke-dasharray="${lvl < 1 ? '3 3' : ''}"/>`;
+        return `<polygon points="${pts}" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="${lvl < 1 ? '3 3' : ''}"/>`;
       }).join('');
 
       const axisLines = [0, 1, 2, 3, 4, 5].map(i => {
         const endPt = getPoint(i, 100).split(',');
         const labelPt = getPoint(i, 122).split(',');
         return `
-          <line x1="${cx}" y1="${cy}" x2="${endPt[0]}" y2="${endPt[1]}" stroke="#334155" stroke-width="1"/>
-          <text x="${labelPt[0]}" y="${Number(labelPt[1]) + 4}" text-anchor="middle" fill="#cbd5e1" font-size="11" font-weight="800">${axesP1[i].label}</text>
+          <line x1="${cx}" y1="${cy}" x2="${endPt[0]}" y2="${endPt[1]}" stroke="#475569" stroke-width="1"/>
+          <text x="${labelPt[0]}" y="${Number(labelPt[1]) + 4}" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="800">${axesP1[i].label}</text>
         `;
       }).join('');
 
@@ -1596,7 +2098,7 @@
           <span class="text-[10px] text-gray-400 font-bold">${a.label}</span>
           <div>
             <span class="text-emerald-400 font-bold">${a.raw}</span>
-            <span class="text-gray-600">/</span>
+            <span class="text-gray-500">/</span>
             <span class="text-sky-400 font-bold">${m2.attributes[i].raw}</span>
           </div>
         </div>
@@ -1607,7 +2109,7 @@
           <span class="text-[10px] text-gray-400 font-bold">${s.label}</span>
           <div>
             <span class="text-emerald-400 font-bold">${s.raw}</span>
-            <span class="text-gray-600">/</span>
+            <span class="text-gray-500">/</span>
             <span class="text-sky-400 font-bold">${m2.stats[i].raw}</span>
           </div>
         </div>
@@ -1675,7 +2177,6 @@
       modal.classList.remove('flex');
     }
 
-    // Recent 10 Matches with Structured Box-Score Table Inside Dropdown
     function renderRecentMatches(clubId, matches) {
       const tbody = document.getElementById('recentMatchesTable');
       const formContainer = document.getElementById('formBadges');
@@ -1818,7 +2319,7 @@
             const posLabel = memberObj?._normalizedPos || normalizePosition(p.pos || 'MID');
 
             const uid = p.playername || p.name || p.proName;
-            let crownBadge = '<span class="text-gray-600 font-mono text-[11px]">--</span>';
+            let crownBadge = '<span class="text-gray-500 font-mono text-[11px]">--</span>';
             if (!crownGiven && uid === bestMvpKey && highestInfluenceScore > 0) {
               crownBadge = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-[10px] font-black"><i class="fa-solid fa-crown text-[9px]"></i> MVP</span>`;
               crownGiven = true;
@@ -1835,9 +2336,9 @@
                 <td class="py-2.5 px-2 text-center text-[11px] font-bold text-gray-400">${posLabel}</td>
                 <td class="py-2.5 px-2 text-center font-black text-yellow-400">${rating}</td>
                 <td class="py-2.5 px-2 text-center font-bold ${goals > 0 ? 'text-emerald-400' : 'text-gray-400'}">${goals}</td>
-                <td class="py-2.5 px-2 text-center font-bold ${assists > 0 ? 'text-sky-300' : 'text-gray-400'}">${assists}</td>
+                <td class="py-2.5 px-2 text-center font-bold ${assists > 0 ? 'text-sky-400' : 'text-gray-400'}">${assists}</td>
                 <td class="py-2.5 px-2 text-center text-gray-300">${shots}</td>
-                <td class="py-2.5 px-2 text-center text-cyan-300 font-mono">${passDetail}</td>
+                <td class="py-2.5 px-2 text-center text-cyan-400 font-mono">${passDetail}</td>
                 <td class="py-2.5 px-2 text-center text-sky-400 font-semibold">${tackles}</td>
                 <td class="py-2.5 px-3 text-right">${crownBadge}</td>
               </tr>
@@ -2148,6 +2649,7 @@
     }
 
     window.onload = () => {
+      applyStoredTheme();
       buildDynamicPitchTactic([], []);
     };
   </script>
