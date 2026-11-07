@@ -75,28 +75,28 @@
       font-family: 'Oswald', sans-serif;
     }
 
-    /* Official EA Ratings PlayStyle & PlayStyle+ Badge Containers */
+    /* Instant Official EA PlayStyle & PlayStyle+ Badge Containers */
     .ps-plus-badge {
       width: 48px;
-      height: 48px;
+      height: 44px;
       position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
-      filter: drop-shadow(0 5px 10px rgba(0,0,0,0.65));
+      filter: drop-shadow(0 4px 8px rgba(0,0,0,0.65));
       transition: transform 0.15s ease;
     }
     .ps-plus-badge:hover {
       transform: scale(1.18);
     }
     .ps-silver-badge {
-      width: 38px;
-      height: 38px;
+      width: 40px;
+      height: 36px;
       position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
-      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.5));
+      filter: drop-shadow(0 3px 6px rgba(0,0,0,0.55));
       transition: transform 0.15s ease;
     }
     .ps-silver-badge:hover {
@@ -177,8 +177,8 @@
         </div>
       </div>
 
-      <!-- Trophy, Promotions & Relegations Bar -->
-      <div id="trophyBar" class="hidden grid grid-cols-2 sm:grid-cols-5 gap-3 pt-4 border-t border-gray-800/80">
+      <!-- Trophy, Promotions & Relegations Bar (Net Climb Removed) -->
+      <div id="trophyBar" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-3 pt-4 border-t border-gray-800/80">
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center gap-3">
           <i class="fa-solid fa-trophy text-yellow-400 text-xl"></i>
           <div>
@@ -193,8 +193,8 @@
             <div id="trophyLeagues" class="text-sm font-black text-white">0</div>
           </div>
         </div>
-        <!-- Combined Promotions & Relegations Tab -->
-        <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center justify-between col-span-2 sm:col-span-2">
+        <!-- Promotions & Relegations Side-by-Side -->
+        <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center justify-around">
           <div class="flex items-center gap-2.5">
             <i class="fa-solid fa-angles-up text-emerald-400 text-xl"></i>
             <div>
@@ -209,11 +209,6 @@
               <div class="text-[10px] uppercase text-gray-400 font-semibold">Relegations</div>
               <div id="trophyRelegs" class="text-sm font-black text-rose-400">0</div>
             </div>
-          </div>
-          <div class="h-7 w-[1px] bg-gray-800"></div>
-          <div>
-            <div class="text-[10px] uppercase text-gray-400 font-semibold">Net Climb</div>
-            <div id="trophyPromoRatio" class="text-xs font-mono font-bold text-gray-200">--</div>
           </div>
         </div>
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center gap-3">
@@ -251,18 +246,18 @@
       </div>
     </section>
 
-    <!-- FC27 Club Seasons Progression Table (From Season 1 to Present) -->
+    <!-- FC27 Club Seasons Progression Table (Season 1 to Season 3) -->
     <section id="seasonsSection" class="hidden card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-layer-group text-emerald-400"></i> FC 27 Club Seasons History (From Season 1)
         </h3>
-        <span id="seasonsSummaryMeta" class="text-xs text-gray-400">Complete seasonal progression, promotions & relegations</span>
+        <span id="seasonsSummaryMeta" class="text-xs text-gray-400">Official FC 27 Live Service Seasons</span>
       </div>
 
-      <div class="overflow-x-auto max-h-[420px] overflow-y-auto">
+      <div class="overflow-x-auto">
         <table class="w-full text-left text-sm">
-          <thead class="border-b border-gray-800 text-gray-400 uppercase text-xs sticky top-0 bg-[#111827] z-10">
+          <thead class="border-b border-gray-800 text-gray-400 uppercase text-xs">
             <tr>
               <th class="py-3 px-2">Season</th>
               <th class="py-3 px-2 text-center">Division</th>
@@ -270,7 +265,7 @@
               <th class="py-3 px-2 text-center">Win %</th>
               <th class="py-3 px-2 text-center">Goals (GF / GA)</th>
               <th class="py-3 px-2 text-center">Points</th>
-              <th class="py-3 px-2 text-right">Season Outcome</th>
+              <th class="py-3 px-2 text-right">Season Status / Climbs</th>
             </tr>
           </thead>
           <tbody id="seasonsHistoryTable" class="divide-y border-gray-800">
@@ -279,13 +274,13 @@
       </div>
     </section>
 
-    <!-- Recent Matches -->
+    <!-- Recent Matches (Exclusive Home of Single-Match MVP) -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
         <h3 class="text-lg font-bold text-white flex items-center gap-2">
           <i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches
         </h3>
-        <span class="text-xs text-gray-400">Hover emoji in Vibe column for details • Click row for match breakdown</span>
+        <span class="text-xs text-gray-400">Hover emoji in Vibe column for details • Click row for match breakdown & MVP</span>
       </div>
 
       <div class="overflow-x-auto">
@@ -309,29 +304,26 @@
       </div>
     </section>
 
-    <!-- Reimagined Best XI & Recent Match Tactical Pitch Command Center -->
+    <!-- Tactical Pitch Section: 2 Modes Only ("Last Match XI" & "Suggested Best XI (Builds & Attributes)") -->
     <section class="card p-6 space-y-4">
       <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-4 border-b border-gray-800 pb-4">
         <div>
           <div class="flex items-center gap-2.5">
             <h3 class="text-lg font-bold text-white flex items-center gap-2">
-              <i class="fa-solid fa-chess-board text-emerald-400"></i> Club Best XI & Tactical Lineup
+              <i class="fa-solid fa-chess-board text-emerald-400"></i> Tactical Pitch & Squad Lineup
             </h3>
             <span id="formationBadge" class="text-xs font-black px-2.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">--</span>
           </div>
-          <p id="formationSubtitle" class="text-xs text-gray-400 mt-1">Inferred from your most recent match formation • Click any player to open their FC27 Ultimate Team Card</p>
+          <p id="formationSubtitle" class="text-xs text-gray-400 mt-1">Click any player on the pitch to inspect their FC27 Ultimate Team Card</p>
         </div>
 
-        <!-- Lineup Mode Switcher -->
+        <!-- 2-Option Lineup Mode Switcher -->
         <div class="flex flex-wrap items-center gap-1.5 bg-gray-900 p-1 rounded-lg border border-gray-800">
-          <button id="btnModeBestXI" onclick="switchPitchMode('bestXI')" class="px-3 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition">
-            <i class="fa-solid fa-trophy mr-1"></i> All-Time Best XI
+          <button id="btnModeLastMatch" onclick="switchPitchMode('lastMatch')" class="px-3.5 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition shadow">
+            <i class="fa-solid fa-clock-rotate-left mr-1"></i> Last Match XI
           </button>
-          <button id="btnModeFormXI" onclick="switchPitchMode('formXI')" class="px-3 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition">
-            <i class="fa-solid fa-fire mr-1 text-amber-400"></i> Hot Form XI (Last 10)
-          </button>
-          <button id="btnModeLastMatch" onclick="switchPitchMode('lastMatch')" class="px-3 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition">
-            <i class="fa-solid fa-clock-rotate-left mr-1 text-sky-400"></i> Last Match XI
+          <button id="btnModeSuggested" onclick="switchPitchMode('suggestedXI')" class="px-3.5 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition">
+            <i class="fa-solid fa-wand-magic-sparkles mr-1 text-yellow-400"></i> Suggested Best XI (Builds & Attributes)
           </button>
         </div>
       </div>
@@ -351,27 +343,22 @@
           <span id="pitchMetricRating" class="text-sm font-black text-white">--</span>
         </div>
         <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between">
-          <span class="text-[10px] uppercase font-bold text-gray-400">Strongest Line</span>
+          <span class="text-[10px] uppercase font-bold text-gray-400">Strongest Unit</span>
           <span id="pitchMetricZone" class="text-xs font-black text-purple-400 uppercase">--</span>
         </div>
       </div>
 
-      <!-- 11-Slot Tactical Pitch with Formation Rows -->
+      <!-- 11-Slot Tactical Pitch -->
       <div class="pitch-bg w-full h-[620px] py-6 px-4 flex flex-col justify-between relative shadow-inner">
         <div class="pitch-penalty-top"></div>
         <div class="pitch-center-line"></div>
         <div class="pitch-center-circle"></div>
         <div class="pitch-penalty-bottom"></div>
 
-        <!-- Attackers Row -->
         <div class="flex justify-around items-center z-10 w-full px-2" id="rowAttack"></div>
-        <!-- Attacking / Wide Midfielders Row (Used in 4-2-3-1 / 4-1-2-1-2) -->
         <div class="flex justify-around items-center z-10 w-full px-6" id="rowCAM"></div>
-        <!-- Central / Defensive Midfielders Row -->
         <div class="flex justify-around items-center z-10 w-full px-4" id="rowMidfield"></div>
-        <!-- Defenders Row -->
         <div class="flex justify-around items-center z-10 w-full px-2" id="rowDefense"></div>
-        <!-- Goalkeeper Row -->
         <div class="flex justify-center items-center z-10 w-full" id="rowGK"></div>
       </div>
     </section>
@@ -383,7 +370,7 @@
           <i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance
         </h3>
         <span class="text-xs text-gray-400">
-          Click row for <b class="text-yellow-400">FC27 UT Card</b> • Click <span class="text-blue-400 font-bold">♂</span>/<span class="text-pink-400 font-bold">♀</span> to flip gender • Click <i class="fa-solid fa-palette text-emerald-400"></i> inside card to set skin & hair
+          Click any player row to open their <b class="text-yellow-400">FC27 Ultimate Team Card</b> & customize skin/hair
         </span>
       </div>
 
@@ -474,15 +461,14 @@
                 fill="none" stroke="#ffffff" stroke-width="1" opacity="0.55" />
         </svg>
 
-        <!-- Left-Edge Official EA Ratings PlayStyle+ & Silver PlayStyle Badges -->
-        <div id="futLeftPlaystylesStack" class="absolute left-[-8px] top-[138px] z-30 flex flex-col items-center gap-1.5">
+        <!-- Left-Edge Instant Official EA Ratings PlayStyle+ & Silver PlayStyle Badges -->
+        <div id="futLeftPlaystylesStack" class="absolute left-[-9px] top-[140px] z-30 flex flex-col items-center gap-1.5">
         </div>
 
-        <!-- Top Left: OVR + Position + Gender Badge -->
-        <div id="futTopLeftText" class="absolute top-[46px] left-[38px] z-20 flex flex-col items-center leading-none text-[#2b2108]">
+        <!-- Top Left: OVR + Position -->
+        <div id="futTopLeftText" class="absolute top-[48px] left-[38px] z-20 flex flex-col items-center leading-none text-[#2b2108]">
           <div id="futOvr" class="fc27-font text-[56px] font-extrabold tracking-tighter leading-none">85</div>
-          <div id="futPos" class="fc27-font text-[22px] font-bold uppercase tracking-wider mt-0.5">CAM</div>
-          <div id="futGenderBadge" class="mt-1 px-2 py-0.5 rounded-full bg-black/15 text-xs font-black">♂</div>
+          <div id="futPos" class="fc27-font text-[22px] font-bold uppercase tracking-wider mt-1">CAM</div>
         </div>
 
         <!-- Center Player Headshot / Avatar -->
@@ -495,7 +481,7 @@
           
           <div class="w-full text-center border-b border-current/25 pb-1">
             <div id="futArchetypeBadge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/75 text-yellow-300 text-[9px] font-black uppercase tracking-widest shadow-sm">
-              <i class="fa-solid fa-crown text-[8px]"></i> MAESTRO ARCHETYPE
+              <i class="fa-solid fa-crown text-[8px]"></i> MAESTRO
             </div>
             <div id="futName" class="text-[26px] font-black tracking-tight truncate px-2 leading-tight mt-0.5">MESSI</div>
           </div>
@@ -539,15 +525,12 @@
         </div>
       </div>
 
-      <!-- Pro Appearance Customizer Bar -->
+      <!-- Pro Appearance Customizer Bar (Skin Tone & Hair Colour) -->
       <div class="bg-gray-900/95 border border-gray-700 rounded-xl px-4 py-3 w-[345px] shadow-2xl space-y-2.5">
         <div class="flex items-center justify-between border-b border-gray-800 pb-1.5">
           <span class="text-[11px] font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-            <i class="fa-solid fa-palette"></i> Customize Pro Appearance
+            <i class="fa-solid fa-palette"></i> Customize Pro Skin & Hair
           </span>
-          <button id="modalGenderToggleBtn" class="text-[11px] font-bold px-2 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-white border border-gray-600 transition">
-            Flip Gender (♂/♀)
-          </button>
         </div>
 
         <div class="flex items-center justify-between">
@@ -586,31 +569,131 @@
     let RECENT_10_STATS_MAP = {};
     let CURRENT_CLUB_CREST_URL = '';
     let ACTIVE_MODAL_PLAYER = null;
-    let CURRENT_PITCH_MODE = 'bestXI';
+    let CURRENT_PITCH_MODE = 'lastMatch'; // Default to Last Match XI
 
-    // Exact 1:1 Official EA Ratings PlayStyle Vector Icons (Matches https://www.ea.com/games/ea-sports-fc/ratings Filter -> PlayStyles)
+    // Reusable Soccer Ball SVG Motif (Matches the spotted soccer ball in EA's Official PlayStyle Icons)
+    const BALL_SVG = (cx, cy, r) => `
+      <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="currentColor" stroke-width="2.8"/>
+      <polygon points="${cx},${cy-r*0.45} ${cx+r*0.42},${cy-r*0.12} ${cx+r*0.26},${cy+r*0.38} ${cx-r*0.26},${cy+r*0.38} ${cx-r*0.42},${cy-r*0.12}" fill="currentColor"/>
+    `;
+
+    // 1:1 Official EA Sports FC PlayStyle Glyphs (Matches https://www.ea.com/games/ea-sports-fc/ratings & Screenshot)
     const OFFICIAL_EA_PLAYSTYLE_VECTORS = {
-      finesse_shot: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="66" cy="34" r="10" fill="currentColor" fill-opacity="0.25"/><path d="M 24 72 C 24 42 40 34 62 34"/><polygon points="58,26 72,34 58,42" fill="currentColor" stroke="none"/><path d="M 34 78 C 36 54 48 46 64 46" stroke-width="2.8" stroke-dasharray="4 4"/></g>`,
-      power_shot: `<g stroke="currentColor" stroke-width="4.5" fill="none" stroke-linecap="round"><circle cx="67" cy="35" r="11" fill="currentColor"/><line x1="18" y1="74" x2="53" y2="45"/><line x1="16" y1="58" x2="43" y2="35"/><line x1="34" y1="78" x2="59" y2="57"/></g>`,
-      incisive_pass: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="44" r="6.5" fill="currentColor"/><circle cx="28" cy="70" r="6.5" fill="currentColor"/><path d="M 38 66 L 74 30"/><polygon points="63,27 78,27 78,42" fill="currentColor" stroke="none"/><line x1="38" y1="44" x2="62" y2="44" stroke-width="3" stroke-dasharray="4 4"/></g>`,
-      tiki_taka: `<g stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="50,23 76,66 24,66" stroke-dasharray="5 3"/><circle cx="50" cy="23" r="7" fill="currentColor"/><circle cx="76" cy="66" r="7" fill="currentColor"/><circle cx="24" cy="66" r="7" fill="currentColor"/></g>`,
-      whipped_pass: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round"><path d="M 22 66 Q 50 22 75 42"/><path d="M 22 50 Q 50 12 77 30"/><polygon points="71,35 83,44 69,48" fill="currentColor" stroke="none"/></g>`,
-      pinged_pass: `<g stroke="currentColor" stroke-width="4.5" fill="none" stroke-linecap="round"><circle cx="70" cy="48" r="10" fill="currentColor"/><line x1="16" y1="48" x2="54" y2="48"/><line x1="22" y1="36" x2="46" y2="36"/><line x1="22" y1="60" x2="46" y2="60"/></g>`,
-      technical: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round"><circle cx="50" cy="28" r="8.5" fill="currentColor"/><path d="M 26 70 Q 38 46 50 52 T 74 36"/><circle cx="31" cy="48" r="3.5" fill="currentColor"/><circle cx="69" cy="58" r="3.5" fill="currentColor"/></g>`,
-      rapid: `<g stroke="currentColor" stroke-width="3" fill="currentColor" stroke-linejoin="round"><polygon points="56,18 30,50 48,50 40,78 70,42 51,42"/></g>`,
-      first_touch: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round"><circle cx="50" cy="36" r="10.5" fill="currentColor"/><line x1="26" y1="64" x2="74" y2="64"/><line x1="34" y1="74" x2="66" y2="74"/><line x1="50" y1="50" x2="50" y2="61"/></g>`,
-      anticipate: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M 50 20 L 74 30 L 74 50 C 74 66 50 78 50 78 C 50 78 26 66 26 50 L 26 30 Z"/><circle cx="50" cy="48" r="9.5" fill="currentColor"/></g>`,
-      intercept: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round"><line x1="20" y1="48" x2="80" y2="48" stroke-dasharray="5 4"/><circle cx="50" cy="48" r="10.5" fill="currentColor"/><line x1="50" y1="22" x2="50" y2="34"/><line x1="50" y1="74" x2="50" y2="62"/></g>`,
-      jockey: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round"><line x1="22" y1="50" x2="78" y2="50"/><polygon points="16,50 28,40 28,60" fill="currentColor" stroke="none"/><polygon points="84,50 72,40 72,60" fill="currentColor" stroke="none"/><circle cx="50" cy="32" r="8" fill="currentColor"/></g>`,
-      bruiser: `<g stroke="currentColor" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M 24 42 L 40 26 L 56 42 L 74 26"/><line x1="28" y1="66" x2="72" y2="66"/><circle cx="50" cy="52" r="9" fill="currentColor"/></g>`,
-      aerial_fortress: `<g stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="50,18 72,42 58,42 58,72 42,72 42,42 28,42" fill="currentColor" fill-opacity="0.3"/></g>`,
-      relentless: `<g stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="26" y="32" width="42" height="30" rx="5"/><rect x="68" y="40" width="6" height="14" fill="currentColor"/><polygon points="50,35 37,48 47,48 43,59 58,45 48,45" fill="currentColor" stroke="none"/></g>`,
-      footwork: `<g stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M 26 62 L 58 62 Q 74 62 74 50 L 54 42 L 42 26 L 26 30 Z" fill="currentColor" fill-opacity="0.25"/><circle cx="68" cy="32" r="8" fill="currentColor"/></g>`
+      // Goalkeeper PlayStyles (Directly matching your screenshot)
+      cross_claimer: `
+        ${BALL_SVG(62, 32, 10.5)}
+        <path d="M 24 68 L 42 46 L 52 54 L 34 74 Z" fill="currentColor"/>
+        <path d="M 40 44 C 38 36 44 30 50 34 L 56 42 C 58 46 54 52 48 50 Z" fill="currentColor"/>
+      `,
+      deflector: `
+        <path d="M 44 18 L 68 27 L 68 48 C 68 64 44 76 44 76 C 44 76 20 64 20 48 L 20 27 Z" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linejoin="round"/>
+        <path d="M 44 38 L 76 26 M 44 38 L 74 54" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+        <polygon points="72,20 82,24 75,33" fill="currentColor"/>
+        <polygon points="71,48 80,57 69,59" fill="currentColor"/>
+      `,
+      far_reach: `
+        ${BALL_SVG(36, 30, 10)}
+        <path d="M 30 48 C 32 42 40 40 46 44 L 66 56 L 58 72 L 36 58 Z" fill="currentColor"/>
+        <path d="M 24 38 Q 22 24 34 20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+      `,
+      far_throw: `
+        ${BALL_SVG(28, 34, 8.5)}
+        <circle cx="52" cy="36" r="7.5" fill="currentColor"/>
+        <path d="M 34 44 Q 50 48 64 68 L 44 72 L 42 54 Z" fill="currentColor"/>
+        <path d="M 52 48 L 78 36" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>
+        <polygon points="73,30 84,33 77,43" fill="currentColor"/>
+      `,
+      footwork: `
+        <path d="M 22 22 L 38 22 L 46 52 L 62 56 C 66 57 68 62 64 66 L 34 66 L 26 42 Z" fill="currentColor"/>
+        ${BALL_SVG(62, 42, 10.5)}
+      `,
+      rush_out: `
+        <path d="M 42 20 L 22 34 L 22 66 L 42 74 Z" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linejoin="round"/>
+        <circle cx="58" cy="30" r="6.5" fill="currentColor"/>
+        <path d="M 46 42 L 62 40 L 72 52 M 54 42 L 48 58 L 36 66 M 52 54 L 66 64 L 74 74" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round"/>
+      `,
+      // Outfield PlayStyles (Official EA Ratings Glyphs)
+      finesse_shot: `
+        ${BALL_SVG(64, 32, 10.5)}
+        <path d="M 24 68 C 22 40 40 28 54 30" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>
+        <polygon points="50,23 61,30 50,37" fill="currentColor"/>
+        <path d="M 34 74 C 34 52 46 44 60 44" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="4 4" stroke-linecap="round"/>
+      `,
+      power_shot: `
+        ${BALL_SVG(64, 34, 11)}
+        <path d="M 18 70 L 50 44 M 18 54 L 42 34 M 34 74 L 58 54" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>
+      `,
+      incisive_pass: `
+        <circle cx="28" cy="42" r="6.5" fill="currentColor"/>
+        <circle cx="28" cy="66" r="6.5" fill="currentColor"/>
+        <path d="M 38 64 L 70 32" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>
+        <polygon points="62,26 76,26 76,40" fill="currentColor"/>
+        <line x1="38" y1="42" x2="62" y2="42" stroke="currentColor" stroke-width="3.2" stroke-dasharray="4 4" stroke-linecap="round"/>
+      `,
+      tiki_taka: `
+        <polygon points="50,22 74,64 26,64" fill="none" stroke="currentColor" stroke-width="3.8" stroke-dasharray="5 3" stroke-linejoin="round"/>
+        <circle cx="50" cy="22" r="7" fill="currentColor"/>
+        <circle cx="74" cy="64" r="7" fill="currentColor"/>
+        <circle cx="26" cy="64" r="7" fill="currentColor"/>
+      `,
+      whipped_pass: `
+        ${BALL_SVG(66, 44, 10)}
+        <path d="M 20 62 Q 44 20 62 34" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
+        <path d="M 20 46 Q 44 10 66 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
+      `,
+      pinged_pass: `
+        ${BALL_SVG(66, 46, 10.5)}
+        <line x1="16" y1="46" x2="50" y2="46" stroke="currentColor" stroke-width="4.8" stroke-linecap="round"/>
+        <line x1="22" y1="34" x2="44" y2="34" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+        <line x1="22" y1="58" x2="44" y2="58" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>
+      `,
+      technical: `
+        ${BALL_SVG(50, 28, 9.5)}
+        <path d="M 26 68 Q 38 44 50 50 T 74 36" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
+        <circle cx="31" cy="46" r="4" fill="currentColor"/>
+        <circle cx="69" cy="56" r="4" fill="currentColor"/>
+      `,
+      rapid: `
+        <polygon points="56,16 28,48 47,48 39,76 72,40 52,40" fill="currentColor"/>
+      `,
+      first_touch: `
+        ${BALL_SVG(50, 34, 10.5)}
+        <path d="M 26 62 L 74 62 M 34 71 L 66 71" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
+        <line x1="50" y1="47" x2="50" y2="59" stroke="currentColor" stroke-width="3.8" stroke-linecap="round"/>
+      `,
+      anticipate: `
+        <path d="M 50 18 L 74 28 L 74 48 C 74 64 50 76 50 76 C 50 76 26 64 26 48 L 26 28 Z" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linejoin="round"/>
+        ${BALL_SVG(50, 46, 10)}
+      `,
+      intercept: `
+        <line x1="18" y1="46" x2="82" y2="46" stroke="currentColor" stroke-width="4" stroke-dasharray="5 4" stroke-linecap="round"/>
+        ${BALL_SVG(50, 46, 10.5)}
+        <line x1="50" y1="18" x2="50" y2="31" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
+        <line x1="50" y1="74" x2="50" y2="61" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
+      `,
+      jockey: `
+        <line x1="22" y1="50" x2="78" y2="50" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
+        <polygon points="16,50 28,40 28,60" fill="currentColor"/>
+        <polygon points="84,50 72,40 72,60" fill="currentColor"/>
+        <circle cx="50" cy="30" r="8.5" fill="currentColor"/>
+      `,
+      bruiser: `
+        <circle cx="38" cy="28" r="7" fill="currentColor"/>
+        <path d="M 24 64 L 30 40 L 52 40 L 58 64 Z" fill="currentColor"/>
+        <path d="M 58 36 L 78 28 M 60 48 L 80 48 M 58 60 L 78 68" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>
+      `,
+      aerial_fortress: `
+        <polygon points="50,16 74,42 59,42 59,70 41,70 41,42 26,42" fill="currentColor"/>
+      `,
+      relentless: `
+        <path d="M 50 26 C 38 14 20 24 20 40 C 20 58 50 74 50 74 C 50 74 80 58 80 40 C 80 24 62 14 50 26 Z" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linejoin="round"/>
+        <polyline points="28,44 42,44 47,32 54,56 59,44 72,44" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>
+      `
     };
 
     function getAppearanceMap() {
       try {
-        return JSON.parse(localStorage.getItem('proClubsAppearanceV2') || '{}');
+        return JSON.parse(localStorage.getItem('proClubsAppearanceV3') || '{}');
       } catch (_) {
         return {};
       }
@@ -627,10 +710,7 @@
       let hash = 0;
       for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash);
 
-      const defaultGender = (playerObj && typeof playerObj === 'object' && playerObj.inferredGender === 'female') ? 'female' : 'male';
-
       return {
-        gender: saved.gender || defaultGender,
         skin: saved.skin || skinOptions[Math.abs(hash) % skinOptions.length],
         hair: saved.hair || hairOptions[Math.abs(hash >> 3) % hairOptions.length]
       };
@@ -643,19 +723,7 @@
       const memberObj = GLOBAL_MEMBERS.find(m => String(m.name || m.proName || '').toLowerCase().trim() === key);
       const current = getPlayerAppearance(memberObj || playerName);
       map[key] = { ...current, ...updates };
-      localStorage.setItem('proClubsAppearanceV2', JSON.stringify(map));
-    }
-
-    function togglePlayerGender(event, playerName) {
-      if (event) event.stopPropagation();
-      const memberObj = GLOBAL_MEMBERS.find(m => (m.name || m.proName) === playerName);
-      const current = getPlayerAppearance(memberObj || playerName);
-      const nextGender = current.gender === 'female' ? 'male' : 'female';
-      savePlayerAppearance(playerName, { gender: nextGender });
-
-      renderMembers(GLOBAL_MEMBERS);
-      buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
-      if (ACTIVE_MODAL_PLAYER === playerName) openFutModal(playerName);
+      localStorage.setItem('proClubsAppearanceV3', JSON.stringify(map));
     }
 
     function updateProLook(type, hexValue) {
@@ -682,23 +750,7 @@
       const seed = encodeURIComponent(String(playerName || 'Pro').trim());
       const memberObj = GLOBAL_MEMBERS.find(m => (m.name || m.proName) === playerName);
       const look = getPlayerAppearance(memberObj || playerName);
-
-      const hairStyles = look.gender === 'female'
-        ? 'long01,long02,long03,long04,long05,long06,long07,long08,long09,long10,long11,long12,long13,long14,long15,long16'
-        : 'short01,short02,short03,short04,short05,short06,short07,short08,short09,short10,short11,short12,short13,short14,short15,short16';
-
-      return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&hair=${hairStyles}&skinColor=${look.skin}&hairColor=${look.hair}`;
-    }
-
-    function getGenderSymbolHtml(playerObj) {
-      const name = typeof playerObj === 'string' ? playerObj : (playerObj?.name || playerObj?.proName || '');
-      const safeJsName = String(name).replace(/'/g, "\\'");
-      const look = getPlayerAppearance(playerObj);
-
-      if (look.gender === 'female') {
-        return `<button onclick="togglePlayerGender(event, '${safeJsName}')" class="text-pink-400 hover:text-pink-300 font-black text-sm px-1 rounded hover:bg-pink-500/10 transition" title="Female Pro (Click to toggle)">♀</button>`;
-      }
-      return `<button onclick="togglePlayerGender(event, '${safeJsName}')" class="text-blue-400 hover:text-blue-300 font-black text-sm px-1 rounded hover:bg-blue-500/10 transition" title="Male Pro (Click to toggle)">♂</button>`;
+      return `https://api.dicebear.com/9.x/adventurer/svg?seed=${seed}&skinColor=${look.skin}&hairColor=${look.hair}`;
     }
 
     function getCardTierTheme(ovr) {
@@ -768,33 +820,30 @@
       document.getElementById('futLowerTextContainer').style.color = theme.textColor;
     }
 
-    // Renders Official EA Ratings PlayStyle & PlayStyle+ Pentagon-Diamond Badge with Full Embedded Vector Artwork
+    // Instant (0ms) Official EA PlayStyle & PlayStyle+ Diamond-Pentagon Renderer (Exact Shape & Inner Frame from Screenshot)
     function renderPlaystyleDiamondHtml(ps, isPlus = false) {
       const vectorArt = OFFICIAL_EA_PLAYSTYLE_VECTORS[ps.slug] || OFFICIAL_EA_PLAYSTYLE_VECTORS.technical;
-      const imgUrl = `${API_BASE}/playstyle/${ps.slug}?plus=${isPlus ? '1' : '0'}`;
 
       if (isPlus) {
         return `
           <div class="group ps-plus-badge cursor-pointer">
-            <img src="${imgUrl}" 
-                 class="w-full h-full object-contain drop-shadow" 
-                 alt="${ps.name}+"
-                 onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');">
-            <svg viewBox="0 0 100 100" class="hidden w-full h-full text-[#2b2108]">
+            <svg viewBox="0 0 100 92" class="w-full h-full text-[#1c1608]">
               <defs>
                 <linearGradient id="psGoldGrad_${ps.slug}" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#fef08a"/>
-                  <stop offset="50%" stop-color="#eab308"/>
-                  <stop offset="100%" stop-color="#a16207"/>
+                  <stop offset="0%" stop-color="#fde68a"/>
+                  <stop offset="45%" stop-color="#f5c43c"/>
+                  <stop offset="100%" stop-color="#c48b11"/>
                 </linearGradient>
               </defs>
-              <polygon points="10,16 90,16 96,44 50,94 4,44" fill="url(#psGoldGrad_${ps.slug})" stroke="#2b2108" stroke-width="5.5" stroke-linejoin="round"/>
-              <polygon points="16,22 84,22 88,43 50,85 12,43" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.75"/>
-              ${vectorArt}
+              <!-- Official EA PlayStyle+ 5-Sided Flat-Top Diamond Pentagon with Dark Inner Border Line -->
+              <polygon points="22,6 78,6 96,34 50,88 4,34" fill="url(#psGoldGrad_${ps.slug})" stroke="#1c1608" stroke-width="4.5" stroke-linejoin="round"/>
+              <polygon points="25,13 75,13 88,34 50,79 12,34" fill="none" stroke="#1c1608" stroke-width="2.2" stroke-linejoin="round" opacity="0.85"/>
+              <g transform="translate(0, -2)">
+                ${vectorArt}
+              </g>
             </svg>
-            <span class="absolute -top-1 -right-1 bg-[#2b2108] text-yellow-300 font-black text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center border border-yellow-400">+</span>
             <div class="pointer-events-none absolute left-13 top-1/2 -translate-y-1/2 hidden group-hover:flex flex-col bg-gray-950/95 text-white border border-yellow-400/60 px-2.5 py-1.5 rounded-lg shadow-2xl w-48 z-50">
-              <span class="text-[10px] font-black text-yellow-400 uppercase tracking-wider">${ps.name}+ (PlayStyle+)</span>
+              <span class="text-[10px] font-black text-yellow-400 uppercase tracking-wider">${ps.name}+</span>
               <span class="text-[9px] text-gray-300 leading-tight mt-0.5">${ps.desc}</span>
             </div>
           </div>
@@ -803,21 +852,19 @@
 
       return `
         <div class="group ps-silver-badge cursor-pointer">
-          <img src="${imgUrl}" 
-               class="w-full h-full object-contain drop-shadow" 
-               alt="${ps.name}"
-               onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');">
-          <svg viewBox="0 0 100 100" class="hidden w-full h-full text-[#1e293b]">
+          <svg viewBox="0 0 100 92" class="w-full h-full text-[#18202c]">
             <defs>
               <linearGradient id="psSilverGrad_${ps.slug}" x1="0%" y1="0%" x2="100%" y2="100%">
                 <stop offset="0%" stop-color="#ffffff"/>
-                <stop offset="55%" stop-color="#e2e8f0"/>
+                <stop offset="50%" stop-color="#e2e8f0"/>
                 <stop offset="100%" stop-color="#94a3b8"/>
               </linearGradient>
             </defs>
-            <polygon points="10,16 90,16 96,44 50,94 4,44" fill="url(#psSilverGrad_${ps.slug})" stroke="#1e293b" stroke-width="5.5" stroke-linejoin="round"/>
-            <polygon points="16,22 84,22 88,43 50,85 12,43" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.65"/>
-            ${vectorArt}
+            <polygon points="22,6 78,6 96,34 50,88 4,34" fill="url(#psSilverGrad_${ps.slug})" stroke="#18202c" stroke-width="4.5" stroke-linejoin="round"/>
+            <polygon points="25,13 75,13 88,34 50,79 12,34" fill="none" stroke="#18202c" stroke-width="2" stroke-linejoin="round" opacity="0.75"/>
+            <g transform="translate(0, -2)">
+              ${vectorArt}
+            </g>
           </svg>
           <div class="pointer-events-none absolute left-11 top-1/2 -translate-y-1/2 hidden group-hover:flex flex-col bg-gray-950/95 text-white border border-slate-400/60 px-2.5 py-1.5 rounded-lg shadow-2xl w-44 z-50">
             <span class="text-[10px] font-black text-slate-200 uppercase tracking-wider">${ps.name}</span>
@@ -884,12 +931,19 @@
       }
 
       const silverPool = [];
-      if (goalsPerGame >= 0.3) silverPool.push({ slug: 'power_shot', name: 'Power Shot', desc: 'Faster power shots with significant velocity increase.' });
-      if (assistsPerGame >= 0.25) silverPool.push({ slug: 'whipped_pass', name: 'Whipped Pass', desc: 'Accurate, faster driven crosses with more curve.' });
-      if (passPct >= 76) silverPool.push({ slug: 'pinged_pass', name: 'Pinged Pass', desc: 'Passes travel faster along the ground without impacting trapping.' });
-      if (tacklesPerGame >= 0.8) silverPool.push({ slug: 'bruiser', name: 'Bruiser', desc: 'Greater physical strength when performing physical tackles.' });
-      silverPool.push({ slug: 'first_touch', name: 'First Touch', desc: 'Reduced error when trapping the ball with faster transition to dribbling.' });
-      silverPool.push({ slug: 'relentless', name: 'Relentless', desc: 'Reduces fatigue loss during play and increases halftime stamina recovery.' });
+      if (pos === 'GK') {
+        silverPool.push({ slug: 'far_reach', name: 'Far Reach', desc: 'More effective at saving shots from outside the box with extended reach.' });
+        silverPool.push({ slug: 'cross_claimer', name: 'Cross Claimer', desc: 'Comes off the line to intercept high crosses before attackers arrive.' });
+        silverPool.push({ slug: 'deflector', name: 'Deflector', desc: 'Pushes shots cleanly into safe areas away from onrushing forwards.' });
+        silverPool.push({ slug: 'rush_out', name: 'Rush Out', desc: 'Faster sprint speed when rushing out in 1v1 situations.' });
+      } else {
+        if (goalsPerGame >= 0.3) silverPool.push({ slug: 'power_shot', name: 'Power Shot', desc: 'Faster power shots with significant velocity increase.' });
+        if (assistsPerGame >= 0.25) silverPool.push({ slug: 'whipped_pass', name: 'Whipped Pass', desc: 'Accurate, faster driven crosses with more curve.' });
+        if (passPct >= 76) silverPool.push({ slug: 'pinged_pass', name: 'Pinged Pass', desc: 'Passes travel faster along the ground without impacting trapping.' });
+        if (tacklesPerGame >= 0.8) silverPool.push({ slug: 'bruiser', name: 'Bruiser', desc: 'Greater physical strength when performing physical tackles.' });
+        silverPool.push({ slug: 'first_touch', name: 'First Touch', desc: 'Reduced error when trapping the ball with faster transition to dribbling.' });
+        silverPool.push({ slug: 'relentless', name: 'Relentless', desc: 'Reduces fatigue loss during play and increases halftime stamina recovery.' });
+      }
 
       return {
         archetype,
@@ -1151,7 +1205,7 @@
       }
 
       section.classList.remove('hidden');
-      document.getElementById('seasonsSummaryMeta').innerText = `${trophies.totalSeasons || seasonsHistory.length} Total Seasons • ${trophies.promotions || 0} Promotions • ${trophies.relegations || 0} Relegations • ${trophies.holds || 0} Holds`;
+      document.getElementById('seasonsSummaryMeta').innerText = `${seasonsHistory.length} FC 27 Seasons • ${trophies.promotions || 0} Total Promotions • ${trophies.relegations || 0} Total Relegations`;
 
       seasonsHistory.forEach(s => {
         const totalGames = Math.max(1, s.wins + s.draws + s.losses);
@@ -1164,8 +1218,6 @@
           outcomeBadge = `<span class="px-2.5 py-0.5 rounded text-xs font-black bg-yellow-500/20 text-yellow-300 border border-yellow-500/40"><i class="fa-solid fa-trophy mr-1"></i>${s.outcome}</span>`;
         } else if (s.badgeType === 'promo') {
           outcomeBadge = `<span class="px-2.5 py-0.5 rounded text-xs font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"><i class="fa-solid fa-angles-up mr-1"></i>${s.outcome}</span>`;
-        } else if (s.badgeType === 'releg') {
-          outcomeBadge = `<span class="px-2.5 py-0.5 rounded text-xs font-black bg-rose-500/15 text-rose-400 border border-rose-500/30"><i class="fa-solid fa-angles-down mr-1"></i>${s.outcome}</span>`;
         } else if (s.badgeType === 'active') {
           outcomeBadge = `<span class="px-2.5 py-0.5 rounded text-xs font-black bg-sky-500/15 text-sky-300 border border-sky-500/30"><i class="fa-solid fa-circle-play mr-1"></i>${s.outcome}</span>`;
         } else {
@@ -1278,14 +1330,10 @@
       const trophyBar = document.getElementById('trophyBar');
       if (data.trophies) {
         trophyBar.classList.remove('hidden');
-        const promos = Number(data.trophies.promotions ?? 0);
-        const relegs = Number(data.trophies.relegations ?? 0);
-        const net = promos - relegs;
         document.getElementById('trophyTitles').innerText = data.trophies.titlesWon ?? 0;
         document.getElementById('trophyLeagues').innerText = data.trophies.leaguesWon ?? 0;
-        document.getElementById('trophyPromos').innerText = promos;
-        document.getElementById('trophyRelegs').innerText = relegs;
-        document.getElementById('trophyPromoRatio').innerText = net >= 0 ? `+${net} Net` : `${net} Net`;
+        document.getElementById('trophyPromos').innerText = data.trophies.promotions ?? 0;
+        document.getElementById('trophyRelegs').innerText = data.trophies.relegations ?? 0;
         document.getElementById('trophyPeakDiv').innerText = data.trophies.bestDivision || data.division || 'Div 2';
       }
 
@@ -1343,9 +1391,6 @@
         m._normalizedPos = normPos;
         m._rawPos = rawPos;
 
-        const look = getPlayerAppearance(m);
-        const avatarBorder = look.gender === 'female' ? 'border-pink-500/60' : 'border-emerald-500/40';
-
         const badgeColor = normPos === 'FWD' ? 'text-rose-400 bg-rose-500/10' :
                            normPos === 'MID' ? 'text-amber-400 bg-amber-500/10' :
                            normPos === 'DEF' ? 'text-blue-400 bg-blue-500/10' : 'text-purple-400 bg-purple-500/10';
@@ -1355,11 +1400,10 @@
         tr.onclick = () => openFutModal(name);
         tr.innerHTML = `
           <td class="py-3 px-2 font-medium text-white">
-            <div class="flex items-center gap-2">
-              <img src="${getPlayerAvatarUrl(name)}" class="w-8 h-8 rounded-full border ${avatarBorder} bg-gray-900 flex-shrink-0" alt="${name}">
+            <div class="flex items-center gap-2.5">
+              <img src="${getPlayerAvatarUrl(name)}" class="w-8 h-8 rounded-full border border-emerald-500/40 bg-gray-900 flex-shrink-0" alt="${name}">
               <img src="${getFlagUrl(nationId)}" class="w-4 h-3 object-cover rounded-[2px] shadow-sm flex-shrink-0" alt="Flag">
               <span class="hover:text-yellow-400 transition font-semibold">${name}</span>
-              ${getGenderSymbolHtml(m)}
             </div>
           </td>
           <td class="py-3 px-2 text-center">
@@ -1389,7 +1433,6 @@
       const name = p.name || p.proName || 'Player';
       const ovr = Number(p.proOverall || 85);
       const nationId = p.proNationality || '25';
-      const look = getPlayerAppearance(p);
       const pos = p._rawPos && p._rawPos.length <= 4 ? p._rawPos.toUpperCase() : p._normalizedPos;
       const games = Math.max(1, Number(p.gamesPlayed || 1));
       const goals = Number(p.goals || 0);
@@ -1409,7 +1452,8 @@
 
       const buildInfo = computeArchetypeAndPlaystyles(p);
 
-      document.getElementById('futArchetypeBadge').innerHTML = `<i class="fa-solid fa-crown text-[8px]"></i> ${buildInfo.archetype} ARCHETYPE`;
+      // Clean Archetype Name Only (No "ARCHETYPE" suffix)
+      document.getElementById('futArchetypeBadge').innerHTML = `<i class="fa-solid fa-crown text-[8px]"></i> ${buildInfo.archetype}`;
 
       const leftStack = document.getElementById('futLeftPlaystylesStack');
       leftStack.innerHTML = [
@@ -1419,7 +1463,6 @@
 
       document.getElementById('futOvr').innerText = ovr;
       document.getElementById('futPos').innerText = pos;
-      document.getElementById('futGenderBadge').innerText = look.gender === 'female' ? '♀' : '♂';
       document.getElementById('futAvatar').src = getPlayerAvatarUrl(name);
       document.getElementById('futName').innerText = name;
 
@@ -1432,9 +1475,6 @@
 
       document.getElementById('futFlag').src = getFlagUrl(nationId);
       document.getElementById('futClubCrest').src = CURRENT_CLUB_CREST_URL || `${API_BASE}/crest/0?name=FC`;
-
-      const toggleBtn = document.getElementById('modalGenderToggleBtn');
-      toggleBtn.onclick = (ev) => togglePlayerGender(ev, name);
 
       const modal = document.getElementById('futModal');
       modal.classList.remove('hidden');
@@ -1659,27 +1699,24 @@
       formContainer.innerHTML = formBadgesList.join('');
     }
 
-    // Switches between All-Time Best XI, Hot Form XI (Last 10), and Last Match Lineup
+    // 2-Mode Switcher: 'lastMatch' vs 'suggestedXI'
     function switchPitchMode(mode) {
       CURRENT_PITCH_MODE = mode;
-      const modes = [
-        { id: 'btnModeBestXI', key: 'bestXI' },
-        { id: 'btnModeFormXI', key: 'formXI' },
-        { id: 'btnModeLastMatch', key: 'lastMatch' }
-      ];
-      modes.forEach(m => {
-        const el = document.getElementById(m.id);
-        if (!el) return;
-        if (m.key === mode) {
-          el.className = 'px-3 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition shadow';
-        } else {
-          el.className = 'px-3 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition';
-        }
-      });
+      const btnLast = document.getElementById('btnModeLastMatch');
+      const btnSuggested = document.getElementById('btnModeSuggested');
+
+      if (mode === 'lastMatch') {
+        btnLast.className = 'px-3.5 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition shadow';
+        btnSuggested.className = 'px-3.5 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition';
+      } else {
+        btnSuggested.className = 'px-3.5 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition shadow';
+        btnLast.className = 'px-3.5 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition';
+      }
+
       buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
     }
 
-    // Infers the club's formation from the most recent match positions + squad roles, and slots the Best XI
+    // Tactical Pitch Builder: Mode 1 = Last Match XI, Mode 2 = Suggested Best XI (Based on Builds & Attributes, No MVP Crown)
     function buildDynamicPitchTactic(members = [], matches = []) {
       const rowAtk = document.getElementById('rowAttack');
       const rowCam = document.getElementById('rowCAM');
@@ -1698,7 +1735,6 @@
         return;
       }
 
-      // 1. Inspect the most recent match to infer the active tactical formation
       const latestMatch = Array.isArray(matches) && matches.length > 0 ? matches[0] : null;
       let latestPlayersMap = {};
       let latestOpponentName = '';
@@ -1711,10 +1747,7 @@
         latestOpponentName = clubsData[oppId]?.details?.name || clubsData[oppId]?.name || 'Opponent';
       }
 
-      // Count positional distribution across squad + last match to pick authentic formation template
       const fwdPool = members.filter(m => m._normalizedPos === 'FWD');
-      const midPool = members.filter(m => m._normalizedPos === 'MID');
-      const defPool = members.filter(m => m._normalizedPos === 'DEF');
 
       let formationTemplate = {
         name: '4-2-3-1 Narrow',
@@ -1747,66 +1780,61 @@
 
       document.getElementById('formationBadge').innerText = formationTemplate.name;
 
-      // 2. Score and rank players according to the selected mode (Best XI, Form XI, or Last Match Lineup)
+      // Score each player by Build/Attributes (for Suggested Best XI) and by Last Match participation
       const scoredMembers = members.map(m => {
         const name = m.name || m.proName || 'Player';
+        const ovr = Number(m.proOverall || 85);
         const games = Math.max(1, Number(m.gamesPlayed || 1));
         const careerRating = parseFloat(m.ratingAve || m.rating || 7.0);
         const gpg = Number(m.goals || 0) / games;
         const apg = Number(m.assists || 0) / games;
         const tpg = Number(m.tacklesmade || m.tackles || 0) / games;
+        const passPct = Number(m.passSuccessRate || 75);
 
-        const r10 = RECENT_10_STATS_MAP[name];
-        const form10Rating = r10 && r10.games > 0 ? (r10.totalRating / r10.games) : careerRating;
-        const form10GA = r10 ? (r10.goals + r10.assists) : 0;
+        // Compute 6-attribute build ratings
+        const pac = Math.min(99, Math.max(60, Math.round(ovr + 3)));
+        const sho = Math.min(99, Math.max(55, Math.round(ovr - 4 + gpg * 14)));
+        const pas = Math.min(99, Math.max(58, Math.round(passPct + 6)));
+        const dri = Math.min(99, Math.max(62, Math.round(ovr + (careerRating - 7.0) * 5)));
+        const def = Math.min(99, Math.max(28, Math.round((m._normalizedPos === 'DEF' ? 82 : 42) + tpg * 15)));
+        const phy = Math.min(99, Math.max(58, Math.round(ovr - 3 + tpg * 6)));
 
-        // Check if player participated in the most recent match
+        const buildInfo = computeArchetypeAndPlaystyles(m);
+
+        // Build & Attribute Suitability Score
+        const buildScore = (ovr * 3) + pac + sho + pas + dri + def + phy + (careerRating * 10);
+
         const lastMatchEntry = Object.values(latestPlayersMap).find(lp => (lp.playername || lp.name) === name);
         const lastMatchRating = lastMatchEntry ? parseFloat(lastMatchEntry.rating || 0) : null;
         const lastMatchGA = lastMatchEntry ? (Number(lastMatchEntry.goals || 0) + Number(lastMatchEntry.assists || 0)) : 0;
-
-        const allTimeScore = (careerRating * 12) + (gpg * 18) + (apg * 14) + (tpg * 6) + Math.min(15, games * 0.15);
-        const formScore = r10 ? ((form10Rating * 14) + (form10GA * 4) + (r10.games * 1.5)) : (allTimeScore * 0.5);
         const lastMatchScore = lastMatchEntry ? (1000 + (lastMatchRating * 20) + (lastMatchGA * 10)) : -1;
 
         return {
           ...m,
           _displayName: name,
-          _allTimeScore: allTimeScore,
-          _formScore: formScore,
+          _buildScore: buildScore,
+          _archetype: buildInfo.archetype,
           _lastMatchScore: lastMatchScore,
-          _form10Rating: form10Rating,
-          _form10GA: form10GA,
           _lastMatchRating: lastMatchRating,
           _lastMatchGA: lastMatchGA
         };
       });
 
-      const sortKey = CURRENT_PITCH_MODE === 'formXI' ? '_formScore' : (CURRENT_PITCH_MODE === 'lastMatch' ? '_lastMatchScore' : '_allTimeScore');
-
-      if (CURRENT_PITCH_MODE === 'bestXI') {
-        document.getElementById('formationSubtitle').innerText = `All-Time Best XI ranked by career pitch impact in your ${formationTemplate.name} setup`;
-      } else if (CURRENT_PITCH_MODE === 'formXI') {
-        document.getElementById('formationSubtitle').innerText = `Hot Form XI ranked by performance across the last 10 matches`;
-      } else {
-        document.getElementById('formationSubtitle').innerText = latestMatch 
-          ? `Active Lineup from your most recent match vs ${latestOpponentName}` 
+      if (CURRENT_PITCH_MODE === 'lastMatch') {
+        document.getElementById('formationSubtitle').innerText = latestMatch
+          ? `Active Lineup from your most recent match vs ${latestOpponentName}`
           : `Most recent match lineup`;
+      } else {
+        document.getElementById('formationSubtitle').innerText = `Suggested Best XI & optimal positional fit based on each player's Pro OVR, Archetype & Build Attributes`;
       }
 
-      // Filter pool (if Last Match mode, only place human pros who played in that match; otherwise place all club pros)
       const eligiblePool = CURRENT_PITCH_MODE === 'lastMatch'
         ? scoredMembers.filter(m => m._lastMatchScore > 0).sort((a, b) => b._lastMatchScore - a._lastMatchScore)
-        : [...scoredMembers].sort((a, b) => b[sortKey] - a[sortKey]);
-
-      // Determine overall MVP Captain among eligible players
-      const mvpCaptainName = eligiblePool.length > 0 ? eligiblePool[0]._displayName : null;
+        : [...scoredMembers].sort((a, b) => b._buildScore - a._buildScore);
 
       const usedNames = new Set();
       const claimBestForRole = (preferredNormPos, allowAnyFallback = true) => {
-        // First try matching exact positional group
         let idx = eligiblePool.findIndex(p => !usedNames.has(p._displayName) && p._normalizedPos === preferredNormPos);
-        // If no human in that exact group and we have unassigned humans in other outfield roles, slot them in
         if (idx === -1 && allowAnyFallback && preferredNormPos !== 'GK') {
           idx = eligiblePool.findIndex(p => !usedNames.has(p._displayName));
         }
@@ -1838,43 +1866,34 @@
         const ovr = Number(player.proOverall || 85);
         const tierInfo = getCardTierTheme(ovr);
         const nationId = player.proNationality || '25';
-        const look = getPlayerAppearance(player);
-        const isCaptain = name === mvpCaptainName;
 
         let shownRating = parseFloat(player.ratingAve || 7.0).toFixed(1);
-        let subStatPill = `${player.goals || 0}G • ${player.assists || 0}A`;
+        let subStatPill = player._archetype;
 
-        if (CURRENT_PITCH_MODE === 'formXI') {
-          shownRating = player._form10Rating.toFixed(1);
-          subStatPill = `L10: ${player._form10GA} G+A`;
-        } else if (CURRENT_PITCH_MODE === 'lastMatch' && player._lastMatchRating !== null) {
+        if (CURRENT_PITCH_MODE === 'lastMatch' && player._lastMatchRating !== null) {
           shownRating = player._lastMatchRating.toFixed(1);
-          subStatPill = `Match: ${player._lastMatchGA} G+A`;
+          subStatPill = `${player._lastMatchGA} G+A`;
         }
 
-        const ringColor = isCaptain ? 'border-yellow-400 ring-2 ring-yellow-400/40' : (look.gender === 'female' ? 'border-pink-400' : 'border-emerald-400');
-        const genderBadge = look.gender === 'female' ? '<span class="text-pink-400 text-[10px] ml-0.5">♀</span>' : '<span class="text-blue-400 text-[10px] ml-0.5">♂</span>';
         const safeJsName = name.replace(/'/g, "\\'");
 
         return `
           <div onclick="openFutModal('${safeJsName}')" class="flex flex-col items-center hover:scale-110 transition transform cursor-pointer group">
             <div class="relative">
-              ${isCaptain ? `<span class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-yellow-400 text-black font-black text-[8px] px-1.5 py-0.2 rounded-full shadow flex items-center gap-0.5 z-20"><i class="fa-solid fa-crown text-[7px]"></i> MVP</span>` : ''}
-              <img src="${getPlayerAvatarUrl(name)}" class="w-13 h-13 w-[52px] h-[52px] rounded-full border-2 ${ringColor} bg-gray-900 object-cover shadow-xl group-hover:border-yellow-300 transition" alt="${name}">
+              <img src="${getPlayerAvatarUrl(name)}" class="w-[52px] h-[52px] rounded-full border-2 border-emerald-400 bg-gray-900 object-cover shadow-xl group-hover:border-yellow-300 transition" alt="${name}">
               <span class="absolute -top-1 -left-2 bg-gray-950 ${tierInfo.badgeClass} border font-black text-[9px] px-1 rounded shadow">${ovr}</span>
               <img src="${getFlagUrl(nationId)}" class="absolute -bottom-0.5 -left-1.5 w-4 h-3 rounded-[2px] border border-black shadow" alt="Flag">
               <span class="absolute -bottom-1 -right-1.5 bg-yellow-500 text-black font-black text-[9px] px-1 rounded-sm shadow">${shownRating}</span>
             </div>
-            <span class="text-xs font-extrabold text-white mt-1.5 drop-shadow max-w-[100px] truncate group-hover:text-yellow-300">${name}${genderBadge}</span>
+            <span class="text-xs font-extrabold text-white mt-1.5 drop-shadow max-w-[100px] truncate group-hover:text-yellow-300">${name}</span>
             <div class="flex items-center gap-1 mt-0.5">
               <span class="text-[9px] bg-black/50 text-emerald-300 px-1.5 py-0.2 rounded uppercase font-black border border-emerald-500/30">${tacticalSlotLabel}</span>
-              <span class="text-[9px] bg-black/50 text-gray-200 px-1.5 py-0.2 rounded font-mono">${subStatPill}</span>
+              <span class="text-[9px] bg-black/50 text-gray-200 px-1.5 py-0.2 rounded font-semibold">${subStatPill}</span>
             </div>
           </div>
         `;
       };
 
-      // Populate rows according to formation template
       formationTemplate.atk.forEach(slot => {
         rowAtk.innerHTML += renderPitchNode(claimBestForRole('FWD', true), slot);
       });
@@ -1898,18 +1917,16 @@
 
       rowGk.innerHTML = renderPitchNode(claimBestForRole('GK', false), 'GK');
 
-      // Update Pitch Summary Metrics Bar
       const humanCount = assignedHumanPlayers.length;
       const avgOvr = humanCount > 0 ? Math.round(assignedHumanPlayers.reduce((a, b) => a + Number(b.proOverall || 85), 0) / humanCount) : '--';
       const avgRat = humanCount > 0 ? (assignedHumanPlayers.reduce((a, b) => a + parseFloat(b.ratingAve || 7.0), 0) / humanCount).toFixed(2) : '--';
 
-      let zoneLabel = 'Attack';
+      let zoneLabel = 'Attacking Front';
       const fwdCount = assignedHumanPlayers.filter(p => p._normalizedPos === 'FWD').length;
       const midCount = assignedHumanPlayers.filter(p => p._normalizedPos === 'MID').length;
       const defCount = assignedHumanPlayers.filter(p => p._normalizedPos === 'DEF').length;
       if (midCount >= fwdCount && midCount >= defCount) zoneLabel = 'Midfield Engine';
       else if (defCount > fwdCount && defCount > midCount) zoneLabel = 'Defensive Wall';
-      else zoneLabel = 'Attacking Front';
 
       document.getElementById('pitchMetricHumans').innerText = `${humanCount} / 11 Pros`;
       document.getElementById('pitchMetricOvr').innerText = avgOvr !== '--' ? `${avgOvr} OVR` : '--';
