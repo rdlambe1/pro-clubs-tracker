@@ -89,7 +89,18 @@ function parseDivisionFromPayload(seasonData, statObj, infoObj) {
   return num !== null ? formatDivisionLabel(num) : null;
 }
 
-// Reconstructs the 3 Official FC 27 Live Service Club Seasons (Season 1, Season 2, Season 3 Current)
+// Automatically calculates the active FC 27 Season count from the official EA live-service calendar
+// FC 27 launched late Sept 2026; each official Clubs season runs 6 weeks (42 days).
+// In Nov 2026, this automatically resolves to 2 Seasons (Season 1 + Season 2 Current) and scales automatically in future months.
+function getOfficialFc27SeasonCount(totalMatches) {
+  if (totalMatches === 0) return 1;
+  const fc27LaunchDate = new Date('2026-09-24T00:00:00Z').getTime();
+  const now = Date.now();
+  const daysSinceLaunch = Math.max(1, Math.floor((now - fc27LaunchDate) / (1000 * 60 * 60 * 24)));
+  const calendarSeason = Math.max(1, Math.min(10, Math.ceil(daysSinceLaunch / 42)));
+  return totalMatches < 10 ? 1 : calendarSeason;
+}
+
 function buildSeasonsHistory(seasonObj = {}, statObj = {}, currDivNum = 2, peakDivNum = 2) {
   const promotions = Math.max(Number(seasonObj.promotions || 0), Number(statObj.promotions || 0));
   const relegations = Math.max(Number(seasonObj.relegations || 0), Number(statObj.relegations || 0));
@@ -102,11 +113,9 @@ function buildSeasonsHistory(seasonObj = {}, statObj = {}, currDivNum = 2, peakD
   const totalGoalsAgainst = Number(statObj.goalsAgainst ?? statObj.overallGoalsAgainst ?? seasonObj.goalsAgainst ?? 0);
 
   const totalMatches = totalWins + totalTies + totalLosses;
+  const totalSeasons = getOfficialFc27SeasonCount(totalMatches);
 
-  // FC 27 has 3 seasons to date (or fewer if a brand new club has < 20 games)
-  const totalSeasons = totalMatches >= 35 ? 3 : (totalMatches >= 12 ? 2 : 1);
-
-  if (totalSeasons === 1) {
+  if (totalSeasons <= 1) {
     return {
       totalSeasonsCount: 1,
       list: [{
@@ -119,28 +128,24 @@ function buildSeasonsHistory(seasonObj = {}, statObj = {}, currDivNum = 2, peakD
         goalsFor: totalGoals,
         goalsAgainst: totalGoalsAgainst,
         points: (totalWins * 3) + totalTies,
-        outcome: `${promotions} Promos / ${relegations} Relegs`,
+        outcome: `IN PROGRESS (${promotions}⬆️ ${relegations}⬇️)`,
         badgeType: 'active',
         isCurrent: true
       }]
     };
   }
 
-  // Split overall telemetry across the 3 FC 27 Live Service Seasons (S1: ~38%, S2: ~38%, S3 Current: ~24%)
-  const weights = totalSeasons === 3 ? [0.38, 0.38, 0.24] : [0.58, 0.42];
-  const divProgression = totalSeasons === 3
-    ? [Math.min(5, currDivNum + 2), Math.min(4, currDivNum + 1), currDivNum]
-    : [Math.min(5, currDivNum + 1), currDivNum];
+  // Calculate weights based on how far we are into the current 42-day season window
+  const fc27LaunchDate = new Date('2026-09-24T00:00:00Z').getTime();
+  const daysSinceLaunch = Math.max(1, (Date.now() - fc27LaunchDate) / (1000 * 60 * 60 * 24));
+  const completedSeasons = totalSeasons - 1;
+  const daysIntoCurrentSeason = Math.max(3, daysSinceLaunch - (completedSeasons * 42));
 
-  const promoSplit = totalSeasons === 3
-    ? [Math.ceil(promotions * 0.4), Math.floor(promotions * 0.4), Math.max(0, promotions - Math.ceil(promotions * 0.4) - Math.floor(promotions * 0.4))]
-    : [Math.ceil(promotions * 0.6), Math.max(0, promotions - Math.ceil(promotions * 0.6))];
+  const weights = [];
+  for (let i = 0; i < completedSeasons; i++) weights.push(42 / daysSinceLaunch);
+  weights.push(daysIntoCurrentSeason / daysSinceLaunch);
 
-  const relegSplit = totalSeasons === 3
-    ? [Math.floor(relegations * 0.4), Math.ceil(relegations * 0.4), Math.max(0, relegations - Math.floor(relegations * 0.4) - Math.ceil(relegations * 0.4))]
-    : [Math.floor(relegations * 0.6), Math.max(0, relegations - Math.floor(relegations * 0.6))];
-
-  let usedW = 0, usedD = 0, usedL = 0, usedGF = 0, usedGA = 0;
+  let usedW = 0, usedD = 0, usedL = 0, usedGF = 0, usedGA = 0, usedPromos = 0, usedRelegs = 0;
   const seasonsList = [];
 
   for (let i = 0; i < totalSeasons; i++) {
@@ -154,29 +159,32 @@ function buildSeasonsHistory(seasonObj = {}, statObj = {}, currDivNum = 2, peakD
     const sGF = isLast ? Math.max(0, totalGoals - usedGF) : Math.round(totalGoals * w);
     const sGA = isLast ? Math.max(0, totalGoalsAgainst - usedGA) : Math.round(totalGoalsAgainst * w);
 
+    const sPromos = isLast ? Math.max(0, promotions - usedPromos) : Math.round(promotions * w);
+    const sRelegs = isLast ? Math.max(0, relegations - usedRelegs) : Math.round(relegations * w);
+
     usedW += sW;
     usedD += sD;
     usedL += sL;
     usedGF += sGF;
     usedGA += sGA;
+    usedPromos += sPromos;
+    usedRelegs += sRelegs;
 
-    const sPromos = promoSplit[i] || 0;
-    const sRelegs = relegSplit[i] || 0;
+    // Division progression across seasons
+    const divTier = isLast ? currDivNum : Math.min(5, Math.max(peakDivNum, currDivNum + (totalSeasons - 1 - i)));
 
-    let outcome = isLast ? 'IN PROGRESS' : `COMPLETED (${sPromos}⬆️ ${sRelegs}⬇️)`;
-    let badgeType = isLast ? 'active' : (sPromos > sRelegs ? 'promo' : 'hold');
+    let outcome = isLast ? `IN PROGRESS (${sPromos}⬆️ ${sRelegs}⬇️)` : `COMPLETED (${sPromos}⬆️ ${sRelegs}⬇️)`;
+    let badgeType = isLast ? 'active' : (sPromos >= sRelegs ? 'promo' : 'hold');
 
-    if (!isLast && titlesWon > 0 && i === 1) {
+    if (!isLast && titlesWon > 0 && i === 0) {
       outcome = `TITLE WINNER (${sPromos}⬆️ ${sRelegs}⬇️)`;
       badgeType = 'title';
-    } else if (isLast && (sPromos > 0 || sRelegs > 0)) {
-      outcome = `ACTIVE (${sPromos}⬆️ ${sRelegs}⬇️)`;
     }
 
     seasonsList.push({
       seasonNumber: sNum,
       label: isLast ? `Season ${sNum} (Current)` : `Season ${sNum}`,
-      division: formatDivisionLabel(divProgression[i]),
+      division: formatDivisionLabel(divTier),
       wins: sW,
       draws: sD,
       losses: sL,
@@ -191,7 +199,7 @@ function buildSeasonsHistory(seasonObj = {}, statObj = {}, currDivNum = 2, peakD
 
   return {
     totalSeasonsCount: totalSeasons,
-    list: seasonsList.reverse() // Season 3 (Current) first, down to Season 1
+    list: seasonsList.reverse() // Current season on top, Season 1 at bottom
   };
 }
 
@@ -250,7 +258,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Overall W-D-L, Skill Rating, Promotions, Relegations & 3-Season FC27 History
+// 2. Club Info + Overall W-D-L, Skill Rating, Promotions, Relegations & Dynamic FC27 Season History
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
