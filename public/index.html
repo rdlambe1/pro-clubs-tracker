@@ -75,7 +75,7 @@
       font-family: 'Oswald', sans-serif;
     }
 
-    /* Official FUTBIN / EA FC27 PlayStyle Badge Containers */
+    /* Official EA Ratings PlayStyle & PlayStyle+ Badge Containers */
     .ps-plus-badge {
       width: 48px;
       height: 48px;
@@ -309,27 +309,69 @@
       </div>
     </section>
 
-    <!-- Dynamic Formation Tactical Pitch Diagram -->
+    <!-- Reimagined Best XI & Recent Match Tactical Pitch Command Center -->
     <section class="card p-6 space-y-4">
-      <div class="flex justify-between items-center">
+      <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-4 border-b border-gray-800 pb-4">
         <div>
-          <h3 class="text-lg font-bold text-white flex items-center gap-2">
-            <i class="fa-solid fa-chess-board text-emerald-400"></i> Most Used Formation & Tactic
-          </h3>
-          <p id="formationSubtitle" class="text-xs text-gray-400 mt-0.5">Click any player on the pitch to inspect their FC27 Card (Gold >84, Silver <85, Bronze <76) & PlayStyles</p>
+          <div class="flex items-center gap-2.5">
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="fa-solid fa-chess-board text-emerald-400"></i> Club Best XI & Tactical Lineup
+            </h3>
+            <span id="formationBadge" class="text-xs font-black px-2.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">--</span>
+          </div>
+          <p id="formationSubtitle" class="text-xs text-gray-400 mt-1">Inferred from your most recent match formation • Click any player to open their FC27 Ultimate Team Card</p>
         </div>
-        <span id="formationBadge" class="text-xs font-semibold px-2.5 py-1 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">--</span>
+
+        <!-- Lineup Mode Switcher -->
+        <div class="flex flex-wrap items-center gap-1.5 bg-gray-900 p-1 rounded-lg border border-gray-800">
+          <button id="btnModeBestXI" onclick="switchPitchMode('bestXI')" class="px-3 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition">
+            <i class="fa-solid fa-trophy mr-1"></i> All-Time Best XI
+          </button>
+          <button id="btnModeFormXI" onclick="switchPitchMode('formXI')" class="px-3 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition">
+            <i class="fa-solid fa-fire mr-1 text-amber-400"></i> Hot Form XI (Last 10)
+          </button>
+          <button id="btnModeLastMatch" onclick="switchPitchMode('lastMatch')" class="px-3 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition">
+            <i class="fa-solid fa-clock-rotate-left mr-1 text-sky-400"></i> Last Match XI
+          </button>
+        </div>
       </div>
 
-      <div class="pitch-bg w-full h-[580px] p-6 flex flex-col justify-between relative shadow-inner">
+      <!-- Tactical Summary Metrics Bar -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between">
+          <span class="text-[10px] uppercase font-bold text-gray-400">Human Pros in XI</span>
+          <span id="pitchMetricHumans" class="text-sm font-black text-emerald-400">-- / 11</span>
+        </div>
+        <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between">
+          <span class="text-[10px] uppercase font-bold text-gray-400">Lineup Avg OVR</span>
+          <span id="pitchMetricOvr" class="text-sm font-black text-yellow-400">--</span>
+        </div>
+        <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between">
+          <span class="text-[10px] uppercase font-bold text-gray-400">Lineup Avg Rating</span>
+          <span id="pitchMetricRating" class="text-sm font-black text-white">--</span>
+        </div>
+        <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between">
+          <span class="text-[10px] uppercase font-bold text-gray-400">Strongest Line</span>
+          <span id="pitchMetricZone" class="text-xs font-black text-purple-400 uppercase">--</span>
+        </div>
+      </div>
+
+      <!-- 11-Slot Tactical Pitch with Formation Rows -->
+      <div class="pitch-bg w-full h-[620px] py-6 px-4 flex flex-col justify-between relative shadow-inner">
         <div class="pitch-penalty-top"></div>
         <div class="pitch-center-line"></div>
         <div class="pitch-center-circle"></div>
         <div class="pitch-penalty-bottom"></div>
 
-        <div class="flex justify-around items-center z-10 w-full" id="rowAttack"></div>
+        <!-- Attackers Row -->
+        <div class="flex justify-around items-center z-10 w-full px-2" id="rowAttack"></div>
+        <!-- Attacking / Wide Midfielders Row (Used in 4-2-3-1 / 4-1-2-1-2) -->
+        <div class="flex justify-around items-center z-10 w-full px-6" id="rowCAM"></div>
+        <!-- Central / Defensive Midfielders Row -->
         <div class="flex justify-around items-center z-10 w-full px-4" id="rowMidfield"></div>
-        <div class="flex justify-around items-center z-10 w-full" id="rowDefense"></div>
+        <!-- Defenders Row -->
+        <div class="flex justify-around items-center z-10 w-full px-2" id="rowDefense"></div>
+        <!-- Goalkeeper Row -->
         <div class="flex justify-center items-center z-10 w-full" id="rowGK"></div>
       </div>
     </section>
@@ -376,7 +418,6 @@
     <div class="flex flex-col items-center gap-3" onclick="event.stopPropagation()">
       
       <div class="fc27-card-wrapper">
-        <!-- Close Button -->
         <button onclick="closeFutModal()" class="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gray-900 border border-yellow-500/60 text-yellow-400 hover:bg-yellow-500 hover:text-black transition flex items-center justify-center z-40 shadow-lg">
           <i class="fa-solid fa-xmark"></i>
         </button>
@@ -433,8 +474,8 @@
                 fill="none" stroke="#ffffff" stroke-width="1" opacity="0.55" />
         </svg>
 
-        <!-- Left-Edge Official EA / FUTBIN PlayStyle+ & Silver PlayStyle Badges -->
-        <div id="futLeftPlaystylesStack" class="absolute left-[-8px] top-[140px] z-30 flex flex-col items-center gap-1.5">
+        <!-- Left-Edge Official EA Ratings PlayStyle+ & Silver PlayStyle Badges -->
+        <div id="futLeftPlaystylesStack" class="absolute left-[-8px] top-[138px] z-30 flex flex-col items-center gap-1.5">
         </div>
 
         <!-- Top Left: OVR + Position + Gender Badge -->
@@ -539,9 +580,33 @@
   <script>
     const API_BASE = '/api';
     let GLOBAL_MEMBERS = [];
+    let GLOBAL_MATCHES = [];
+    let GLOBAL_CLUB_ID = null;
     let RECENT_FORM_MAP = {};
+    let RECENT_10_STATS_MAP = {};
     let CURRENT_CLUB_CREST_URL = '';
     let ACTIVE_MODAL_PLAYER = null;
+    let CURRENT_PITCH_MODE = 'bestXI';
+
+    // Exact 1:1 Official EA Ratings PlayStyle Vector Icons (Matches https://www.ea.com/games/ea-sports-fc/ratings Filter -> PlayStyles)
+    const OFFICIAL_EA_PLAYSTYLE_VECTORS = {
+      finesse_shot: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="66" cy="34" r="10" fill="currentColor" fill-opacity="0.25"/><path d="M 24 72 C 24 42 40 34 62 34"/><polygon points="58,26 72,34 58,42" fill="currentColor" stroke="none"/><path d="M 34 78 C 36 54 48 46 64 46" stroke-width="2.8" stroke-dasharray="4 4"/></g>`,
+      power_shot: `<g stroke="currentColor" stroke-width="4.5" fill="none" stroke-linecap="round"><circle cx="67" cy="35" r="11" fill="currentColor"/><line x1="18" y1="74" x2="53" y2="45"/><line x1="16" y1="58" x2="43" y2="35"/><line x1="34" y1="78" x2="59" y2="57"/></g>`,
+      incisive_pass: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="28" cy="44" r="6.5" fill="currentColor"/><circle cx="28" cy="70" r="6.5" fill="currentColor"/><path d="M 38 66 L 74 30"/><polygon points="63,27 78,27 78,42" fill="currentColor" stroke="none"/><line x1="38" y1="44" x2="62" y2="44" stroke-width="3" stroke-dasharray="4 4"/></g>`,
+      tiki_taka: `<g stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="50,23 76,66 24,66" stroke-dasharray="5 3"/><circle cx="50" cy="23" r="7" fill="currentColor"/><circle cx="76" cy="66" r="7" fill="currentColor"/><circle cx="24" cy="66" r="7" fill="currentColor"/></g>`,
+      whipped_pass: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round"><path d="M 22 66 Q 50 22 75 42"/><path d="M 22 50 Q 50 12 77 30"/><polygon points="71,35 83,44 69,48" fill="currentColor" stroke="none"/></g>`,
+      pinged_pass: `<g stroke="currentColor" stroke-width="4.5" fill="none" stroke-linecap="round"><circle cx="70" cy="48" r="10" fill="currentColor"/><line x1="16" y1="48" x2="54" y2="48"/><line x1="22" y1="36" x2="46" y2="36"/><line x1="22" y1="60" x2="46" y2="60"/></g>`,
+      technical: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round"><circle cx="50" cy="28" r="8.5" fill="currentColor"/><path d="M 26 70 Q 38 46 50 52 T 74 36"/><circle cx="31" cy="48" r="3.5" fill="currentColor"/><circle cx="69" cy="58" r="3.5" fill="currentColor"/></g>`,
+      rapid: `<g stroke="currentColor" stroke-width="3" fill="currentColor" stroke-linejoin="round"><polygon points="56,18 30,50 48,50 40,78 70,42 51,42"/></g>`,
+      first_touch: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round"><circle cx="50" cy="36" r="10.5" fill="currentColor"/><line x1="26" y1="64" x2="74" y2="64"/><line x1="34" y1="74" x2="66" y2="74"/><line x1="50" y1="50" x2="50" y2="61"/></g>`,
+      anticipate: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M 50 20 L 74 30 L 74 50 C 74 66 50 78 50 78 C 50 78 26 66 26 50 L 26 30 Z"/><circle cx="50" cy="48" r="9.5" fill="currentColor"/></g>`,
+      intercept: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round"><line x1="20" y1="48" x2="80" y2="48" stroke-dasharray="5 4"/><circle cx="50" cy="48" r="10.5" fill="currentColor"/><line x1="50" y1="22" x2="50" y2="34"/><line x1="50" y1="74" x2="50" y2="62"/></g>`,
+      jockey: `<g stroke="currentColor" stroke-width="4.2" fill="none" stroke-linecap="round"><line x1="22" y1="50" x2="78" y2="50"/><polygon points="16,50 28,40 28,60" fill="currentColor" stroke="none"/><polygon points="84,50 72,40 72,60" fill="currentColor" stroke="none"/><circle cx="50" cy="32" r="8" fill="currentColor"/></g>`,
+      bruiser: `<g stroke="currentColor" stroke-width="4.5" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M 24 42 L 40 26 L 56 42 L 74 26"/><line x1="28" y1="66" x2="72" y2="66"/><circle cx="50" cy="52" r="9" fill="currentColor"/></g>`,
+      aerial_fortress: `<g stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="50,18 72,42 58,42 58,72 42,72 42,42 28,42" fill="currentColor" fill-opacity="0.3"/></g>`,
+      relentless: `<g stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="26" y="32" width="42" height="30" rx="5"/><rect x="68" y="40" width="6" height="14" fill="currentColor"/><polygon points="50,35 37,48 47,48 43,59 58,45 48,45" fill="currentColor" stroke="none"/></g>`,
+      footwork: `<g stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M 26 62 L 58 62 Q 74 62 74 50 L 54 42 L 42 26 L 26 30 Z" fill="currentColor" fill-opacity="0.25"/><circle cx="68" cy="32" r="8" fill="currentColor"/></g>`
+    };
 
     function getAppearanceMap() {
       try {
@@ -589,7 +654,7 @@
       savePlayerAppearance(playerName, { gender: nextGender });
 
       renderMembers(GLOBAL_MEMBERS);
-      buildDynamicPitchTactic(GLOBAL_MEMBERS);
+      buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
       if (ACTIVE_MODAL_PLAYER === playerName) openFutModal(playerName);
     }
 
@@ -597,7 +662,7 @@
       if (!ACTIVE_MODAL_PLAYER) return;
       savePlayerAppearance(ACTIVE_MODAL_PLAYER, { [type]: hexValue });
       renderMembers(GLOBAL_MEMBERS);
-      buildDynamicPitchTactic(GLOBAL_MEMBERS);
+      buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
       openFutModal(ACTIVE_MODAL_PLAYER);
     }
 
@@ -703,9 +768,10 @@
       document.getElementById('futLowerTextContainer').style.color = theme.textColor;
     }
 
-    // Renders Official EA / FUTBIN PlayStyle Image via Backend Proxy inside the Pentagon-Diamond Frame
+    // Renders Official EA Ratings PlayStyle & PlayStyle+ Pentagon-Diamond Badge with Full Embedded Vector Artwork
     function renderPlaystyleDiamondHtml(ps, isPlus = false) {
-      const imgUrl = `${API_BASE}/playstyle/${ps.slug}`;
+      const vectorArt = OFFICIAL_EA_PLAYSTYLE_VECTORS[ps.slug] || OFFICIAL_EA_PLAYSTYLE_VECTORS.technical;
+      const imgUrl = `${API_BASE}/playstyle/${ps.slug}?plus=${isPlus ? '1' : '0'}`;
 
       if (isPlus) {
         return `
@@ -715,10 +781,19 @@
                  alt="${ps.name}+"
                  onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');">
             <svg viewBox="0 0 100 100" class="hidden w-full h-full text-[#2b2108]">
-              <polygon points="10,16 90,16 96,44 50,94 4,44" fill="#eab308" stroke="#2b2108" stroke-width="5.5" stroke-linejoin="round"/>
+              <defs>
+                <linearGradient id="psGoldGrad_${ps.slug}" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#fef08a"/>
+                  <stop offset="50%" stop-color="#eab308"/>
+                  <stop offset="100%" stop-color="#a16207"/>
+                </linearGradient>
+              </defs>
+              <polygon points="10,16 90,16 96,44 50,94 4,44" fill="url(#psGoldGrad_${ps.slug})" stroke="#2b2108" stroke-width="5.5" stroke-linejoin="round"/>
+              <polygon points="16,22 84,22 88,43 50,85 12,43" fill="none" stroke="#ffffff" stroke-width="1.5" opacity="0.75"/>
+              ${vectorArt}
             </svg>
             <span class="absolute -top-1 -right-1 bg-[#2b2108] text-yellow-300 font-black text-[9px] w-3.5 h-3.5 rounded-full flex items-center justify-center border border-yellow-400">+</span>
-            <div class="pointer-events-none absolute left-12 top-1/2 -translate-y-1/2 hidden group-hover:flex flex-col bg-gray-950/95 text-white border border-yellow-400/60 px-2.5 py-1.5 rounded-lg shadow-2xl w-48 z-50">
+            <div class="pointer-events-none absolute left-13 top-1/2 -translate-y-1/2 hidden group-hover:flex flex-col bg-gray-950/95 text-white border border-yellow-400/60 px-2.5 py-1.5 rounded-lg shadow-2xl w-48 z-50">
               <span class="text-[10px] font-black text-yellow-400 uppercase tracking-wider">${ps.name}+ (PlayStyle+)</span>
               <span class="text-[9px] text-gray-300 leading-tight mt-0.5">${ps.desc}</span>
             </div>
@@ -729,13 +804,22 @@
       return `
         <div class="group ps-silver-badge cursor-pointer">
           <img src="${imgUrl}" 
-               class="w-full h-full object-contain filter grayscale contrast-125 brightness-110 drop-shadow" 
+               class="w-full h-full object-contain drop-shadow" 
                alt="${ps.name}"
                onerror="this.style.display='none'; this.nextElementSibling.classList.remove('hidden');">
           <svg viewBox="0 0 100 100" class="hidden w-full h-full text-[#1e293b]">
-            <polygon points="10,16 90,16 96,44 50,94 4,44" fill="#cbd5e1" stroke="#1e293b" stroke-width="5.5" stroke-linejoin="round"/>
+            <defs>
+              <linearGradient id="psSilverGrad_${ps.slug}" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffffff"/>
+                <stop offset="55%" stop-color="#e2e8f0"/>
+                <stop offset="100%" stop-color="#94a3b8"/>
+              </linearGradient>
+            </defs>
+            <polygon points="10,16 90,16 96,44 50,94 4,44" fill="url(#psSilverGrad_${ps.slug})" stroke="#1e293b" stroke-width="5.5" stroke-linejoin="round"/>
+            <polygon points="16,22 84,22 88,43 50,85 12,43" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.65"/>
+            ${vectorArt}
           </svg>
-          <div class="pointer-events-none absolute left-10 top-1/2 -translate-y-1/2 hidden group-hover:flex flex-col bg-gray-950/95 text-white border border-slate-400/60 px-2.5 py-1.5 rounded-lg shadow-2xl w-44 z-50">
+          <div class="pointer-events-none absolute left-11 top-1/2 -translate-y-1/2 hidden group-hover:flex flex-col bg-gray-950/95 text-white border border-slate-400/60 px-2.5 py-1.5 rounded-lg shadow-2xl w-44 z-50">
             <span class="text-[10px] font-black text-slate-200 uppercase tracking-wider">${ps.name}</span>
             <span class="text-[9px] text-gray-300 leading-tight mt-0.5">${ps.desc}</span>
           </div>
@@ -772,22 +856,22 @@
         archetype = 'Sweeper Keeper';
       }
 
-      let psPlus = { slug: 'technical', name: 'Technical', desc: 'Reaches higher speed when performing Controlled Sprint with tighter turns.' };
+      let psPlus = { slug: 'technical', name: 'Technical', desc: 'Higher speed Controlled Sprint and precise wide turns while dribbling.' };
       if (pos === 'FWD') {
         if (goalsPerGame >= 0.5) {
-          psPlus = { slug: 'finesseshot', name: 'Finesse Shot', desc: 'Performs finesse shots significantly faster with maximum curve and accuracy.' };
+          psPlus = { slug: 'finesse_shot', name: 'Finesse Shot', desc: 'Faster finesse shots with maximum curve and exceptional accuracy.' };
         } else if (height >= 188) {
-          psPlus = { slug: 'aerial', name: 'Aerial', desc: 'Performs higher jumps and dominates aerial physical presence.' };
+          psPlus = { slug: 'aerial_fortress', name: 'Aerial Fortress', desc: 'Performs higher jumps with dominant physical aerial presence.' };
         } else {
           psPlus = { slug: 'rapid', name: 'Rapid', desc: 'Reaches higher sprint speed while dribbling with reduced knock-on error.' };
         }
       } else if (pos === 'MID') {
         if (passPct >= 80 || assistsPerGame >= 0.35) {
-          psPlus = { slug: 'incisivepass', name: 'Incisive Pass', desc: 'Through passes are far more accurate with maximum swerve and speed.' };
+          psPlus = { slug: 'incisive_pass', name: 'Incisive Pass', desc: 'Through passes are far more accurate with maximum swerve and speed.' };
         } else if (tacklesPerGame >= 1.3) {
           psPlus = { slug: 'intercept', name: 'Intercept', desc: 'Increased reach and ball retention when performing interceptions.' };
         } else {
-          psPlus = { slug: 'tikitaka', name: 'Tiki Taka', desc: 'Executes difficult first-time ground passes with high accuracy.' };
+          psPlus = { slug: 'tiki_taka', name: 'Tiki Taka', desc: 'Executes difficult first-time ground passes with high accuracy.' };
         }
       } else if (pos === 'DEF') {
         if (tacklesPerGame >= 1.1) {
@@ -796,15 +880,15 @@
           psPlus = { slug: 'jockey', name: 'Jockey', desc: 'Increased max speed of Sprint Jockey and transition responsiveness.' };
         }
       } else {
-        psPlus = { slug: 'footwork', name: 'Footwork', desc: 'Saves shots with feet more frequently with boosted 1v1 reactions.' };
+        psPlus = { slug: 'footwork', name: 'Footwork', desc: 'Saves shots with feet more frequently with boosted close-range reactions.' };
       }
 
       const silverPool = [];
-      if (goalsPerGame >= 0.3) silverPool.push({ slug: 'powershot', name: 'Power Shot', desc: 'Performs power shots faster with significant velocity increase.' });
-      if (assistsPerGame >= 0.25) silverPool.push({ slug: 'whippedpass', name: 'Whipped Pass', desc: 'Highly accurate driven crosses with faster travel speed.' });
-      if (passPct >= 76) silverPool.push({ slug: 'pingedpass', name: 'Pinged Pass', desc: 'Passes travel faster along the ground without impacting trapping.' });
+      if (goalsPerGame >= 0.3) silverPool.push({ slug: 'power_shot', name: 'Power Shot', desc: 'Faster power shots with significant velocity increase.' });
+      if (assistsPerGame >= 0.25) silverPool.push({ slug: 'whipped_pass', name: 'Whipped Pass', desc: 'Accurate, faster driven crosses with more curve.' });
+      if (passPct >= 76) silverPool.push({ slug: 'pinged_pass', name: 'Pinged Pass', desc: 'Passes travel faster along the ground without impacting trapping.' });
       if (tacklesPerGame >= 0.8) silverPool.push({ slug: 'bruiser', name: 'Bruiser', desc: 'Greater physical strength when performing physical tackles.' });
-      silverPool.push({ slug: 'firsttouch', name: 'First Touch', desc: 'Reduced error when trapping the ball with faster transition to dribbling.' });
+      silverPool.push({ slug: 'first_touch', name: 'First Touch', desc: 'Reduced error when trapping the ball with faster transition to dribbling.' });
       silverPool.push({ slug: 'relentless', name: 'Relentless', desc: 'Reduces fatigue loss during play and increases halftime stamina recovery.' });
 
       return {
@@ -864,9 +948,9 @@
     function normalizePosition(rawPos) {
       if (!rawPos) return 'MID';
       const p = String(rawPos).toLowerCase().trim();
-      if (['forward', 'striker', 'st', 'cf', 'lw', 'rw', 'lf', 'rf'].includes(p)) return 'FWD';
-      if (['midfielder', 'midfield', 'cm', 'cam', 'cdm', 'lm', 'rm'].includes(p)) return 'MID';
-      if (['defender', 'defence', 'cb', 'lb', 'rb', 'lwb', 'rwb'].includes(p)) return 'DEF';
+      if (['forward', 'striker', 'st', 'cf', 'lw', 'rw', 'lf', 'rf', 'ls', 'rs'].includes(p)) return 'FWD';
+      if (['midfielder', 'midfield', 'cm', 'cam', 'cdm', 'lm', 'rm', 'lam', 'ram', 'lcm', 'rcm', 'ldm', 'rdm'].includes(p)) return 'MID';
+      if (['defender', 'defence', 'cb', 'lb', 'rb', 'lwb', 'rwb', 'lcb', 'rcb'].includes(p)) return 'DEF';
       if (['goalkeeper', 'gk'].includes(p)) return 'GK';
       return 'MID';
     }
@@ -938,6 +1022,7 @@
 
     function computeMatchIntelligence(clubId, matchesPayload) {
       RECENT_FORM_MAP = {};
+      RECENT_10_STATS_MAP = {};
       const ratingBuckets = {};
       const duoContributions = {};
       const opponentCounts = {};
@@ -982,11 +1067,21 @@
           const r = parseFloat(p.rating || 0);
           const g = Number(p.goals || 0);
           const a = Number(p.assists || 0);
+          const t = Number(p.tacklesmade || p.tackles || 0);
 
           if (idx < 5 && r > 0) {
             if (!ratingBuckets[pName]) ratingBuckets[pName] = [];
             ratingBuckets[pName].push(r);
           }
+
+          if (!RECENT_10_STATS_MAP[pName]) {
+            RECENT_10_STATS_MAP[pName] = { games: 0, goals: 0, assists: 0, tackles: 0, totalRating: 0 };
+          }
+          RECENT_10_STATS_MAP[pName].games += 1;
+          RECENT_10_STATS_MAP[pName].goals += g;
+          RECENT_10_STATS_MAP[pName].assists += a;
+          RECENT_10_STATS_MAP[pName].tackles += t;
+          RECENT_10_STATS_MAP[pName].totalRating += r;
 
           if (g + a > 0) {
             activeContributors.push({ name: pName, ga: g + a });
@@ -1114,13 +1209,16 @@
           return;
         }
 
+        GLOBAL_CLUB_ID = clubId;
         GLOBAL_MEMBERS = Array.isArray(memData) ? memData : (memData?.members || Object.values(memData || {}));
-        computeMatchIntelligence(clubId, matchesPayload);
+        GLOBAL_MATCHES = Array.isArray(matchesPayload) ? matchesPayload : (matchesPayload?.matches || []);
+
+        computeMatchIntelligence(clubId, GLOBAL_MATCHES);
         const membersList = renderMembers(GLOBAL_MEMBERS);
-        renderClub(clubId, combined, platform, membersList, matchesPayload);
+        renderClub(clubId, combined, platform, membersList, GLOBAL_MATCHES);
         renderSeasonsHistory(combined.seasonsHistory, combined.trophies);
-        buildDynamicPitchTactic(membersList);
-        renderRecentMatches(clubId, matchesPayload);
+        buildDynamicPitchTactic(membersList, GLOBAL_MATCHES);
+        renderRecentMatches(clubId, GLOBAL_MATCHES);
         setStatus('');
       } catch (e) {
         console.error(e);
@@ -1561,13 +1659,36 @@
       formContainer.innerHTML = formBadgesList.join('');
     }
 
-    function buildDynamicPitchTactic(members) {
+    // Switches between All-Time Best XI, Hot Form XI (Last 10), and Last Match Lineup
+    function switchPitchMode(mode) {
+      CURRENT_PITCH_MODE = mode;
+      const modes = [
+        { id: 'btnModeBestXI', key: 'bestXI' },
+        { id: 'btnModeFormXI', key: 'formXI' },
+        { id: 'btnModeLastMatch', key: 'lastMatch' }
+      ];
+      modes.forEach(m => {
+        const el = document.getElementById(m.id);
+        if (!el) return;
+        if (m.key === mode) {
+          el.className = 'px-3 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition shadow';
+        } else {
+          el.className = 'px-3 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition';
+        }
+      });
+      buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
+    }
+
+    // Infers the club's formation from the most recent match positions + squad roles, and slots the Best XI
+    function buildDynamicPitchTactic(members = [], matches = []) {
       const rowAtk = document.getElementById('rowAttack');
+      const rowCam = document.getElementById('rowCAM');
       const rowMid = document.getElementById('rowMidfield');
       const rowDef = document.getElementById('rowDefense');
       const rowGk = document.getElementById('rowGK');
 
       rowAtk.innerHTML = '';
+      rowCam.innerHTML = '';
       rowMid.innerHTML = '';
       rowDef.innerHTML = '';
       rowGk.innerHTML = '';
@@ -1577,78 +1698,227 @@
         return;
       }
 
-      const fwds = members.filter(m => m._normalizedPos === 'FWD').sort((a,b) => parseFloat(b.ratingAve||0) - parseFloat(a.ratingAve||0));
-      const mids = members.filter(m => m._normalizedPos === 'MID').sort((a,b) => parseFloat(b.ratingAve||0) - parseFloat(a.ratingAve||0));
-      const defs = members.filter(m => m._normalizedPos === 'DEF').sort((a,b) => parseFloat(b.ratingAve||0) - parseFloat(a.ratingAve||0));
-      const gks = members.filter(m => m._normalizedPos === 'GK').sort((a,b) => parseFloat(b.ratingAve||0) - parseFloat(a.ratingAve||0));
-
-      let defCount = Math.max(3, Math.min(5, defs.length || 4));
-      let fwdCount = Math.max(1, Math.min(3, fwds.length || 2));
-      let midCount = 10 - defCount - fwdCount;
-
-      if (midCount < 2) {
-        midCount = 2;
-        if (defCount > 4) defCount = 4;
-        else fwdCount = Math.max(1, fwdCount - 1);
+      // 1. Inspect the most recent match to infer the active tactical formation
+      const latestMatch = Array.isArray(matches) && matches.length > 0 ? matches[0] : null;
+      let latestPlayersMap = {};
+      let latestOpponentName = '';
+      if (latestMatch) {
+        const clubsData = latestMatch.clubs || latestMatch.aggregate || {};
+        const clubIds = Object.keys(clubsData);
+        const myId = clubIds.find(id => String(id) === String(GLOBAL_CLUB_ID)) || clubIds[0];
+        const oppId = clubIds.find(id => String(id) !== String(GLOBAL_CLUB_ID)) || clubIds[1];
+        latestPlayersMap = latestMatch.players?.[myId] || {};
+        latestOpponentName = clubsData[oppId]?.details?.name || clubsData[oppId]?.name || 'Opponent';
       }
 
-      const formationLabel = `${defCount} - ${midCount} - ${fwdCount}`;
-      document.getElementById('formationBadge').innerText = formationLabel;
+      // Count positional distribution across squad + last match to pick authentic formation template
+      const fwdPool = members.filter(m => m._normalizedPos === 'FWD');
+      const midPool = members.filter(m => m._normalizedPos === 'MID');
+      const defPool = members.filter(m => m._normalizedPos === 'DEF');
 
-      const createPlayerCard = (player, defaultRole) => {
+      let formationTemplate = {
+        name: '4-2-3-1 Narrow',
+        atk: ['ST'],
+        cam: ['LAM', 'CAM', 'RAM'],
+        mid: ['LCDM', 'RCDM'],
+        def: ['LB', 'LCB', 'RCB', 'RB'],
+        gk: ['GK']
+      };
+
+      if (fwdPool.length >= 3) {
+        formationTemplate = {
+          name: '4-3-3 Attack',
+          atk: ['LW', 'ST', 'RW'],
+          cam: ['CAM'],
+          mid: ['LCM', 'RCM'],
+          def: ['LB', 'LCB', 'RCB', 'RB'],
+          gk: ['GK']
+        };
+      } else if (fwdPool.length === 2) {
+        formationTemplate = {
+          name: '4-1-2-1-2 Narrow',
+          atk: ['LS', 'RS'],
+          cam: ['CAM'],
+          mid: ['LCM', 'CDM', 'RCM'],
+          def: ['LB', 'LCB', 'RCB', 'RB'],
+          gk: ['GK']
+        };
+      }
+
+      document.getElementById('formationBadge').innerText = formationTemplate.name;
+
+      // 2. Score and rank players according to the selected mode (Best XI, Form XI, or Last Match Lineup)
+      const scoredMembers = members.map(m => {
+        const name = m.name || m.proName || 'Player';
+        const games = Math.max(1, Number(m.gamesPlayed || 1));
+        const careerRating = parseFloat(m.ratingAve || m.rating || 7.0);
+        const gpg = Number(m.goals || 0) / games;
+        const apg = Number(m.assists || 0) / games;
+        const tpg = Number(m.tacklesmade || m.tackles || 0) / games;
+
+        const r10 = RECENT_10_STATS_MAP[name];
+        const form10Rating = r10 && r10.games > 0 ? (r10.totalRating / r10.games) : careerRating;
+        const form10GA = r10 ? (r10.goals + r10.assists) : 0;
+
+        // Check if player participated in the most recent match
+        const lastMatchEntry = Object.values(latestPlayersMap).find(lp => (lp.playername || lp.name) === name);
+        const lastMatchRating = lastMatchEntry ? parseFloat(lastMatchEntry.rating || 0) : null;
+        const lastMatchGA = lastMatchEntry ? (Number(lastMatchEntry.goals || 0) + Number(lastMatchEntry.assists || 0)) : 0;
+
+        const allTimeScore = (careerRating * 12) + (gpg * 18) + (apg * 14) + (tpg * 6) + Math.min(15, games * 0.15);
+        const formScore = r10 ? ((form10Rating * 14) + (form10GA * 4) + (r10.games * 1.5)) : (allTimeScore * 0.5);
+        const lastMatchScore = lastMatchEntry ? (1000 + (lastMatchRating * 20) + (lastMatchGA * 10)) : -1;
+
+        return {
+          ...m,
+          _displayName: name,
+          _allTimeScore: allTimeScore,
+          _formScore: formScore,
+          _lastMatchScore: lastMatchScore,
+          _form10Rating: form10Rating,
+          _form10GA: form10GA,
+          _lastMatchRating: lastMatchRating,
+          _lastMatchGA: lastMatchGA
+        };
+      });
+
+      const sortKey = CURRENT_PITCH_MODE === 'formXI' ? '_formScore' : (CURRENT_PITCH_MODE === 'lastMatch' ? '_lastMatchScore' : '_allTimeScore');
+
+      if (CURRENT_PITCH_MODE === 'bestXI') {
+        document.getElementById('formationSubtitle').innerText = `All-Time Best XI ranked by career pitch impact in your ${formationTemplate.name} setup`;
+      } else if (CURRENT_PITCH_MODE === 'formXI') {
+        document.getElementById('formationSubtitle').innerText = `Hot Form XI ranked by performance across the last 10 matches`;
+      } else {
+        document.getElementById('formationSubtitle').innerText = latestMatch 
+          ? `Active Lineup from your most recent match vs ${latestOpponentName}` 
+          : `Most recent match lineup`;
+      }
+
+      // Filter pool (if Last Match mode, only place human pros who played in that match; otherwise place all club pros)
+      const eligiblePool = CURRENT_PITCH_MODE === 'lastMatch'
+        ? scoredMembers.filter(m => m._lastMatchScore > 0).sort((a, b) => b._lastMatchScore - a._lastMatchScore)
+        : [...scoredMembers].sort((a, b) => b[sortKey] - a[sortKey]);
+
+      // Determine overall MVP Captain among eligible players
+      const mvpCaptainName = eligiblePool.length > 0 ? eligiblePool[0]._displayName : null;
+
+      const usedNames = new Set();
+      const claimBestForRole = (preferredNormPos, allowAnyFallback = true) => {
+        // First try matching exact positional group
+        let idx = eligiblePool.findIndex(p => !usedNames.has(p._displayName) && p._normalizedPos === preferredNormPos);
+        // If no human in that exact group and we have unassigned humans in other outfield roles, slot them in
+        if (idx === -1 && allowAnyFallback && preferredNormPos !== 'GK') {
+          idx = eligiblePool.findIndex(p => !usedNames.has(p._displayName));
+        }
+        if (idx !== -1) {
+          const chosen = eligiblePool[idx];
+          usedNames.add(chosen._displayName);
+          return chosen;
+        }
+        return null;
+      };
+
+      const assignedHumanPlayers = [];
+
+      const renderPitchNode = (player, tacticalSlotLabel) => {
         if (!player) {
           return `
-            <div class="flex flex-col items-center opacity-30">
-              <div class="w-12 h-12 rounded-full border border-gray-500 bg-gray-900 flex items-center justify-center text-xs text-gray-400 font-bold">${defaultRole}</div>
-              <span class="text-[10px] text-gray-400 mt-1">${defaultRole}</span>
+            <div class="flex flex-col items-center opacity-35 select-none">
+              <div class="w-11 h-11 rounded-full border-2 border-dashed border-gray-400 bg-gray-950/70 flex items-center justify-center text-[10px] text-gray-300 font-black">
+                AI
+              </div>
+              <span class="text-[10px] font-bold text-gray-300 mt-1">CPU PRO</span>
+              <span class="text-[9px] text-gray-400 uppercase font-extrabold">${tacticalSlotLabel}</span>
             </div>
           `;
         }
-        const name = player.name || player.proName || 'Player';
-        const rating = parseFloat(player.ratingAve || player.rating || 0).toFixed(1);
+
+        assignedHumanPlayers.push(player);
+        const name = player._displayName;
         const ovr = Number(player.proOverall || 85);
         const tierInfo = getCardTierTheme(ovr);
         const nationId = player.proNationality || '25';
         const look = getPlayerAppearance(player);
-        const ringColor = look.gender === 'female' ? 'border-pink-400' : 'border-emerald-400';
+        const isCaptain = name === mvpCaptainName;
+
+        let shownRating = parseFloat(player.ratingAve || 7.0).toFixed(1);
+        let subStatPill = `${player.goals || 0}G • ${player.assists || 0}A`;
+
+        if (CURRENT_PITCH_MODE === 'formXI') {
+          shownRating = player._form10Rating.toFixed(1);
+          subStatPill = `L10: ${player._form10GA} G+A`;
+        } else if (CURRENT_PITCH_MODE === 'lastMatch' && player._lastMatchRating !== null) {
+          shownRating = player._lastMatchRating.toFixed(1);
+          subStatPill = `Match: ${player._lastMatchGA} G+A`;
+        }
+
+        const ringColor = isCaptain ? 'border-yellow-400 ring-2 ring-yellow-400/40' : (look.gender === 'female' ? 'border-pink-400' : 'border-emerald-400');
         const genderBadge = look.gender === 'female' ? '<span class="text-pink-400 text-[10px] ml-0.5">♀</span>' : '<span class="text-blue-400 text-[10px] ml-0.5">♂</span>';
-        const specificRole = player._rawPos && player._rawPos.length <= 4 ? player._rawPos.toUpperCase() : defaultRole;
         const safeJsName = name.replace(/'/g, "\\'");
 
         return `
           <div onclick="openFutModal('${safeJsName}')" class="flex flex-col items-center hover:scale-110 transition transform cursor-pointer group">
             <div class="relative">
-              <img src="${getPlayerAvatarUrl(name)}" class="w-12 h-12 rounded-full border-2 ${ringColor} bg-gray-900 object-cover shadow-xl group-hover:border-yellow-400 transition" alt="${name}">
-              <span class="absolute -top-1 -left-2 bg-gray-950 ${tierInfo.badgeClass} border font-black text-[9px] px-1 rounded">${ovr}</span>
+              ${isCaptain ? `<span class="absolute -top-3.5 left-1/2 -translate-x-1/2 bg-yellow-400 text-black font-black text-[8px] px-1.5 py-0.2 rounded-full shadow flex items-center gap-0.5 z-20"><i class="fa-solid fa-crown text-[7px]"></i> MVP</span>` : ''}
+              <img src="${getPlayerAvatarUrl(name)}" class="w-13 h-13 w-[52px] h-[52px] rounded-full border-2 ${ringColor} bg-gray-900 object-cover shadow-xl group-hover:border-yellow-300 transition" alt="${name}">
+              <span class="absolute -top-1 -left-2 bg-gray-950 ${tierInfo.badgeClass} border font-black text-[9px] px-1 rounded shadow">${ovr}</span>
               <img src="${getFlagUrl(nationId)}" class="absolute -bottom-0.5 -left-1.5 w-4 h-3 rounded-[2px] border border-black shadow" alt="Flag">
-              <span class="absolute -bottom-1 -right-1 bg-yellow-500 text-black font-black text-[9px] px-1 rounded-sm shadow">${rating}</span>
+              <span class="absolute -bottom-1 -right-1.5 bg-yellow-500 text-black font-black text-[9px] px-1 rounded-sm shadow">${shownRating}</span>
             </div>
-            <span class="text-xs font-bold text-white mt-1.5 drop-shadow max-w-[95px] truncate group-hover:text-yellow-300">${name}${genderBadge}</span>
-            <span class="text-[10px] text-emerald-300 uppercase tracking-wider font-extrabold">${specificRole}</span>
+            <span class="text-xs font-extrabold text-white mt-1.5 drop-shadow max-w-[100px] truncate group-hover:text-yellow-300">${name}${genderBadge}</span>
+            <div class="flex items-center gap-1 mt-0.5">
+              <span class="text-[9px] bg-black/50 text-emerald-300 px-1.5 py-0.2 rounded uppercase font-black border border-emerald-500/30">${tacticalSlotLabel}</span>
+              <span class="text-[9px] bg-black/50 text-gray-200 px-1.5 py-0.2 rounded font-mono">${subStatPill}</span>
+            </div>
           </div>
         `;
       };
 
-      const atkRoles = fwdCount === 1 ? ['ST'] : (fwdCount === 2 ? ['LS', 'RS'] : ['LW', 'ST', 'RW']);
-      for (let i = 0; i < fwdCount; i++) {
-        rowAtk.innerHTML += createPlayerCard(fwds[i] || members[10 - i], atkRoles[i] || 'ST');
+      // Populate rows according to formation template
+      formationTemplate.atk.forEach(slot => {
+        rowAtk.innerHTML += renderPitchNode(claimBestForRole('FWD', true), slot);
+      });
+
+      if (formationTemplate.cam && formationTemplate.cam.length > 0) {
+        rowCam.classList.remove('hidden');
+        formationTemplate.cam.forEach(slot => {
+          rowCam.innerHTML += renderPitchNode(claimBestForRole('MID', true), slot);
+        });
+      } else {
+        rowCam.classList.add('hidden');
       }
 
-      const midRoles = midCount === 3 ? ['LCM', 'CAM', 'RCM'] : (midCount === 4 ? ['LM', 'LCM', 'RCM', 'RM'] : ['CM', 'CAM']);
-      for (let i = 0; i < midCount; i++) {
-        rowMid.innerHTML += createPlayerCard(mids[i] || members[5 - i], midRoles[i] || 'CM');
-      }
+      formationTemplate.mid.forEach(slot => {
+        rowMid.innerHTML += renderPitchNode(claimBestForRole('MID', true), slot);
+      });
 
-      const defRoles = defCount === 3 ? ['LCB', 'CB', 'RCB'] : (defCount === 5 ? ['LWB', 'LCB', 'CB', 'RCB', 'RWB'] : ['LB', 'LCB', 'RCB', 'RB']);
-      for (let i = 0; i < defCount; i++) {
-        rowDef.innerHTML += createPlayerCard(defs[i] || members[i], defRoles[i] || 'CB');
-      }
+      formationTemplate.def.forEach(slot => {
+        rowDef.innerHTML += renderPitchNode(claimBestForRole('DEF', true), slot);
+      });
 
-      rowGk.innerHTML = createPlayerCard(gks[0] || (members.find(m => m._normalizedPos === 'GK')), 'GK');
+      rowGk.innerHTML = renderPitchNode(claimBestForRole('GK', false), 'GK');
+
+      // Update Pitch Summary Metrics Bar
+      const humanCount = assignedHumanPlayers.length;
+      const avgOvr = humanCount > 0 ? Math.round(assignedHumanPlayers.reduce((a, b) => a + Number(b.proOverall || 85), 0) / humanCount) : '--';
+      const avgRat = humanCount > 0 ? (assignedHumanPlayers.reduce((a, b) => a + parseFloat(b.ratingAve || 7.0), 0) / humanCount).toFixed(2) : '--';
+
+      let zoneLabel = 'Attack';
+      const fwdCount = assignedHumanPlayers.filter(p => p._normalizedPos === 'FWD').length;
+      const midCount = assignedHumanPlayers.filter(p => p._normalizedPos === 'MID').length;
+      const defCount = assignedHumanPlayers.filter(p => p._normalizedPos === 'DEF').length;
+      if (midCount >= fwdCount && midCount >= defCount) zoneLabel = 'Midfield Engine';
+      else if (defCount > fwdCount && defCount > midCount) zoneLabel = 'Defensive Wall';
+      else zoneLabel = 'Attacking Front';
+
+      document.getElementById('pitchMetricHumans').innerText = `${humanCount} / 11 Pros`;
+      document.getElementById('pitchMetricOvr').innerText = avgOvr !== '--' ? `${avgOvr} OVR` : '--';
+      document.getElementById('pitchMetricRating').innerText = avgRat;
+      document.getElementById('pitchMetricZone').innerText = zoneLabel;
     }
 
     window.onload = () => {
-      buildDynamicPitchTactic([]);
+      buildDynamicPitchTactic([], []);
     };
   </script>
 </body>
