@@ -412,7 +412,7 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 });
 
-// 3. Member / Squad Stats (Merges Club Stats + Career Stats for Clean Sheets & One-Club Loyalty vs Mercenary Tracking)
+// 3. Member / Squad Stats (Enriched with Clean Sheets, Shot Conversion & One-Club Loyalty vs Mercenary Stats)
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -453,17 +453,23 @@ app.get('/api/club/:clubId/members', async (req, res) => {
       if (!m.proOverall && careerObj.proOverall) m.proOverall = careerObj.proOverall;
       if (!m.proNationality && careerObj.proNationality) m.proNationality = careerObj.proNationality;
 
-      // Clean Sheets (Defenders + Goalkeepers)
-      const csDef = Number(m.cleanSheetsDef ?? m.cleansheetsdef ?? careerObj.cleanSheetsDef ?? 0);
-      const csGk = Number(m.cleanSheetsGK ?? m.cleansheetsgk ?? careerObj.cleanSheetsGK ?? 0);
+      // 1. Clean Sheets (Defender + GK Clean Sheets from EA API)
+      const csDef = Number(m.cleanSheetsDef ?? careerObj.cleanSheetsDef ?? 0);
+      const csGk = Number(m.cleanSheetsGK ?? careerObj.cleanSheetsGK ?? 0);
       m.totalCleanSheets = csDef + csGk;
 
-      // Club vs Career Games (One-Club Man vs Mercenary Tracking)
+      // 2. Shot Success / Conversion Rate from EA API
+      m.shotConvRate = Number(m.shotSuccessRate ?? careerObj.shotSuccessRate ?? 0);
+
+      // 3. One-Club Loyalist vs. Mercenary (Club Games vs All-Clubs Career Games)
       const clubGames = Number(m.gamesPlayed ?? m.games ?? 0);
       const careerGames = Math.max(clubGames, Number(careerObj.gamesPlayed ?? careerObj.games ?? clubGames));
-      m.careerGamesTotal = careerGames;
-      m.otherClubsGames = Math.max(0, careerGames - clubGames);
-      m.loyaltyPct = careerGames > 0 ? Math.min(100, Math.round((clubGames / careerGames) * 100)) : 100;
+      const otherClubGames = Math.max(0, careerGames - clubGames);
+      const loyaltyPct = careerGames > 0 ? Math.round((clubGames / careerGames) * 100) : 100;
+
+      m.careerTotalGames = careerGames;
+      m.otherClubGames = otherClubGames;
+      m.loyaltyPct = loyaltyPct;
     });
 
     res.json(list);
