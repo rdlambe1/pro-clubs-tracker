@@ -630,7 +630,33 @@ app.get('/api/crest/:crestId', async (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=3600');
   return res.send(generateFallbackSvg(clubName));
 });
+// 6. Q1 Verification Route: Inspects raw match player keys & 'vproattr' for hidden cosmetic data
+app.get('/api/debug/raw-check/:clubId', async (req, res) => {
+  const { clubId } = req.params;
+  const { platform = 'common-gen5' } = req.query;
+  try {
+    const [matchResp, memResp] = await Promise.all([
+      fetch(`https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${clubId}&platform=${platform}&matchType=leagueMatch&maxResultCount=1`, { headers: EA_HEADERS }).then(r => r.json()),
+      fetch(`https://proclubs.ea.com/api/fc/members/stats?clubId=${clubId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.json())
+    ]);
 
+    const latestMatch = Array.isArray(matchResp) ? matchResp[0] : Object.values(matchResp || {})[0];
+    const matchPlayers = latestMatch?.players?.[clubId] || {};
+    const firstMatchPlayer = Object.values(matchPlayers)[0] || {};
+    const memList = memResp?.members || (Array.isArray(memResp) ? memResp : Object.values(memResp || {}));
+
+    res.json({
+      clubId,
+      hasVproAttr: Boolean(firstMatchPlayer.vproattr),
+      vproattrSample: firstMatchPlayer.vproattr || 'NOT_PRESENT',
+      allMatchPlayerKeys: Object.keys(firstMatchPlayer),
+      sampleMatchPlayerRaw: firstMatchPlayer,
+      sampleMemberProfileRaw: memList[0] || {}
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
