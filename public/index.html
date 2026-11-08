@@ -82,7 +82,7 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Always-Visible Club Overview Card -->
+    <!-- Always-Visible Club Overview Card (Includes Club Fans & Reputation Level 1-10) -->
     <section class="card p-4 sm:p-6 space-y-5">
       <div class="flex flex-col lg:flex-row justify-between items-center lg:items-center gap-5">
         <div class="flex flex-col sm:flex-row items-center text-center sm:text-left gap-4 w-full lg:w-auto">
@@ -116,7 +116,8 @@
           </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-2 sm:gap-6 text-center border-t lg:border-t-0 lg:border-l border-gray-800 pt-4 lg:pt-0 lg:pl-8 w-full lg:w-auto">
+        <!-- 4-Column Core Club Metrics: Record | Skill Rating | Goals | Fans & Rep Level -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 text-center border-t lg:border-t-0 lg:border-l border-gray-800 pt-4 lg:pt-0 lg:pl-6 w-full lg:w-auto">
           <div>
             <div class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider">Record (W-D-L)</div>
             <div id="clubRecord" class="text-base sm:text-xl font-bold text-white mt-1 whitespace-nowrap">--</div>
@@ -130,10 +131,20 @@
             <div class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider">Goals (Diff)</div>
             <div id="goalStats" class="text-base sm:text-xl font-bold text-white mt-1 whitespace-nowrap">--</div>
           </div>
+          <!-- NEW: Club Fans & Reputation Level -->
+          <div class="flex flex-col items-center">
+            <div class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider">Club Fans & Rep</div>
+            <div class="flex items-center justify-center gap-1.5 mt-1">
+              <span id="clubFansCount" class="text-base sm:text-xl font-bold text-amber-400 whitespace-nowrap">--</span>
+              <span id="clubRepLevelBadge" class="hidden px-1.5 py-0.5 rounded text-[10px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/40 whitespace-nowrap">LVL --</span>
+            </div>
+            <div id="clubRepTierTitle" class="text-[9px] sm:text-[10px] font-semibold text-gray-400 mt-0.5 truncate max-w-[130px]">--</div>
+          </div>
         </div>
       </div>
 
-      <div id="trophyBar" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 pt-4 border-t border-gray-800/80">
+      <!-- Trophy, Promotions, Relegations, Peak Div & Club Reputation Progress Bar -->
+      <div id="trophyBar" class="hidden grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-3 pt-4 border-t border-gray-800/80">
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center gap-2.5">
           <i class="fa-solid fa-trophy text-yellow-400 text-lg sm:text-xl"></i>
           <div><div class="text-[10px] uppercase text-gray-400 font-semibold">Titles Won</div><div id="trophyTitles" class="text-sm font-black text-white">0</div></div>
@@ -150,6 +161,17 @@
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center justify-between">
           <div><div class="text-[10px] uppercase text-gray-400 font-semibold">Peak Div</div><div id="trophyPeakDivText" class="text-xs font-extrabold text-gray-300 mt-0.5">--</div></div>
           <div id="trophyPeakDivShield"></div>
+        </div>
+        <!-- Club Reputation Level & AI OVR / Facility Progress Card -->
+        <div class="col-span-2 sm:col-span-1 bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex flex-col justify-between">
+          <div class="flex items-center justify-between">
+            <span class="text-[10px] uppercase text-gray-400 font-semibold flex items-center gap-1"><i class="fa-solid fa-users-rays text-amber-400"></i> Rep Level</span>
+            <span id="repCardLevelBadge" class="text-xs font-black text-amber-400">Level -- / 10</span>
+          </div>
+          <div class="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden my-1.5">
+            <div id="repProgressBar" class="h-full bg-gradient-to-r from-amber-500 to-emerald-400 rounded-full" style="width: 50%"></div>
+          </div>
+          <div id="repCardSubMeta" class="text-[9px] text-gray-400 font-mono truncate">AI Bots: -- OVR • Budget: --</div>
         </div>
       </div>
     </section>
