@@ -82,7 +82,7 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- Always-Visible Club Overview Card (Includes Club Fans & Reputation Level 1-10) -->
+    <!-- Always-Visible Club Overview Card -->
     <section class="card p-4 sm:p-6 space-y-5">
       <div class="flex flex-col lg:flex-row justify-between items-center lg:items-center gap-5">
         <div class="flex flex-col sm:flex-row items-center text-center sm:text-left gap-4 w-full lg:w-auto">
@@ -116,8 +116,7 @@
           </div>
         </div>
 
-        <!-- 4-Column Core Club Metrics: Record | Skill Rating | Goals | Fans & Rep Level -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5 text-center border-t lg:border-t-0 lg:border-l border-gray-800 pt-4 lg:pt-0 lg:pl-6 w-full lg:w-auto">
+        <div class="grid grid-cols-3 gap-2 sm:gap-6 text-center border-t lg:border-t-0 lg:border-l border-gray-800 pt-4 lg:pt-0 lg:pl-8 w-full lg:w-auto">
           <div>
             <div class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider">Record (W-D-L)</div>
             <div id="clubRecord" class="text-base sm:text-xl font-bold text-white mt-1 whitespace-nowrap">--</div>
@@ -131,20 +130,10 @@
             <div class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider">Goals (Diff)</div>
             <div id="goalStats" class="text-base sm:text-xl font-bold text-white mt-1 whitespace-nowrap">--</div>
           </div>
-          <!-- NEW: Club Fans & Reputation Level -->
-          <div class="flex flex-col items-center">
-            <div class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider">Club Fans & Rep</div>
-            <div class="flex items-center justify-center gap-1.5 mt-1">
-              <span id="clubFansCount" class="text-base sm:text-xl font-bold text-amber-400 whitespace-nowrap">--</span>
-              <span id="clubRepLevelBadge" class="hidden px-1.5 py-0.5 rounded text-[10px] font-black bg-purple-500/20 text-purple-300 border border-purple-500/40 whitespace-nowrap">LVL --</span>
-            </div>
-            <div id="clubRepTierTitle" class="text-[9px] sm:text-[10px] font-semibold text-gray-400 mt-0.5 truncate max-w-[130px]">--</div>
-          </div>
         </div>
       </div>
 
-      <!-- Trophy, Promotions, Relegations, Peak Div & Club Reputation Progress Bar -->
-      <div id="trophyBar" class="hidden grid grid-cols-2 sm:grid-cols-5 gap-2.5 sm:gap-3 pt-4 border-t border-gray-800/80">
+      <div id="trophyBar" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 pt-4 border-t border-gray-800/80">
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center gap-2.5">
           <i class="fa-solid fa-trophy text-yellow-400 text-lg sm:text-xl"></i>
           <div><div class="text-[10px] uppercase text-gray-400 font-semibold">Titles Won</div><div id="trophyTitles" class="text-sm font-black text-white">0</div></div>
@@ -161,17 +150,6 @@
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center justify-between">
           <div><div class="text-[10px] uppercase text-gray-400 font-semibold">Peak Div</div><div id="trophyPeakDivText" class="text-xs font-extrabold text-gray-300 mt-0.5">--</div></div>
           <div id="trophyPeakDivShield"></div>
-        </div>
-        <!-- Club Reputation Level & AI OVR / Facility Progress Card -->
-        <div class="col-span-2 sm:col-span-1 bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex flex-col justify-between">
-          <div class="flex items-center justify-between">
-            <span class="text-[10px] uppercase text-gray-400 font-semibold flex items-center gap-1"><i class="fa-solid fa-users-rays text-amber-400"></i> Rep Level</span>
-            <span id="repCardLevelBadge" class="text-xs font-black text-amber-400">Level -- / 10</span>
-          </div>
-          <div class="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden my-1.5">
-            <div id="repProgressBar" class="h-full bg-gradient-to-r from-amber-500 to-emerald-400 rounded-full" style="width: 50%"></div>
-          </div>
-          <div id="repCardSubMeta" class="text-[9px] text-gray-400 font-mono truncate">AI Bots: -- OVR • Budget: --</div>
         </div>
       </div>
     </section>
@@ -546,6 +524,361 @@
     </div>
   </div>
 
-  <script src="/app.js"></script>
-</body>
-</html>
+  <script>
+    const API_BASE = '/api';
+    let GLOBAL_MEMBERS = [], GLOBAL_MATCHES = [], GLOBAL_COMBINED_DATA = {}, GLOBAL_CLUB_ID = null;
+    let RECENT_FORM_MAP = {}, RECENT_10_STATS_MAP = {}, SESSION_MATCHES_CACHE = [], SHAME_LIST_CACHE = [];
+    let TOP_FIDGET_SPINNER_NAME = null, CURRENT_CLUB_CREST_URL = '', ACTIVE_MODAL_PLAYER = null;
+    let CURRENT_PITCH_MODE = 'lastMatch', CURRENT_RECAP_MODE = 'session', CURRENT_BANTER_MODE = 'last10', ACTIVE_TAB = 'team';
+
+    const SKIN_HEX = ['f2d3b1', 'ecad80', 'd08b5b', '9e5622', '763900'];
+    const HAIR_HEX = ['0e0e0e', '562306', '6a4e35', 'e5d05c', 'cb6820', 'afafaf'];
+    const EA_NATION_TO_ISO = { '14':'gb-eng','25':'ie','42':'gb-sct','50':'gb-wls','35':'gb-nir','18':'fr','21':'de','45':'es','27':'it','34':'nl','38':'pt','7':'be','54':'br','52':'ar','95':'us','70':'ca','195':'au','133':'ng','13':'dk','46':'se','36':'no','37':'pl','10':'hr','47':'ch','4':'at' };
+
+    const EA_PRO_POS_MAP = {
+      '0': 'GK', '2': 'RWB', '3': 'RB', '4': 'RCB', '5': 'CB', '6': 'LCB', '7': 'LB', '8': 'LWB',
+      '9': 'RDM', '10': 'CDM', '11': 'LDM', '12': 'RM', '13': 'RCM', '14': 'CM', '15': 'LCM', '16': 'LM',
+      '17': 'RAM', '18': 'CAM', '19': 'LAM', '20': 'RF', '21': 'CF', '22': 'LF', '23': 'RW',
+      '24': 'RS', '25': 'ST', '26': 'LS', '27': 'LW'
+    };
+
+    const FORMATION_TEMPLATES = {
+      '4-1-2-1-2': { name: '4-1-2-1-2 (4-2-1-2)', atk: ['LS','RS'], cam: ['CAM'], mid: ['LCDM','RCDM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
+      '4-2-3-1 Narrow': { name: '4-2-3-1 Narrow', atk: ['ST'], cam: ['LAM','CAM','RAM'], mid: ['LCDM','RCDM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
+      '4-3-3 Attack': { name: '4-3-3 Attack', atk: ['LW','ST','RW'], cam: ['CAM'], mid: ['LCM','RCM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
+      '4-3-3 Holding': { name: '4-3-3 Holding', atk: ['LW','ST','RW'], cam: ['LCM','RCM'], mid: ['CDM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
+      '4-4-2 Flat': { name: '4-4-2 Flat', atk: ['LS','RS'], cam: [], mid: ['LM','LCM','RCM','RM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
+      '3-5-2': { name: '3-5-2', atk: ['LS','RS'], cam: ['CAM'], mid: ['LM','LCDM','RCDM','RM'], def: ['LCB','CB','RCB'], gk: ['GK'] },
+      '5-3-2': { name: '5-3-2', atk: ['LS','RS'], cam: ['CAM'], mid: ['LCM','RCM'], def: ['LWB','LCB','CB','RCB','RWB'], gk: ['GK'] }
+    };
+
+    function switchDashboardTab(tabKey) {
+      ACTIVE_TAB = tabKey;
+      const tabs = [
+        { key: 'team', border: 'border-emerald-500 bg-emerald-500/10 shadow-lg' },
+        { key: 'players', border: 'border-sky-500 bg-sky-500/10 shadow-lg' },
+        { key: 'pitch', border: 'border-amber-500 bg-amber-500/10 shadow-lg' }
+      ];
+
+      tabs.forEach(t => {
+        const pane = document.getElementById(`tabPane_${t.key}`);
+        const btn = document.getElementById(`tabBtn_${t.key}`);
+        if (t.key === tabKey) {
+          pane.classList.remove('hidden');
+          btn.className = `card p-3 sm:p-4 flex items-center justify-center gap-2.5 sm:gap-3.5 border-2 ${t.border} transition group cursor-pointer`;
+        } else {
+          pane.classList.add('hidden');
+          btn.className = `card p-3 sm:p-4 flex items-center justify-center gap-2.5 sm:gap-3.5 border border-gray-800 hover:border-gray-700 transition group cursor-pointer opacity-75 hover:opacity-100`;
+        }
+      });
+    }
+
+    const BALL_SVG = (cx, cy, r) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="currentColor" stroke-width="2.8"/><polygon points="${cx},${cy-r*0.45} ${cx+r*0.42},${cy-r*0.12} ${cx+r*0.26},${cy+r*0.38} ${cx-r*0.26},${cy+r*0.38} ${cx-r*0.42},${cy-r*0.12}" fill="currentColor"/>`;
+
+    const OFFICIAL_EA_PLAYSTYLE_VECTORS = {
+      cross_claimer: `${BALL_SVG(62,32,10.5)}<path d="M 24 68 L 42 46 L 52 54 L 34 74 Z" fill="currentColor"/><path d="M 40 44 C 38 36 44 30 50 34 L 56 42 C 58 46 54 52 48 50 Z" fill="currentColor"/>`,
+      deflector: `<path d="M 44 18 L 68 27 L 68 48 C 68 64 44 76 44 76 C 44 76 20 64 20 48 L 20 27 Z" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linejoin="round"/><path d="M 44 38 L 76 26 M 44 38 L 74 54" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><polygon points="72,20 82,24 75,33" fill="currentColor"/><polygon points="71,48 80,57 69,59" fill="currentColor"/>`,
+      far_reach: `${BALL_SVG(36,30,10)}<path d="M 30 48 C 32 42 40 40 46 44 L 66 56 L 58 72 L 36 58 Z" fill="currentColor"/><path d="M 24 38 Q 22 24 34 20" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>`,
+      footwork: `<path d="M 22 22 L 38 22 L 46 52 L 62 56 C 66 57 68 62 64 66 L 34 66 L 26 42 Z" fill="currentColor"/>${BALL_SVG(62,42,10.5)}`,
+      finesse_shot: `${BALL_SVG(64,32,10.5)}<path d="M 24 68 C 22 40 40 28 54 30" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/><polygon points="50,23 61,30 50,37" fill="currentColor"/><path d="M 34 74 C 34 52 46 44 60 44" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="4 4" stroke-linecap="round"/>`,
+      power_shot: `${BALL_SVG(64,34,11)}<path d="M 18 70 L 50 44 M 18 54 L 42 34 M 34 74 L 58 54" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/>`,
+      chip_shot: `${BALL_SVG(68,42,9.5)}<path d="M 20 66 Q 42 12 64 34" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><line x1="18" y1="68" x2="78" y2="68" stroke="currentColor" stroke-width="2.5" stroke-dasharray="4 4"/>`,
+      dead_ball: `${BALL_SVG(42,54,10.5)}<path d="M 52 46 Q 68 26 78 24" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><polygon points="72,18 83,22 76,31" fill="currentColor"/><line x1="24" y1="66" x2="60" y2="66" stroke="currentColor" stroke-width="3.5"/>`,
+      incisive_pass: `<circle cx="28" cy="42" r="6.5" fill="currentColor"/><circle cx="28" cy="66" r="6.5" fill="currentColor"/><path d="M 38 64 L 70 32" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/><polygon points="62,26 76,26 76,40" fill="currentColor"/><line x1="38" y1="42" x2="62" y2="42" stroke="currentColor" stroke-width="3.2" stroke-dasharray="4 4" stroke-linecap="round"/>`,
+      tiki_taka: `<polygon points="50,22 74,64 26,64" fill="none" stroke="currentColor" stroke-width="3.8" stroke-dasharray="5 3" stroke-linejoin="round"/><circle cx="50" cy="22" r="7" fill="currentColor"/><circle cx="74" cy="64" r="7" fill="currentColor"/><circle cx="26" cy="64" r="7" fill="currentColor"/>`,
+      whipped_pass: `${BALL_SVG(66,44,10)}<path d="M 20 62 Q 44 20 62 34" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><path d="M 20 46 Q 44 10 66 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>`,
+      pinged_pass: `${BALL_SVG(66,46,10.5)}<line x1="16" y1="46" x2="50" y2="46" stroke="currentColor" stroke-width="4.8" stroke-linecap="round"/><line x1="22" y1="34" x2="44" y2="34" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/><line x1="22" y1="58" x2="44" y2="58" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/>`,
+      long_ball_pass: `${BALL_SVG(26,60,9)}<path d="M 34 52 Q 54 14 78 46" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><polygon points="73,40 83,50 70,51" fill="currentColor"/>`,
+      technical: `${BALL_SVG(50,28,9.5)}<path d="M 26 68 Q 38 44 50 50 T 74 36" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><circle cx="31" cy="46" r="4" fill="currentColor"/><circle cx="69" cy="56" r="4" fill="currentColor"/>`,
+      rapid: `<polygon points="56,16 28,48 47,48 39,76 72,40 52,40" fill="currentColor"/>`,
+      quick_step: `<path d="M 22 60 L 48 60 L 62 42 L 78 42" fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round"/><polygon points="72,34 84,42 72,50" fill="currentColor"/><line x1="18" y1="46" x2="42" y2="46" stroke="currentColor" stroke-width="3.5" stroke-dasharray="4 4"/>`,
+      trickster: `${BALL_SVG(50,46,10)}<path d="M 24 46 A 26 16 0 1 1 76 46" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round"/><path d="M 76 46 A 26 16 0 1 1 24 46" fill="none" stroke="currentColor" stroke-width="3.8" stroke-dasharray="4 4" stroke-linecap="round"/>`,
+      press_proven: `<path d="M 50 18 L 76 30 L 70 64 L 50 76 L 30 64 L 24 30 Z" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="50" cy="46" r="9" fill="currentColor"/>`,
+      first_touch: `${BALL_SVG(50,34,10.5)}<path d="M 26 62 L 74 62 M 34 71 L 66 71" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><line x1="50" y1="47" x2="50" y2="59" stroke="currentColor" stroke-width="3.8" stroke-linecap="round"/>`,
+      anticipate: `<path d="M 50 18 L 74 28 L 74 48 C 74 64 50 76 50 76 C 50 76 26 64 26 48 L 26 28 Z" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linejoin="round"/>${BALL_SVG(50,46,10)}`,
+      intercept: `<line x1="18" y1="46" x2="82" y2="46" stroke="currentColor" stroke-width="4" stroke-dasharray="5 4" stroke-linecap="round"/>${BALL_SVG(50,46,10.5)}<line x1="50" y1="18" x2="50" y2="31" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><line x1="50" y1="74" x2="50" y2="61" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>`,
+      jockey: `<line x1="22" y1="50" x2="78" y2="50" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><polygon points="16,50 28,40 28,60" fill="currentColor"/><polygon points="84,50 72,40 72,60" fill="currentColor"/><circle cx="50" cy="30" r="8.5" fill="currentColor"/>`,
+      block: `<rect x="26" y="24" width="48" height="44" rx="6" fill="none" stroke="currentColor" stroke-width="4.2"/>${BALL_SVG(50,46,10)}`,
+      slide_tackle: `<path d="M 18 62 L 62 62 L 76 44" fill="none" stroke="currentColor" stroke-width="4.8" stroke-linecap="round"/>${BALL_SVG(34,42,9.5)}`,
+      bruiser: `<circle cx="38" cy="28" r="7" fill="currentColor"/><path d="M 24 64 L 30 40 L 52 40 L 58 64 Z" fill="currentColor"/><path d="M 58 36 L 78 28 M 60 48 L 80 48 M 58 60 L 78 68" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/>`,
+      aerial_fortress: `<polygon points="50,16 74,42 59,42 59,70 41,70 41,42 26,42" fill="currentColor"/>`,
+      relentless: `<path d="M 50 26 C 38 14 20 24 20 40 C 20 58 50 74 50 74 C 50 74 80 58 80 40 C 80 24 62 14 50 26 Z" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linejoin="round"/><polyline points="28,44 42,44 47,32 54,56 59,44 72,44" fill="none" stroke="currentColor" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round"/>`,
+      trivela: `${BALL_SVG(34,34,9.5)}<path d="M 66 70 C 78 46 66 28 48 32" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><polygon points="50,25 40,33 52,39" fill="currentColor"/>`
+    };
+
+    function applyStoredTheme() {
+      const isLight = (localStorage.getItem('proClubsTheme') || 'dark') === 'light';
+      document.body.classList.toggle('light-mode', isLight);
+      document.querySelectorAll('.theme-icon').forEach(el => el.className = `theme-icon fa-solid ${isLight ? 'fa-moon text-indigo-500' : 'fa-sun text-yellow-400'}`);
+      document.querySelectorAll('.theme-text').forEach(el => el.innerText = isLight ? 'Dark' : 'Light');
+    }
+
+    function toggleThemeMode() {
+      localStorage.setItem('proClubsTheme', document.body.classList.contains('light-mode') ? 'dark' : 'light');
+      applyStoredTheme();
+    }
+
+    function renderDivisionShieldHtml(divLabelOrNum, size = 'md') {
+      const str = String(divLabelOrNum ?? 'Div 2').trim().toLowerCase();
+      const num = (str.includes('elite') || str === '0') ? 0 : Math.max(1, Math.min(5, parseInt(str.replace(/[^0-9]/g, ''), 10) || 2));
+      const uid = `eaDiv_${num}_${Math.random().toString(36).substring(2, 7)}`;
+      const dims = size === 'lg' ? 'w-11 h-13 sm:w-12 sm:h-14' : (size === 'sm' ? 'w-6 h-7 sm:w-7 sm:h-8' : 'w-9 h-10');
+      const palettes = {
+        5: { bgTop: '#1c1917', bgBot: '#09090b', facet: '#292524', gem: null, wreath: false },
+        4: { bgTop: '#1e293b', bgBot: '#090d16', facet: '#334155', gem: '#10b981', wreath: true },
+        3: { bgTop: '#2e2318', bgBot: '#0c0a09', facet: '#443322', gem: '#d4af37', wreath: true },
+        2: { bgTop: '#0d4a4e', bgBot: '#041316', facet: '#146c72', gem: '#2dd4bf', wreath: true },
+        1: { bgTop: '#991b1b', bgBot: '#450a0a', facet: '#dc2626', gem: '#ef4444', wreath: true },
+        0: { bgTop: '#5b21b6', bgBot: '#2e1065', facet: '#7c3aed', gem: '#a855f7', wreath: true }
+      };
+      const pal = palettes[num] || palettes[2];
+      const innerWreath = pal.wreath ? `<path d="M 34 78 C 22 68 20 46 28 32" fill="none" stroke="url(#${uid}_gold)" stroke-width="2.5" stroke-dasharray="4 2" stroke-linecap="round" opacity="${num<=1?'0.95':'0.45'}"/><path d="M 66 78 C 78 68 80 46 72 32" fill="none" stroke="url(#${uid}_gold)" stroke-width="2.5" stroke-dasharray="4 2" stroke-linecap="round" opacity="${num<=1?'0.95':'0.45'}"/>` : '';
+      const eliteWings = num === 0 ? `<path d="M 16 74 C 2 62 2 38 12 22 C 6 40 10 58 20 70 Z" fill="url(#${uid}_gold)"/><path d="M 18 82 C 4 72 0 52 8 34 C 6 50 12 66 24 78 Z" fill="url(#${uid}_gold)"/><path d="M 84 74 C 98 62 98 38 88 22 C 94 40 90 58 80 70 Z" fill="url(#${uid}_gold)"/><path d="M 82 82 C 96 72 100 52 92 34 C 94 50 88 66 76 78 Z" fill="url(#${uid}_gold)"/>` : '';
+      const centerSym = num === 0
+        ? `<polygon points="38,28 43,19 50,25 57,19 62,28" fill="url(#${uid}_num)"/><path d="M 46 34 C 52 32 58 35 58 41 C 58 45 55 47 57 52 C 60 56 64 54 64 59 C 64 63 58 63 55 61 L 58 72 L 52 72 L 49 62 L 44 62 L 41 72 L 36 72 L 40 58 C 36 55 34 49 38 45 C 35 42 36 37 41 38 L 46 34 Z" fill="url(#${uid}_num)"/>`
+        : `<text x="50" y="64" font-family="'Cinzel', Georgia, serif" font-size="44" font-weight="900" fill="url(#${uid}_num)" text-anchor="middle">${num}</text>`;
+
+      return `
+        <div class="inline-flex items-center gap-1 select-none" title="EA Sports FC ${num===0?'Elite Division':`Division ${num}`}">
+          <div class="${dims} relative flex-shrink-0 drop-shadow-md">
+            <svg viewBox="0 0 100 114" class="w-full h-full overflow-visible">
+              <defs>
+                <linearGradient id="${uid}_gold" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#fef08a"/><stop offset="45%" stop-color="#e5c158"/><stop offset="100%" stop-color="#a17419"/></linearGradient>
+                <linearGradient id="${uid}_core" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${pal.bgTop}"/><stop offset="100%" stop-color="${pal.bgBot}"/></linearGradient>
+                <linearGradient id="${uid}_num" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#ffffff"/><stop offset="35%" stop-color="#fde68a"/><stop offset="100%" stop-color="#b48628"/></linearGradient>
+              </defs>
+              ${eliteWings}
+              <path d="M 50 4 L 86 18 L 86 42 L 82 46 L 86 50 C 86 78 68 94 50 106 C 32 94 14 78 14 50 L 18 46 L 14 42 L 14 18 Z" fill="url(#${uid}_gold)" stroke="#422c06" stroke-width="2"/>
+              <path d="M 50 10 L 80 22 L 80 41 L 77 46 L 80 51 C 80 74 64 88 50 99 C 36 88 20 74 20 51 L 23 46 L 20 41 L 20 22 Z" fill="url(#${uid}_core)" stroke="url(#${uid}_gold)" stroke-width="1.5"/>
+              <polygon points="50,10 80,22 65,42 50,28" fill="${pal.facet}" opacity="0.55"/>
+              ${innerWreath}${centerSym}
+              <path d="M 53 82 C 48 80 45 83 45 86 C 45 89 48 92 53 90" fill="none" stroke="url(#${uid}_num)" stroke-width="2.5" stroke-linecap="round"/>
+              ${pal.gem ? `<circle cx="50" cy="105" r="4.5" fill="${pal.gem}" stroke="url(#${uid}_gold)" stroke-width="1.8"/>` : ''}
+            </svg>
+          </div>
+          ${size === 'lg' ? `<span class="text-xs font-black uppercase tracking-wider text-emerald-400">${num===0?'Elite':`Div ${num}`}</span>` : ''}
+        </div>`;
+    }
+
+    function renderMiniJerseySvg(colors = ['#10b981', '#ffffff', '#064e3b'], label = 'Home') {
+      const [c1, c2, c3] = colors;
+      return `<div class="flex items-center gap-1" title="${label} Kit"><svg viewBox="0 0 36 34" class="w-4 h-4 sm:w-5 sm:h-5"><path d="M 8 6 L 2 14 L 7 18 L 11 12 Z M 28 6 L 34 14 L 29 18 L 25 12 Z" fill="${c2}" stroke="#0f172a" stroke-width="1.5"/><path d="M 10 6 L 26 6 L 26 30 L 10 30 Z" fill="${c1}" stroke="#0f172a" stroke-width="1.5"/><rect x="16" y="6" width="4" height="24" fill="${c2}" opacity="0.85"/><path d="M 14 6 Q 18 11 22 6" fill="none" stroke="${c3}" stroke-width="2"/></svg><span class="text-[10px] font-bold text-gray-400">${label}</span></div>`;
+    }
+
+    function computeMatchGradeAndUnitRatings(myGoals, oppGoals, playerStats = []) {
+      let shots = 0, pMade = 0, pAtt = 0, tackles = 0;
+      playerStats.forEach(p => { shots += Number(p.shots||0); pMade += Number(p.passesmade||0); pAtt += Number(p.passattempts||p.passesmade||0); tackles += Number(p.tacklesmade||p.tackles||0); });
+      const passPct = pAtt > 0 ? (pMade / pAtt) * 100 : 75;
+      const shotConv = shots > 0 ? (myGoals / shots) : (myGoals > 0 ? 0.5 : 0);
+      const atk = Math.min(9.9, Math.max(4.0, 5.6 + myGoals * 0.95 + shotConv * 1.6 + (passPct - 70) * 0.04));
+      const def = Math.min(9.9, Math.max(3.8, 7.4 + (oppGoals === 0 ? 1.4 : 0) - oppGoals * 0.85 + Math.min(1.5, tackles * 0.14)));
+      const gd = myGoals - oppGoals, comb = atk * 0.5 + def * 0.5 + gd * 0.35;
+
+      if (comb >= 8.7 || (gd >= 3 && myGoals >= 4)) return { grade: 'S', gradeCls: 'bg-yellow-500/20 text-yellow-300 border-yellow-400/50', atk: atk.toFixed(1), def: def.toFixed(1) };
+      if (comb >= 8.0 || gd >= 2) return { grade: 'A+', gradeCls: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40', atk: atk.toFixed(1), def: def.toFixed(1) };
+      if (comb >= 7.3 || gd === 1) return { grade: 'A', gradeCls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', atk: atk.toFixed(1), def: def.toFixed(1) };
+      if (comb >= 6.4 || gd === 0) return { grade: 'B', gradeCls: 'bg-amber-500/15 text-amber-300 border-amber-500/30', atk: atk.toFixed(1), def: def.toFixed(1) };
+      if (comb >= 5.5 || gd === -1) return { grade: 'C', gradeCls: 'bg-orange-500/15 text-orange-300 border-orange-500/30', atk: atk.toFixed(1), def: def.toFixed(1) };
+      return { grade: 'D', gradeCls: 'bg-rose-500/15 text-rose-400 border-rose-500/30', atk: atk.toFixed(1), def: def.toFixed(1) };
+    }
+
+    function parsePlayerMatchEvents(p = {}) {
+      const ev = {};
+      for (let i = 0; i < 4; i++) {
+        const s = p[`match_event_aggregate_${i}`];
+        if (typeof s === 'string' && s.trim()) {
+          s.split(',').forEach(pair => {
+            const [k, v] = pair.split(':');
+            const id = parseInt(k, 10), cnt = parseInt(v, 10);
+            if (!isNaN(id) && !isNaN(cnt)) ev[id] = (ev[id] || 0) + cnt;
+          });
+        }
+      }
+      const beats = ev[38] || 0, takeOns = ev[112] || 0, dribbles = ev[174] || 0, flair = ev[147] || 0;
+      let skills = beats + flair + Math.max(0, takeOns - beats);
+      if (skills === 0 && dribbles > 0) skills = Math.max(1, Math.round(dribbles * 0.35));
+      return { skillMoves: skills, dribblesCompleted: dribbles };
+    }
+
+    async function shareElementAsPng(elementId, filenamePrefix = 'ClubsTracker') {
+      const el = document.getElementById(elementId);
+      if (!el || typeof html2canvas === 'undefined') return;
+      try {
+        const canvas = await html2canvas(el, { backgroundColor: null, useCORS: true, scale: 2 });
+        canvas.toBlob(async (blob) => {
+          if (!blob) return;
+          const file = new File([blob], `${filenamePrefix}.png`, { type: 'image/png' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try { await navigator.share({ files: [file], title: filenamePrefix }); return; } catch (_) {}
+          }
+          if (navigator.clipboard && window.ClipboardItem) {
+            try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); alert('📸 Copied to clipboard!'); return; } catch (_) {}
+          }
+          const link = document.createElement('a');
+          link.download = `${filenamePrefix}.png`; link.href = URL.createObjectURL(blob); link.click();
+        }, 'image/png');
+      } catch (e) { console.error(e); }
+    }
+
+    function getPlayerFunTag(player) {
+      const name = player.name || player.proName || 'Unknown';
+      const games = Math.max(1, Number(player.gamesPlayed ?? player.games ?? 1));
+      const gpg = Number(player.goals ?? 0) / games, apg = Number(player.assists ?? 0) / games;
+      const tpg = Number(player.tacklesmade ?? player.tackles ?? 0) / games;
+      const tacklePct = Number(player.tacklesuccessrate ?? player.tackleSuccessRate ?? 0);
+      const passPct = Number(player.passSuccessRate ?? player.passSuccess ?? 0);
+      const rating = parseFloat(player.ratingAve || player.rating || 0);
+      const motmRate = Number(player.manOfTheMatch ?? player.motm ?? 0) / games;
+      const r10 = RECENT_10_STATS_MAP[name];
+
+      if (r10 && r10.superSubGA >= 1) return { label: '🦸‍♂️ Super-Sub', cls: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/50' };
+      if (name === TOP_FIDGET_SPINNER_NAME || (r10 && r10.games > 0 && r10.skillMoves / r10.games >= 3.5)) return { label: '🌀 Fidget Spinner', cls: 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/40' };
+      if (motmRate >= 0.28 && games >= 5) return { label: '👑 MoTM Merchant', cls: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/40' };
+      if (gpg >= 0.75) return { label: '🎯 Clinical Poacher', cls: 'bg-rose-500/15 text-rose-400 border-rose-500/40' };
+      if (gpg >= 0.45 && apg <= gpg * 0.25) return { label: '🔫 Shoot on Sight', cls: 'bg-orange-500/15 text-orange-400 border-orange-500/40' };
+      if (apg >= 0.5) return { label: '🎩 Chief Creator', cls: 'bg-purple-500/15 text-purple-400 border-purple-500/40' };
+      if (passPct >= 84 && apg >= 0.25) return { label: '📐 Pass Master', cls: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/40' };
+      if (tpg >= 1.8 && tacklePct >= 30) return { label: '🧱 Brick Wall', cls: 'bg-blue-500/15 text-blue-400 border-blue-500/40' };
+      if (tpg >= 1.6 && tacklePct < 30) return { label: '🦵 Ankle Breaker', cls: 'bg-red-500/15 text-red-400 border-red-500/40' };
+      if (gpg >= 0.35 && apg >= 0.35) return { label: '⚡ Double Threat', cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' };
+      if (passPct >= 82) return { label: '🧭 Metronome', cls: 'bg-teal-500/15 text-teal-400 border-teal-500/40' };
+      if (player._normalizedPos === 'DEF') return { label: '🛡️ Backline Guardian', cls: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/40' };
+      if (rating >= 7.6) return { label: '🔥 Big Game Player', cls: 'bg-amber-500/15 text-amber-400 border-amber-500/40' };
+      return { label: '🫁 Box-to-Box Engine', cls: 'bg-slate-700/60 text-slate-300 border-slate-600' };
+    }
+
+    function getAppearanceMap() { try { return JSON.parse(localStorage.getItem('proClubsAppearanceV3') || '{}'); } catch (_) { return {}; } }
+
+    function getPlayerAppearance(playerObj) {
+      const rawName = typeof playerObj === 'string' ? playerObj : (playerObj?.name || playerObj?.proName || '');
+      const key = String(rawName).toLowerCase().trim();
+      const saved = getAppearanceMap()[key] || {};
+      let hash = 0;
+      for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash);
+      return { skin: saved.skin || SKIN_HEX[Math.abs(hash) % SKIN_HEX.length], hair: saved.hair || HAIR_HEX[Math.abs(hash >> 3) % HAIR_HEX.length] };
+    }
+
+    function updateProLook(type, hexValue) {
+      if (!ACTIVE_MODAL_PLAYER) return;
+      const key = String(ACTIVE_MODAL_PLAYER).toLowerCase().trim();
+      const map = getAppearanceMap();
+      const updated = { ...getPlayerAppearance(ACTIVE_MODAL_PLAYER), [type]: hexValue };
+      map[key] = updated;
+      localStorage.setItem('proClubsAppearanceV3', JSON.stringify(map));
+
+      fetch(`${API_BASE}/appearances`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerName: ACTIVE_MODAL_PLAYER, skin: updated.skin, hair: updated.hair })
+      }).catch(() => {});
+
+      renderMembers(GLOBAL_MEMBERS);
+      buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
+      openFutModal(ACTIVE_MODAL_PLAYER);
+    }
+
+    function getFlagUrl(nationId) { return `https://flagcdn.com/w40/${EA_NATION_TO_ISO[String(nationId || '')] || 'ie'}.png`; }
+
+    function getPlayerAvatarUrl(playerName) {
+      const look = getPlayerAppearance(playerName);
+      return `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(String(playerName || 'Pro').trim())}&skinColor=${look.skin}&hairColor=${look.hair}`;
+    }
+
+    function getCardTierTheme(ovr) {
+      const r = Number(ovr || 75);
+      if (r < 76) return { tier: 'BRONZE', badgeClass: 'bg-amber-900/40 text-amber-300 border-amber-600/50', textColor: '#271406', baseStops: ['#f7d4b6','#e29e6b','#c67a43','#9c5525','#5e2d0d'], plateStops: ['#f2c29b','#c87d48','#85461b'], rimStops: ['#ffffff','#f5cba7','#7c3f19','#f7d4b6'], beamMid: '#fae5d3', beamDark: '#7c3f19' };
+      if (r < 85) return { tier: 'SILVER', badgeClass: 'bg-slate-700/50 text-slate-200 border-slate-400/50', textColor: '#1e293b', baseStops: ['#ffffff','#e2e8f0','#cbd5e1','#94a3b8','#475569'], plateStops: ['#f1f5f9','#cbd5e1','#64748b'], rimStops: ['#ffffff','#e2e8f0','#475569','#f8fafc'], beamMid: '#ffffff', beamDark: '#475569' };
+      return { tier: 'GOLD', badgeClass: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50', textColor: '#2b2108', baseStops: ['#fef08a','#facc15','#eab308','#ca8a04','#854d0e'], plateStops: ['#fde047','#eab308','#a16207'], rimStops: ['#ffffff','#fde047','#a16207','#fef08a'], beamMid: '#fef9c3', beamDark: '#ca8a04' };
+    }
+
+    function renderPlaystyleDiamondHtml(ps, isPlus = false) {
+      const art = OFFICIAL_EA_PLAYSTYLE_VECTORS[ps.slug] || OFFICIAL_EA_PLAYSTYLE_VECTORS.technical;
+      const gId = `psG_${ps.slug}_${isPlus?1:0}`;
+      const stops = isPlus ? `<stop offset="0%" stop-color="#fde68a"/><stop offset="45%" stop-color="#f5c43c"/><stop offset="100%" stop-color="#c48b11"/>` : `<stop offset="0%" stop-color="#ffffff"/><stop offset="50%" stop-color="#e2e8f0"/><stop offset="100%" stop-color="#94a3b8"/>`;
+      return `
+        <div class="group ${isPlus ? 'ps-plus-badge' : 'ps-silver-badge'} cursor-pointer">
+          <svg viewBox="0 0 100 92" class="w-full h-full text-[#1c1608]">
+            <defs><linearGradient id="${gId}" x1="0%" y1="0%" x2="100%" y2="100%">${stops}</linearGradient></defs>
+            <polygon points="22,6 78,6 96,34 50,88 4,34" fill="url(#${gId})" stroke="#1c1608" stroke-width="4.5" stroke-linejoin="round"/>
+            <polygon points="25,13 75,13 88,34 50,79 12,34" fill="none" stroke="#1c1608" stroke-width="2" stroke-linejoin="round" opacity="0.8"/>
+            <g transform="translate(0,-2)">${art}</g>
+          </svg>
+          <div class="pointer-events-none absolute left-12 top-1/2 -translate-y-1/2 hidden group-hover:flex flex-col bg-gray-950/95 text-white border border-yellow-400/60 px-2.5 py-1.5 rounded-lg shadow-2xl w-44 z-50">
+            <span class="text-[10px] font-black ${isPlus?'text-yellow-400':'text-slate-200'} uppercase">${ps.name}${isPlus?'+':''}</span>
+            <span class="text-[9px] text-gray-300 leading-tight mt-0.5">${ps.desc}</span>
+          </div>
+        </div>`;
+    }
+
+    function computeArchetypeAndPlaystyles(player) {
+      const name = String(player.name || player.proName || 'Pro'), pos = player._normalizedPos || 'MID', rawPos = String(player._rawPos || '').toUpperCase();
+      const games = Math.max(1, Number(player.gamesPlayed || 1)), gpg = Number(player.goals || 0) / games, apg = Number(player.assists || 0) / games, tpg = Number(player.tacklesmade || player.tackles || 0) / games;
+      const tackleWinPct = Number(player.tacklesuccessrate || 25), passPct = Number(player.passSuccessRate || 75), rating = parseFloat(player.ratingAve || 7.2), height = parseInt(player.proHeight || 180, 10);
+
+      let seed = 0; for (let i = 0; i < name.length; i++) seed = (seed * 31 + name.charCodeAt(i)) % 1000;
+      const jit = (idx) => ((seed + idx * 17) % 11) * 0.8;
+
+      let archetype = pos === 'FWD' ? (height >= 188 ? 'Target' : gpg >= 0.65 ? 'Finisher' : apg >= 0.42 ? 'Creator' : height <= 175 ? 'Spark' : 'Hawk')
+        : pos === 'MID' ? (tpg >= 1.45 ? 'Destroyer' : passPct >= 83 && apg >= 0.35 ? 'Maestro' : gpg >= 0.38 ? 'Shadow Striker' : passPct >= 80 ? 'Architect' : 'Engine')
+        : pos === 'DEF' ? (rawPos.includes('B') && !rawPos.includes('CB') ? 'Marauder' : height >= 188 ? 'Titan' : 'Guardian') : 'Sweeper Keeper';
+
+      if (pos === 'GK') return { archetype, psPlus: { slug: 'footwork', name: 'Footwork', desc: 'Boosted close-range foot saves.' }, activePlaystyles: [{ slug: 'far_reach', name: 'Far Reach', desc: 'Extended reach on outside-box shots.' }, { slug: 'cross_claimer', name: 'Cross Claimer', desc: 'Intercepts high crosses cleanly.' }] };
+
+      const pool = [
+        { slug: 'finesse_shot', name: 'Finesse Shot', desc: 'Faster finesse shots with maximum curve.', score: (pos==='FWD'?40:18) + gpg*45 + jit(1) },
+        { slug: 'power_shot', name: 'Power Shot', desc: 'Faster power shots with velocity boost.', score: gpg*38 + (height>=182?10:0) + jit(2) },
+        { slug: 'chip_shot', name: 'Chip Shot', desc: 'Accurate chip shots over rushing keepers.', score: gpg*32 + (rating>=7.6?14:0) + jit(3) },
+        { slug: 'dead_ball', name: 'Dead Ball', desc: 'Set pieces delivered with extra curve and speed.', score: apg*30 + gpg*20 + jit(4) },
+        { slug: 'incisive_pass', name: 'Incisive Pass', desc: 'Through passes are far more accurate.', score: (pos==='MID'?32:15) + apg*55 + passPct*0.3 + jit(5) },
+        { slug: 'tiki_taka', name: 'Tiki Taka', desc: 'Crisp first-time ground passes with high accuracy.', score: (passPct>=80?42:10) + passPct*0.45 + jit(6) },
+        { slug: 'pinged_pass', name: 'Pinged Pass', desc: 'Driven ground passes travel faster.', score: (pos==='MID'?28:12) + passPct*0.4 + apg*25 + jit(7) },
+        { slug: 'whipped_pass', name: 'Whipped Pass', desc: 'Accurate driven crosses with high curve.', score: ((rawPos.includes('W')||rawPos.includes('M')||rawPos.includes('B'))?28:5) + apg*38 + jit(8) },
+        { slug: 'long_ball_pass', name: 'Long Ball Pass', desc: 'Lofted through passes are harder to intercept.', score: (pos!=='FWD'?26:6) + passPct*0.35 + jit(9) },
+        { slug: 'technical', name: 'Technical', desc: 'Higher Controlled Sprint speed and tight turns.', score: rating*5.5 + (gpg+apg)*20 + jit(10) },
+        { slug: 'rapid', name: 'Rapid', desc: 'Higher sprint speed while dribbling.', score: (pos==='FWD'?34:16) + (height<=180?15:4) + gpg*28 + jit(11) },
+        { slug: 'quick_step', name: 'Quick Step', desc: 'Faster Explosive Sprint acceleration.', score: (height<=178?32:14) + (gpg+apg)*22 + jit(12) },
+        { slug: 'first_touch', name: 'First Touch', desc: 'Reduced error when trapping under pressure.', score: passPct*0.38 + gpg*22 + jit(13) },
+        { slug: 'trickster', name: 'Trickster', desc: 'Unique flicks and faster strafe dribbling.', score: (pos==='FWD'?25:12) + (name===TOP_FIDGET_SPINNER_NAME?35:0) + jit(14) },
+        { slug: 'press_proven', name: 'Press Proven', desc: 'Shields ball effectively from pressers.', score: (pos==='MID'?30:15) + passPct*0.35 + tpg*10 + jit(15) },
+        { slug: 'trivela', name: 'Trivela', desc: 'Outside-of-the-foot passes and shots.', score: apg*32 + gpg*26 + jit(16) },
+        { slug: 'anticipate', name: 'Anticipate', desc: 'Standing tackles stop ball directly at feet.', score: (pos==='DEF'?45:10) + tpg*24 + tackleWinPct*0.4 + jit(17) },
+        { slug: 'intercept', name: 'Intercept', desc: 'Increased reach and ball retention on interceptions.', score: (pos!=='FWD'?32:5) + tpg*26 + jit(18) },
+        { slug: 'jockey', name: 'Jockey', desc: 'Increased max speed of Sprint Jockey.', score: (pos==='DEF'?38:12) + tackleWinPct*0.45 + jit(19) },
+        { slug: 'block', name: 'Block', desc: 'Increased reach when performing blocks.', score: (pos==='DEF'?40:6) + tpg*18 + jit(20) },
+        { slug: 'bruiser', name: 'Bruiser', desc: 'Greater physical strength in tackles.', score: (height>=184?28:8) + tpg*22 + jit(22) },
+        { slug: 'aerial_fortress', name: 'Aerial Fortress', desc: 'Higher jumps and aerial dominance.', score: (height>=187?52:4) + gpg*15 + jit(23) },
+        { slug: 'relentless', name: 'Relentless', desc: 'Reduces fatigue loss and boosts stamina recovery.', score: (games>=25?28:14) + (tpg+apg)*14 + jit(24) }
+      ].sort((a, b) => b.score - a.score);
+
+      return { archetype, psPlus: pool[0], activePlaystyles: [pool[1], pool[2]] };
+    }
+
+    function renderCrestHtml(name, crestId, sizeClass = 'w-7 h-7', clubId = '') {
+      const platform = document.getElementById('platformSelect')?.value || 'common-gen5';
+      const clubParam = clubId ? `&clubId=${encodeURIComponent(clubId)}&platform=${encodeURIComponent(platform)}` : '';
+      return `<div class="${sizeClass} rounded-lg bg-gray-900 border border-gray-800 flex items-center justify-center p-0.5 overflow-hidden flex-shrink-0 shadow-md"><img src="${API_BASE}/crest/${crestId?String(crestId).trim():'0'}?name=${encodeURIComponent(name||'FC')}${clubParam}" class="w-full h-full object-contain" alt="${name}"></div>`;
+    }
+
+    function getChaosEmoji(myG, oppG, oppSR) {
+      const tot = myG + oppG;
+      if (Number(oppSR || 0) >= 1900) return { emoji: '🔥', label: 'SWEATFEST (1900+ SR)' };
+      if (tot >= 8) return { emoji: '🏀', label: 'BASKETBALL MATCH (8+ Goals)' };
+      if (myG < oppG && oppG >= 3) return { emoji: '🚨', label: 'DEFENSIVE DISASTERCLASS' };
+      if (myG > oppG && tot <= 3) return { emoji: '🧱', label: 'HARAMBALL WIN (Gritty Defense)' };
+      if (myG >= 4 && myG > oppG) return { emoji: '💥', label: 'GOAL CARNIVAL (4+ Scored)' };
+      if (myG === oppG) return { emoji: '🤝', label: 'POINTS SHARED' };
+      return { emoji: '⚽', label: 'COMPETITIVE FIXTURE' };
+    }
+
+    function setStatus(msg, isErr = false) {
+      const b = document.getElementById('statusBanner');
+      if (!msg) { b.classList.add('hidden'); return; }
+      b.classList.remove('hidden'); b.innerText = msg;
+      b.className = isErr ? 'text-xs sm:text-sm px-4 py-3 rounded bg-red-950/80 border border-red-800 text-red-200' : 'text-xs sm:text-sm px-4 py-3 rounded bg-gray-800 border border-gray-700 text-gray-300';
+    }
+
+    function normalizePosition(rawPos) {
+      const p = String(rawPos || '').toLowerCase().trim();
+      if (['forward','striker','st','cf','lw','rw','lf','rf','ls','rs'].includes(p)) return 'FWD';
+      if (['defender','defence','cb','lb','rb','lwb','rwb','lcb','rcb'].includes(p)) return 'DEF';
+      if (['goalkeeper','
