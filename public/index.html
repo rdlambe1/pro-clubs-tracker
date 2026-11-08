@@ -335,13 +335,23 @@
       </div>
     </section>
 
-    <!-- Tactical Pitch (Bottom of Page, Mobile-Responsive Nodes) -->
+    <!-- Tactical Pitch (Bottom of Page, Mobile-Responsive Nodes + Formation Selector) -->
     <section class="card p-4 sm:p-6 space-y-4">
       <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-3 border-b border-gray-800 pb-4">
         <div>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
             <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-chess-board text-emerald-400"></i> Tactical Pitch & Squad Lineup</h3>
             <span id="formationBadge" class="text-xs font-black px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">--</span>
+            <select id="formationOverrideSelect" onchange="handleFormationOverride(this.value)" class="bg-gray-900 border border-gray-700 text-xs font-bold text-gray-200 px-2 py-1 rounded focus:outline-none focus:border-emerald-500 cursor-pointer" title="Select Active Club Formation">
+              <option value="auto">⚡ Auto-Detect from Match</option>
+              <option value="4-2-3-1 Narrow">4-2-3-1 Narrow</option>
+              <option value="4-3-3 Attack">4-3-3 Attack</option>
+              <option value="4-3-3 Holding">4-3-3 Holding</option>
+              <option value="4-1-2-1-2 Narrow">4-1-2-1-2 Narrow</option>
+              <option value="4-4-2 Flat">4-4-2 Flat</option>
+              <option value="3-5-2">3-5-2</option>
+              <option value="5-3-2">5-3-2</option>
+            </select>
           </div>
           <p id="formationSubtitle" class="text-xs text-gray-400 mt-1">Tap any player on the grass to inspect their FC27 Card</p>
         </div>
