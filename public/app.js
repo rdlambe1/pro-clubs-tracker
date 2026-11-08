@@ -1,14 +1,13 @@
 const API_BASE = '/api';
 let GLOBAL_MEMBERS = [], GLOBAL_MATCHES = [], GLOBAL_COMBINED_DATA = {}, GLOBAL_CLUB_ID = null;
-let RECENT_FORM_MAP = {}, RECENT_10_STATS_MAP = {}, SESSION_MATCHES_CACHE = [];
+let RECENT_FORM_MAP = {}, RECENT_10_STATS_MAP = {}, SESSION_MATCHES_CACHE = [], SHAME_LIST_CACHE = [];
 let TOP_FIDGET_SPINNER_NAME = null, CURRENT_CLUB_CREST_URL = '', ACTIVE_MODAL_PLAYER = null;
-let CURRENT_PITCH_MODE = 'lastMatch', CURRENT_RECAP_MODE = 'session';
+let CURRENT_PITCH_MODE = 'lastMatch', CURRENT_RECAP_MODE = 'session', CURRENT_BANTER_MODE = 'last10', ACTIVE_TAB = 'team';
 
 const SKIN_HEX = ['f2d3b1', 'ecad80', 'd08b5b', '9e5622', '763900'];
 const HAIR_HEX = ['0e0e0e', '562306', '6a4e35', 'e5d05c', 'cb6820', 'afafaf'];
 const EA_NATION_TO_ISO = { '14':'gb-eng','25':'ie','42':'gb-sct','50':'gb-wls','35':'gb-nir','18':'fr','21':'de','45':'es','27':'it','34':'nl','38':'pt','7':'be','54':'br','52':'ar','95':'us','70':'ca','195':'au','133':'ng','13':'dk','46':'se','36':'no','37':'pl','10':'hr','47':'ch','4':'at' };
 
-// Official EA Numeric proPos ID Decoder (From raw JSON: "proPos": "25" = ST, etc.)
 const EA_PRO_POS_MAP = {
   '0': 'GK', '2': 'RWB', '3': 'RB', '4': 'RCB', '5': 'CB', '6': 'LCB', '7': 'LB', '8': 'LWB',
   '9': 'RDM', '10': 'CDM', '11': 'LDM', '12': 'RM', '13': 'RCM', '14': 'CM', '15': 'LCM', '16': 'LM',
@@ -18,14 +17,36 @@ const EA_PRO_POS_MAP = {
 
 // Official Formation Templates
 const FORMATION_TEMPLATES = {
+  '4-1-2-1-2': { name: '4-1-2-1-2 (4-2-1-2)', atk: ['LS','RS'], cam: ['CAM'], mid: ['LCDM','RCDM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
   '4-2-3-1 Narrow': { name: '4-2-3-1 Narrow', atk: ['ST'], cam: ['LAM','CAM','RAM'], mid: ['LCDM','RCDM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
   '4-3-3 Attack': { name: '4-3-3 Attack', atk: ['LW','ST','RW'], cam: ['CAM'], mid: ['LCM','RCM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
   '4-3-3 Holding': { name: '4-3-3 Holding', atk: ['LW','ST','RW'], cam: ['LCM','RCM'], mid: ['CDM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
-  '4-1-2-1-2 Narrow': { name: '4-1-2-1-2 Narrow', atk: ['LS','RS'], cam: ['CAM'], mid: ['LCM','CDM','RCM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
   '4-4-2 Flat': { name: '4-4-2 Flat', atk: ['LS','RS'], cam: [], mid: ['LM','LCM','RCM','RM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
   '3-5-2': { name: '3-5-2', atk: ['LS','RS'], cam: ['CAM'], mid: ['LM','LCDM','RCDM','RM'], def: ['LCB','CB','RCB'], gk: ['GK'] },
   '5-3-2': { name: '5-3-2', atk: ['LS','RS'], cam: ['CAM'], mid: ['LCM','RCM'], def: ['LWB','LCB','CB','RCB','RWB'], gk: ['GK'] }
 };
+
+// 3-Tab Dashboard Switcher
+function switchDashboardTab(tabKey) {
+  ACTIVE_TAB = tabKey;
+  const tabs = [
+    { key: 'team', border: 'border-emerald-500 bg-emerald-500/10 shadow-lg' },
+    { key: 'players', border: 'border-sky-500 bg-sky-500/10 shadow-lg' },
+    { key: 'pitch', border: 'border-amber-500 bg-amber-500/10 shadow-lg' }
+  ];
+
+  tabs.forEach(t => {
+    const pane = document.getElementById(`tabPane_${t.key}`);
+    const btn = document.getElementById(`tabBtn_${t.key}`);
+    if (t.key === tabKey) {
+      pane.classList.remove('hidden');
+      btn.className = `card p-3 sm:p-4 flex items-center justify-center gap-2.5 sm:gap-3.5 border-2 ${t.border} transition group cursor-pointer`;
+    } else {
+      pane.classList.add('hidden');
+      btn.className = `card p-3 sm:p-4 flex items-center justify-center gap-2.5 sm:gap-3.5 border border-gray-800 hover:border-gray-700 transition group cursor-pointer opacity-75 hover:opacity-100`;
+    }
+  });
+}
 
 const BALL_SVG = (cx, cy, r) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="currentColor" stroke-width="2.8"/><polygon points="${cx},${cy-r*0.45} ${cx+r*0.42},${cy-r*0.12} ${cx+r*0.26},${cy+r*0.38} ${cx-r*0.26},${cy+r*0.38} ${cx-r*0.42},${cy-r*0.12}" fill="currentColor"/>`;
 
@@ -220,7 +241,6 @@ function updateProLook(type, hexValue) {
   map[key] = updated;
   localStorage.setItem('proClubsAppearanceV3', JSON.stringify(map));
 
-  // Sync to server so everyone who visits the site sees the customized player look
   fetch(`${API_BASE}/appearances`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -519,6 +539,7 @@ function computeMatchIntelligence(clubId, matchesPayload) {
   SESSION_MATCHES_CACHE = sessionMatches;
 
   const shameArr = Object.values(shameMap);
+  SHAME_LIST_CACHE = shameArr;
   const topSkiller = [...shameArr].sort((a, b) => b.skillMoves - a.skillMoves)[0];
   if (topSkiller && topSkiller.skillMoves > 0) TOP_FIDGET_SPINNER_NAME = topSkiller.name;
 
@@ -534,7 +555,7 @@ function computeMatchIntelligence(clubId, matchesPayload) {
     return `<div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 space-y-1"><div class="flex items-center justify-between"><span class="text-[10px] font-black uppercase text-gray-300">${b.label}</span><span class="text-xs font-black ${wp!==null&&wp>=50?'text-emerald-400':'text-gray-300'}">${wp!==null?`${wp}% Win`:'0 GP'}</span></div><div class="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden"><div class="h-full ${wp!==null&&wp>=50?'bg-emerald-500':'bg-rose-500'} rounded-full" style="width:${wp!==null?Math.max(8,wp):0}%"></div></div><div class="text-[10px] font-mono text-gray-400">Record: <b class="text-white">${b.w}W-${b.d}D-${b.l}L</b></div></div>`;
   }).join('');
 
-  renderShameBoard(shameArr);
+  renderShameBoard(SHAME_LIST_CACHE);
 
   const intelSec = document.getElementById('intelSection');
   if (matchArr.length) {
@@ -557,27 +578,93 @@ function computeMatchIntelligence(clubId, matchesPayload) {
   return shameArr;
 }
 
+// Toggles Dressing Room Banter between 'last10' and 'allTime' Career Stats
+function switchBanterMode(mode) {
+  CURRENT_BANTER_MODE = mode;
+  document.getElementById('btnBanterLast10').className = mode === 'last10'
+    ? 'px-3 py-1 rounded text-xs font-black bg-rose-500 text-white transition shadow'
+    : 'px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
+  document.getElementById('btnBanterAllTime').className = mode === 'allTime'
+    ? 'px-3 py-1 rounded text-xs font-black bg-rose-500 text-white transition shadow'
+    : 'px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
+  renderShameBoard(SHAME_LIST_CACHE);
+}
+
 function renderShameBoard(shameList = []) {
   const sec = document.getElementById('shameBoardSection');
-  if (!shameList.length) return sec.classList.add('hidden');
+  if (!shameList.length && !GLOBAL_MEMBERS.length) return sec.classList.add('hidden');
   sec.classList.remove('hidden');
 
-  shameList.forEach(i => i.careerCS = Number(GLOBAL_MEMBERS.find(m => (m.name || m.proName) === i.name)?.totalCleanSheets || 0));
-  const bySub = [...shameList].sort((a, b) => (b.superSubGA * 10 + b.subGames) - (a.superSubGA * 10 + a.subGames))[0];
-  const byPad = [...shameList].sort((a, b) => (b.careerCS + b.cleanSheets * 3 + b.tackles * 0.1) - (a.careerCS + a.cleanSheets * 3 + a.tackles * 0.1))[0];
-  const bySkill = [...shameList].sort((a, b) => b.skillMoves - a.skillMoves)[0];
-  const byPass = [...shameList].sort((a, b) => b.missedPasses - a.missedPasses)[0];
-  const byBarn = [...shameList].sort((a, b) => (b.shots - b.goals) - (a.shots - a.goals))[0];
-  const byRed = [...shameList].sort((a, b) => (b.reds * 15 + (b.tackleAtt - b.tackles)) - (a.reds * 15 + (a.tackleAtt - a.tackles)))[0];
+  let cards = [];
 
-  const cards = [
-    { title: '🦸‍♂️ The Super-Sub Award', w: bySub.name, st: bySub.superSubGA > 0 ? `${bySub.superSubGA} G+A off Bench` : `${bySub.subGames} Sub Apps`, sub: 'Mid-match joiner impact', b: 'border-emerald-500/40', c: 'text-emerald-400' },
-    { title: '🔒 The Padlock (Clean Sheets)', w: byPad.name, st: `${Math.max(byPad.careerCS, byPad.cleanSheets)} Clean Sheets`, sub: `${byPad.cleanSheets} shutouts in last 10`, b: 'border-sky-500/40', c: 'text-sky-400' },
-    { title: '🌀 Fidget Spinner', w: bySkill.name, st: `${bySkill.skillMoves} Skill Moves`, sub: `${bySkill.dribblesCompleted} dribbles completed`, b: 'border-fuchsia-500/40', c: 'text-fuchsia-400' },
-    { title: '🏥 Hospital Pass Award', w: byPass.name, st: `${byPass.missedPasses} Missed Passes`, sub: `Across ${byPass.games} recent apps`, b: 'border-amber-500/40', c: 'text-amber-400' },
-    { title: '🚪 The Barn Door Award', w: byBarn.name, st: `${byBarn.shots} Shots (${byBarn.goals}G)`, sub: `${byBarn.shots>0?Math.round((byBarn.goals/byBarn.shots)*100):0}% shot conversion`, b: 'border-rose-500/40', c: 'text-rose-400' },
-    { title: '🟥 Sunday League Butcher', w: byRed.name, st: byRed.reds > 0 ? `${byRed.reds} Red Cards` : `${byRed.tackles} Tackles Won`, sub: 'Midfield enforcer', b: 'border-red-500/40', c: 'text-red-400' }
-  ];
+  if (CURRENT_BANTER_MODE === 'allTime' && GLOBAL_MEMBERS.length > 0) {
+    document.getElementById('shameBoardSubtext').innerText = 'All-Time Club Career leaders in impact, clean sheets, skill flair, missed passes, unconverted shots & bookings';
+
+    const careerList = GLOBAL_MEMBERS.map(m => {
+      const name = m.name || m.proName || 'Pro';
+      const games = Math.max(1, Number(m.gamesPlayed ?? m.games ?? 1));
+      const goals = Number(m.goals ?? 0);
+      const assists = Number(m.assists ?? 0);
+      const passesMade = Number(m.passesMade ?? m.passesmade ?? 0);
+      const passPct = Math.max(1, Number(m.passSuccessRate ?? m.passSuccess ?? 75));
+      const estPassAtt = Math.round(passesMade / (passPct / 100));
+      const careerMissedPasses = Math.max(0, estPassAtt - passesMade);
+
+      const shotConv = Math.max(5, Number(m.shotConvRate ?? m.shotSuccessRate ?? 25));
+      const estShots = goals > 0 ? Math.round(goals / (shotConv / 100)) : games * 2;
+      const careerMissedShots = Math.max(0, estShots - goals);
+
+      const tackles = Number(m.tacklesMade ?? m.tacklesmade ?? m.tackles ?? 0);
+      const tacklePct = Math.max(10, Number(m.tackleSuccessRate ?? m.tacklesuccessrate ?? 25));
+      const estTackleAtt = Math.round(tackles / (tacklePct / 100));
+      const reds = Number(m.redCards ?? m.redcards ?? 0);
+      const cleanSheets = Number(m.totalCleanSheets ?? 0);
+
+      const r10 = RECENT_10_STATS_MAP[name] || {};
+      const skillRate = r10.games > 0 ? (r10.skillMoves / r10.games) : ((goals + assists) / games) * 2.2;
+      const estCareerSkills = Math.max(r10.skillMoves || 0, Math.round(skillRate * games));
+      const superSubGA = r10.superSubGA || 0;
+      const subGames = r10.subGames || 0;
+
+      return { name, games, goals, assists, careerMissedPasses, estShots, careerMissedShots, shotConv, tackles, estTackleAtt, reds, cleanSheets, estCareerSkills, superSubGA, subGames };
+    });
+
+    const bySub = [...careerList].sort((a, b) => (b.superSubGA * 25 + ((b.goals + b.assists) / b.games) * 10) - (a.superSubGA * 25 + ((a.goals + a.assists) / a.games) * 10))[0];
+    const byPad = [...careerList].sort((a, b) => (b.cleanSheets * 5 + b.tackles * 0.1) - (a.cleanSheets * 5 + a.tackles * 0.1))[0];
+    const bySkill = [...careerList].sort((a, b) => b.estCareerSkills - a.estCareerSkills)[0];
+    const byPass = [...careerList].sort((a, b) => b.careerMissedPasses - a.careerMissedPasses)[0];
+    const byBarn = [...careerList].sort((a, b) => b.careerMissedShots - a.careerMissedShots)[0];
+    const byRed = [...careerList].sort((a, b) => (b.reds * 25 + (b.estTackleAtt - b.tackles)) - (a.reds * 25 + (a.estTackleAtt - a.tackles)))[0];
+
+    cards = [
+      { title: '🦸‍♂️ All-Time Impact / Super-Sub', w: bySub.name, st: bySub.superSubGA > 0 ? `${bySub.superSubGA} Bench G+A (${bySub.goals+bySub.assists} Total)` : `${((bySub.goals+bySub.assists)/bySub.games).toFixed(2)} G+A / Game`, sub: `${bySub.goals}G & ${bySub.assists}A across ${bySub.games} career games`, b: 'border-emerald-500/40', c: 'text-emerald-400' },
+      { title: '🔒 All-Time Padlock (Clean Sheets)', w: byPad.name, st: `${byPad.cleanSheets} Career Clean Sheets`, sub: `${byPad.tackles} career tackles won (${byPad.games} GP)`, b: 'border-sky-500/40', c: 'text-sky-400' },
+      { title: '🌀 All-Time Fidget Spinner', w: bySkill.name, st: `~${bySkill.estCareerSkills} Career Skill Moves`, sub: `Averaging ${(bySkill.estCareerSkills/bySkill.games).toFixed(1)} skill beats per match`, b: 'border-fuchsia-500/40', c: 'text-fuchsia-400' },
+      { title: '🏥 All-Time Hospital Pass', w: byPass.name, st: `${byPass.careerMissedPasses} Career Missed Passes`, sub: `Across ${byPass.games} all-time club appearances`, b: 'border-amber-500/40', c: 'text-amber-400' },
+      { title: '🚪 All-Time Barn Door Award', w: byBarn.name, st: `${byBarn.careerMissedShots} Unconverted Shots`, sub: `${byBarn.goals} goals from ~${byBarn.estShots} shots (${byBarn.shotConv}% conv)`, b: 'border-rose-500/40', c: 'text-rose-400' },
+      { title: '🟥 All-Time Sunday League Butcher', w: byRed.name, st: byRed.reds > 0 ? `${byRed.reds} Career Red Cards` : `${byRed.tackles} Career Tackles`, sub: `${Math.max(0, byRed.estTackleAtt - byRed.tackles)} missed lunges across ${byRed.games} GP`, b: 'border-red-500/40', c: 'text-red-400' }
+    ];
+  } else {
+    document.getElementById('shameBoardSubtext').innerText = 'Last 10 Matches telemetry: mid-match super-subs, clean sheets, skill moves, missed passes, shot conversion & bookings';
+    if (!shameList.length) return;
+
+    shameList.forEach(i => i.careerCS = Number(GLOBAL_MEMBERS.find(m => (m.name || m.proName) === i.name)?.totalCleanSheets || 0));
+    const bySub = [...shameList].sort((a, b) => (b.superSubGA * 10 + b.subGames) - (a.superSubGA * 10 + a.subGames))[0];
+    const byPad = [...shameList].sort((a, b) => (b.cleanSheets * 10 + b.tackles * 0.2) - (a.cleanSheets * 10 + a.tackles * 0.2))[0];
+    const bySkill = [...shameList].sort((a, b) => b.skillMoves - a.skillMoves)[0];
+    const byPass = [...shameList].sort((a, b) => b.missedPasses - a.missedPasses)[0];
+    const byBarn = [...shameList].sort((a, b) => (b.shots - b.goals) - (a.shots - a.goals))[0];
+    const byRed = [...shameList].sort((a, b) => (b.reds * 15 + (b.tackleAtt - b.tackles)) - (a.reds * 15 + (a.tackleAtt - a.tackles)))[0];
+
+    cards = [
+      { title: '🦸‍♂️ The Super-Sub Award', w: bySub.name, st: bySub.superSubGA > 0 ? `${bySub.superSubGA} G+A off Bench` : `${bySub.subGames} Sub Apps`, sub: 'Mid-match joiner impact (Last 10)', b: 'border-emerald-500/40', c: 'text-emerald-400' },
+      { title: '🔒 The Padlock (Clean Sheets)', w: byPad.name, st: `${byPad.cleanSheets} Clean Sheets (Last 10)`, sub: `${byPad.careerCS} all-time career shutouts`, b: 'border-sky-500/40', c: 'text-sky-400' },
+      { title: '🌀 Fidget Spinner', w: bySkill.name, st: `${bySkill.skillMoves} Skill Moves`, sub: `${bySkill.dribblesCompleted} dribbles completed (Last 10)`, b: 'border-fuchsia-500/40', c: 'text-fuchsia-400' },
+      { title: '🏥 Hospital Pass Award', w: byPass.name, st: `${byPass.missedPasses} Missed Passes`, sub: `Across ${byPass.games} recent appearances`, b: 'border-amber-500/40', c: 'text-amber-400' },
+      { title: '🚪 The Barn Door Award', w: byBarn.name, st: `${byBarn.shots} Shots (${byBarn.goals}G)`, sub: `${byBarn.shots>0?Math.round((byBarn.goals/byBarn.shots)*100):0}% shot conversion in last 10`, b: 'border-rose-500/40', c: 'text-rose-400' },
+      { title: '🟥 Sunday League Butcher', w: byRed.name, st: byRed.reds > 0 ? `${byRed.reds} Red Cards` : `${byRed.tackles} Tackles Won`, sub: 'Midfield enforcer in last 10', b: 'border-red-500/40', c: 'text-red-400' }
+    ];
+  }
 
   document.getElementById('shameBoardGrid').innerHTML = cards.map(c => `<div class="bg-gray-900/60 border ${c.b} rounded-xl p-3.5 flex items-center justify-between"><div class="min-w-0 pr-2"><div class="text-[10px] font-black uppercase text-gray-400 truncate">${c.title}</div><div class="text-sm font-extrabold text-white mt-0.5 truncate">${c.w}</div><div class="text-xs font-bold ${c.c} mt-0.5">${c.st}</div><div class="text-[10px] text-gray-500 mt-0.5 truncate">${c.sub}</div></div><img src="${getPlayerAvatarUrl(c.w)}" class="w-11 h-11 rounded-full border border-gray-700 bg-gray-900 flex-shrink-0"></div>`).join('');
 }
@@ -927,19 +1014,22 @@ function buildDynamicPitchTactic(members = [], matches = []) {
   const selectEl = document.getElementById('formationOverrideSelect');
   if (selectEl) selectEl.value = savedOverride;
 
-  let tpl = FORMATION_TEMPLATES['4-2-3-1 Narrow'];
+  let tpl = FORMATION_TEMPLATES['4-1-2-1-2'];
   if (savedOverride !== 'auto' && FORMATION_TEMPLATES[savedOverride]) {
     tpl = FORMATION_TEMPLATES[savedOverride];
   } else {
+    // Universal Formation Inference from Match & Squad Roles:
+    // Checks active players in the match alongside club forward/midfield distribution
     const lastMatchPros = scored.filter(m => m._lmScore > 0);
     const activeSet = lastMatchPros.length > 0 ? lastMatchPros : scored;
-    const fwdsInMatch = activeSet.filter(m => m._activeNormPos === 'FWD');
-    const wingersInMatch = fwdsInMatch.filter(m => ['LW','RW','LF','RF'].includes(m._exactRole));
+    const matchFwds = activeSet.filter(m => m._activeNormPos === 'FWD' || ['ST','LS','RS','CF'].includes(m._exactRole));
+    const matchWingers = activeSet.filter(m => ['LW','RW','LF','RF'].includes(m._exactRole));
+    const clubFwds = scored.filter(m => m._normalizedPos === 'FWD');
 
-    if (fwdsInMatch.length >= 3 || wingersInMatch.length >= 1) {
+    if (matchWingers.length >= 2 || matchFwds.length >= 3) {
       tpl = FORMATION_TEMPLATES['4-3-3 Attack'];
-    } else if (fwdsInMatch.length === 2) {
-      tpl = FORMATION_TEMPLATES['4-1-2-1-2 Narrow'];
+    } else if (matchFwds.length === 2 || (matchFwds.length === 1 && clubFwds.length >= 2)) {
+      tpl = FORMATION_TEMPLATES['4-1-2-1-2'];
     } else {
       tpl = FORMATION_TEMPLATES['4-2-3-1 Narrow'];
     }
@@ -970,7 +1060,7 @@ function buildDynamicPitchTactic(members = [], matches = []) {
     const name = p._displayName, ovr = Number(p.proOverall || 85), tier = getCardTierTheme(ovr);
     const rat = (CURRENT_PITCH_MODE === 'lastMatch' && p._lmRat !== null ? p._lmRat : parseFloat(p.ratingAve || 7.0)).toFixed(1);
     const pill = CURRENT_PITCH_MODE === 'lastMatch' && p._lmRat !== null ? `${p._lmGA} G+A` : p._archetype;
-    const roleTag = p._exactRole || slot;
+    const roleTag = slot || p._exactRole;
 
     return `<div onclick="openFutModal('${name.replace(/'/g,"\\'")}')" class="flex flex-col items-center hover:scale-105 transition cursor-pointer group w-[74px] sm:w-24"><div class="relative"><img src="${getPlayerAvatarUrl(name)}" class="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-full border-2 border-emerald-400 bg-gray-900 object-cover shadow-xl"><span class="absolute -top-1 -left-1.5 bg-gray-950 ${tier.badgeClass} border font-black text-[8px] sm:text-[9px] px-1 rounded">${ovr}</span><span class="absolute -bottom-1 -right-1 bg-yellow-500 text-black font-black text-[8px] sm:text-[9px] px-1 rounded-sm">${rat}</span></div><span class="text-[10px] sm:text-xs font-extrabold text-white mt-1 drop-shadow max-w-[70px] sm:max-w-[96px] truncate" title="${p._proNickname}">${name}</span><div class="flex items-center gap-0.5 mt-0.5"><span class="text-[8px] sm:text-[9px] bg-black/60 text-emerald-300 px-1 rounded uppercase font-black">${roleTag}</span><span class="hidden sm:inline text-[9px] bg-black/60 text-gray-200 px-1 rounded font-semibold truncate max-w-[60px]">${pill}</span></div></div>`;
   };
