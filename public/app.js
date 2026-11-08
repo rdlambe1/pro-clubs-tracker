@@ -8,6 +8,25 @@ const SKIN_HEX = ['f2d3b1', 'ecad80', 'd08b5b', '9e5622', '763900'];
 const HAIR_HEX = ['0e0e0e', '562306', '6a4e35', 'e5d05c', 'cb6820', 'afafaf'];
 const EA_NATION_TO_ISO = { '14':'gb-eng','25':'ie','42':'gb-sct','50':'gb-wls','35':'gb-nir','18':'fr','21':'de','45':'es','27':'it','34':'nl','38':'pt','7':'be','54':'br','52':'ar','95':'us','70':'ca','195':'au','133':'ng','13':'dk','46':'se','36':'no','37':'pl','10':'hr','47':'ch','4':'at' };
 
+// Official EA Numeric proPos ID Decoder (From raw JSON: "proPos": "25" = ST, etc.)
+const EA_PRO_POS_MAP = {
+  '0': 'GK', '2': 'RWB', '3': 'RB', '4': 'RCB', '5': 'CB', '6': 'LCB', '7': 'LB', '8': 'LWB',
+  '9': 'RDM', '10': 'CDM', '11': 'LDM', '12': 'RM', '13': 'RCM', '14': 'CM', '15': 'LCM', '16': 'LM',
+  '17': 'RAM', '18': 'CAM', '19': 'LAM', '20': 'RF', '21': 'CF', '22': 'LF', '23': 'RW',
+  '24': 'RS', '25': 'ST', '26': 'LS', '27': 'LW'
+};
+
+// Official Formation Templates
+const FORMATION_TEMPLATES = {
+  '4-2-3-1 Narrow': { name: '4-2-3-1 Narrow', atk: ['ST'], cam: ['LAM','CAM','RAM'], mid: ['LCDM','RCDM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
+  '4-3-3 Attack': { name: '4-3-3 Attack', atk: ['LW','ST','RW'], cam: ['CAM'], mid: ['LCM','RCM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
+  '4-3-3 Holding': { name: '4-3-3 Holding', atk: ['LW','ST','RW'], cam: ['LCM','RCM'], mid: ['CDM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
+  '4-1-2-1-2 Narrow': { name: '4-1-2-1-2 Narrow', atk: ['LS','RS'], cam: ['CAM'], mid: ['LCM','CDM','RCM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
+  '4-4-2 Flat': { name: '4-4-2 Flat', atk: ['LS','RS'], cam: [], mid: ['LM','LCM','RCM','RM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] },
+  '3-5-2': { name: '3-5-2', atk: ['LS','RS'], cam: ['CAM'], mid: ['LM','LCDM','RCDM','RM'], def: ['LCB','CB','RCB'], gk: ['GK'] },
+  '5-3-2': { name: '5-3-2', atk: ['LS','RS'], cam: ['CAM'], mid: ['LCM','RCM'], def: ['LWB','LCB','CB','RCB','RWB'], gk: ['GK'] }
+};
+
 const BALL_SVG = (cx, cy, r) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="currentColor" stroke-width="2.8"/><polygon points="${cx},${cy-r*0.45} ${cx+r*0.42},${cy-r*0.12} ${cx+r*0.26},${cy+r*0.38} ${cx-r*0.26},${cy+r*0.38} ${cx-r*0.42},${cy-r*0.12}" fill="currentColor"/>`;
 
 const OFFICIAL_EA_PLAYSTYLE_VECTORS = {
@@ -197,8 +216,17 @@ function updateProLook(type, hexValue) {
   if (!ACTIVE_MODAL_PLAYER) return;
   const key = String(ACTIVE_MODAL_PLAYER).toLowerCase().trim();
   const map = getAppearanceMap();
-  map[key] = { ...getPlayerAppearance(ACTIVE_MODAL_PLAYER), [type]: hexValue };
+  const updated = { ...getPlayerAppearance(ACTIVE_MODAL_PLAYER), [type]: hexValue };
+  map[key] = updated;
   localStorage.setItem('proClubsAppearanceV3', JSON.stringify(map));
+
+  // Sync to server so everyone who visits the site sees the customized player look
+  fetch(`${API_BASE}/appearances`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ playerName: ACTIVE_MODAL_PLAYER, skin: updated.skin, hair: updated.hair })
+  }).catch(() => {});
+
   renderMembers(GLOBAL_MEMBERS);
   buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
   openFutModal(ACTIVE_MODAL_PLAYER);
@@ -410,7 +438,7 @@ function renderClubReviewReport(clubData = {}, members = [], matches = [], shame
   const topScorer = [...members].sort((a, b) => Number(b.goals || 0) - Number(a.goals || 0))[0];
   const pillars = [
     { title: '📊 Current Status', icon: 'fa-signal text-sky-400', border: 'border-sky-500/30', items: [`Competing in <b>${clubData.division||'Div 2'}</b> (${st.skillRating||1500} SR • ${clubData.globalRank?.label||'Top 10%'}).`, `All-time win rate: <b>${winPct}%</b> (${w}W-${d}D-${l}L), averaging <b>${gpg} GF/g</b>.`, `Last 10 momentum: <b>${rW}W-${10-rW-rL}D-${rL}L</b> (${rGF} GF / ${rGA} GA).`] },
-    { title: '💪 Key Strengths', icon: 'fa-dumbbell text-emerald-400', border: 'border-emerald-500/30', items: [Number(gpg)>=2.0?`<b>Attacking Threat:</b> Averaging ${gpg} goals/game.`:`<b> balanced Scoring:</b> Shared goal contributions.`, `<b>Ball Retention:</b> ${avgPass}% squad pass accuracy.`, topScorer?`<b>Focal Point:</b> ${topScorer.name||topScorer.proName} leads with ${topScorer.goals} goals.`:''] },
+    { title: '💪 Key Strengths', icon: 'fa-dumbbell text-emerald-400', border: 'border-emerald-500/30', items: [Number(gpg)>=2.0?`<b>Attacking Threat:</b> Averaging ${gpg} goals/game.`:`<b>Balanced Scoring:</b> Shared goal contributions.`, `<b>Ball Retention:</b> ${avgPass}% squad pass accuracy.`, topScorer?`<b>Focal Point:</b> ${topScorer.name||topScorer.proName} leads with ${topScorer.goals} goals.`:''] },
     { title: '⚠️ Weaknesses', icon: 'fa-triangle-exclamation text-rose-400', border: 'border-rose-500/30', items: [Number(gapg)>=2.0?`<b>Defensive Leakage:</b> Conceding ${gapg} goals/game.`:`<b>Tight Margins:</b> Narrow 1-goal defeats.`, `<b>Turnovers:</b> ${missedP} missed passes in the last 10 games.`, `<b>Finishing:</b> ${missedS} unconverted shots in recent fixtures.`] },
     { title: '🎯 Areas to Address', icon: 'fa-bullseye text-amber-400', border: 'border-amber-500/30', items: [`<b>Anchor the Midfield:</b> Keep one CDM behind the ball during wide attacks.`, `<b>Cut Out Hospital Passes:</b> Play short triangles before forcing through-balls.`, `<b>Extra Pass in Box:</b> Look for high-percentage cutbacks.`] }
   ];
@@ -669,7 +697,8 @@ function renderMembers(data) {
 
   tbody.innerHTML = list.map(m => {
     const name = m.name || m.proName || 'Unknown', ovr = Number(m.proOverall || 85), tierInfo = getCardTierTheme(ovr);
-    const normPos = normalizePosition(m.favoritePosition || m.pos || 'MID'), games = Number(m.gamesPlayed ?? 0), goals = Number(m.goals ?? 0), assists = Number(m.assists ?? 0);
+    const normPos = normalizePosition(m.favoritePosition || m.pos || 'MID'), exactPos = EA_PRO_POS_MAP[String(m.proPos ?? '')] || normPos;
+    const games = Number(m.gamesPlayed ?? 0), goals = Number(m.goals ?? 0), assists = Number(m.assists ?? 0);
     const careerRat = parseFloat(m.ratingAve || m.rating || 0), pass = m.passSuccessRate ?? 0, motm = m.manOfTheMatch ?? 0;
     const tackles = m.tacklesmade ?? m.tackles ?? 0, tWin = m.tacklesuccessrate ?? 0, gaPg = games > 0 ? ((goals + assists) / games).toFixed(2) : '0.00';
 
@@ -687,12 +716,12 @@ function renderMembers(data) {
     const recentAvg = RECENT_FORM_MAP[name];
     const formArr = (recentAvg !== undefined && careerRat > 0) ? (recentAvg - careerRat >= 0.15 ? '<span class="text-emerald-400 font-black ml-1">▲</span>' : recentAvg - careerRat <= -0.15 ? '<span class="text-rose-400 font-black ml-1">▼</span>' : '<span class="text-gray-500 ml-1">•</span>') : '';
 
-    m._normalizedPos = normPos; m._rawPos = m.favoritePosition || m.pos || 'MID';
+    m._normalizedPos = normPos; m._rawPos = exactPos;
     const funTag = getPlayerFunTag(m);
     const bCol = normPos === 'FWD' ? 'text-rose-400 bg-rose-500/10' : normPos === 'MID' ? 'text-amber-400 bg-amber-500/10' : normPos === 'DEF' ? 'text-blue-400 bg-blue-500/10' : 'text-purple-400 bg-purple-500/10';
     const safeName = name.replace(/'/g, "\\'");
 
-    return `<tr onclick="openFutModal('${safeName}')" class="hover:bg-gray-800/50 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-1.5"><img src="${getPlayerAvatarUrl(name)}" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-emerald-500/40 bg-gray-900 flex-shrink-0"><img src="${getFlagUrl(m.proNationality||'25')}" class="w-4 h-3 object-cover rounded-[2px] flex-shrink-0"><span class="hover:text-yellow-400 font-bold">${name}</span><span class="px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold border ${funTag.cls}">${funTag.label}</span>${loyaltyBadge}</div></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded border font-black text-xs ${tierInfo.badgeClass}">${ovr}</span></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${bCol}">${normPos}</span></td><td class="py-2.5 px-2 text-center text-gray-300">${games}</td><td class="py-2.5 px-2 text-center font-bold text-emerald-400">${goals} ${shotConv!=='--'?`<span class="text-[10px] text-gray-400 font-mono">(${shotConv}%)</span>`:''}</td><td class="py-2.5 px-2 text-center text-gray-300">${assists}</td><td class="py-2.5 px-2 text-center text-emerald-300 font-mono">${gaPg}</td><td class="py-2.5 px-2 text-center text-sky-400 font-medium">${tackles} <span class="text-xs text-gray-400">(${tWin}%)</span>${csBadge}</td><td class="py-2.5 px-2 text-center text-yellow-400 font-semibold">${careerRat.toFixed(1)}${formArr}</td><td class="py-2.5 px-2 text-center text-gray-300">${pass}%</td><td class="py-2.5 px-2 text-center text-purple-400">${motm}</td></tr>`;
+    return `<tr onclick="openFutModal('${safeName}')" class="hover:bg-gray-800/50 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-1.5"><img src="${getPlayerAvatarUrl(name)}" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-emerald-500/40 bg-gray-900 flex-shrink-0"><img src="${getFlagUrl(m.proNationality||'25')}" class="w-4 h-3 object-cover rounded-[2px] flex-shrink-0"><span class="hover:text-yellow-400 font-bold">${name}</span><span class="px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold border ${funTag.cls}">${funTag.label}</span>${loyaltyBadge}</div></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded border font-black text-xs ${tierInfo.badgeClass}">${ovr}</span></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${bCol}">${exactPos}</span></td><td class="py-2.5 px-2 text-center text-gray-300">${games}</td><td class="py-2.5 px-2 text-center font-bold text-emerald-400">${goals} ${shotConv!=='--'?`<span class="text-[10px] text-gray-400 font-mono">(${shotConv}%)</span>`:''}</td><td class="py-2.5 px-2 text-center text-gray-300">${assists}</td><td class="py-2.5 px-2 text-center text-emerald-300 font-mono">${gaPg}</td><td class="py-2.5 px-2 text-center text-sky-400 font-medium">${tackles} <span class="text-xs text-gray-400">(${tWin}%)</span>${csBadge}</td><td class="py-2.5 px-2 text-center text-yellow-400 font-semibold">${careerRat.toFixed(1)}${formArr}</td><td class="py-2.5 px-2 text-center text-gray-300">${pass}%</td><td class="py-2.5 px-2 text-center text-purple-400">${motm}</td></tr>`;
   }).join('');
   return list;
 }
@@ -742,7 +771,7 @@ function openFutModal(playerName) {
   const p = GLOBAL_MEMBERS.find(m => (m.name || m.proName || m.gamertag) === playerName);
   if (!p) return;
   ACTIVE_MODAL_PLAYER = playerName;
-  const name = p.name || p.proName || 'Player', ovr = Number(p.proOverall || 85), pos = p._rawPos && p._rawPos.length <= 4 ? p._rawPos.toUpperCase() : p._normalizedPos;
+  const name = p.name || p.proName || 'Player', ovr = Number(p.proOverall || 85), pos = EA_PRO_POS_MAP[String(p.proPos ?? '')] || (p._rawPos && p._rawPos.length <= 4 ? p._rawPos.toUpperCase() : p._normalizedPos);
   const metrics = getPlayerRadarMetrics(p), buildInfo = computeArchetypeAndPlaystyles(p), theme = getCardTierTheme(ovr);
 
   ['1','2','3','4','5'].forEach((n, i) => document.getElementById(`stopBase${n}`).setAttribute('stop-color', theme.baseStops[i]));
@@ -835,6 +864,22 @@ function renderRecentMatches(clubId, matches) {
   formContainer.innerHTML = formList.join('');
 }
 
+function getExactPlayerRole(memberObj = {}, matchPlayerObj = {}) {
+  const proPosId = String(memberObj.proPos ?? '');
+  if (EA_PRO_POS_MAP[proPosId]) return EA_PRO_POS_MAP[proPosId];
+  const raw = String(matchPlayerObj.pos || memberObj.favoritePosition || 'MID').toLowerCase();
+  if (raw === 'forward') return 'ST';
+  if (raw === 'midfielder') return 'CAM';
+  if (raw === 'defender') return 'CB';
+  if (raw === 'goalkeeper') return 'GK';
+  return raw.toUpperCase();
+}
+
+function handleFormationOverride(val) {
+  localStorage.setItem(`clubFormation_${GLOBAL_CLUB_ID || 'default'}`, val);
+  buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
+}
+
 function switchPitchMode(mode) {
   CURRENT_PITCH_MODE = mode;
   document.getElementById('btnModeLastMatch').className = mode === 'lastMatch' ? 'flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition shadow' : 'flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition';
@@ -855,46 +900,91 @@ function buildDynamicPitchTactic(members = [], matches = []) {
     latestOpp = clubs[oppId]?.details?.name || clubs[oppId]?.name || 'Opponent';
   }
 
-  const fwdCnt = members.filter(m => m._normalizedPos === 'FWD').length;
-  const tpl = fwdCnt >= 3 ? { name: '4-3-3 Attack', atk: ['LW','ST','RW'], cam: ['CAM'], mid: ['LCM','RCM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] }
-    : fwdCnt === 2 ? { name: '4-1-2-1-2 Narrow', atk: ['LS','RS'], cam: ['CAM'], mid: ['LCM','CDM','RCM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] }
-    : { name: '4-2-3-1 Narrow', atk: ['ST'], cam: ['LAM','CAM','RAM'], mid: ['LCDM','RCDM'], def: ['LB','LCB','RCB','RB'], gk: ['GK'] };
-
-  document.getElementById('formationBadge').innerText = tpl.name;
-  document.getElementById('formationSubtitle').innerText = CURRENT_PITCH_MODE === 'lastMatch' ? `Active Lineup vs ${latestOpp}` : `Suggested Best XI based on Pro OVR, Archetype & Build Attributes`;
-
   const scored = members.map(m => {
-    const name = m.name || m.proName || 'Player', ovr = Number(m.proOverall || 85), rat = parseFloat(m.ratingAve || 7.0);
+    const name = m.name || 'Player';
+    const proNickname = m.proName && m.proName !== name ? `"${m.proName}"` : '';
+    const ovr = Number(m.proOverall || 85), rat = parseFloat(m.ratingAve || 7.0);
     const buildInfo = computeArchetypeAndPlaystyles(m);
     const lm = Object.values(latestPlayersMap).find(lp => (lp.playername || lp.name) === name);
-    return { ...m, _displayName: name, _buildScore: ovr * 4 + rat * 12, _archetype: buildInfo.archetype, _lmScore: lm ? 1000 + parseFloat(lm.rating || 0) * 20 : -1, _lmRat: lm ? parseFloat(lm.rating || 0) : null, _lmGA: lm ? Number(lm.goals || 0) + Number(lm.assists || 0) : 0 };
+    const exactRole = getExactPlayerRole(m, lm || {});
+    const matchNormPos = lm?.pos ? normalizePosition(lm.pos) : m._normalizedPos;
+
+    return {
+      ...m,
+      _displayName: name,
+      _proNickname: proNickname,
+      _exactRole: exactRole,
+      _activeNormPos: CURRENT_PITCH_MODE === 'lastMatch' && lm ? matchNormPos : m._normalizedPos,
+      _buildScore: ovr * 4 + rat * 12,
+      _archetype: buildInfo.archetype,
+      _lmScore: lm ? 1000 + parseFloat(lm.rating || 0) * 20 : -1,
+      _lmRat: lm ? parseFloat(lm.rating || 0) : null,
+      _lmGA: lm ? Number(lm.goals || 0) + Number(lm.assists || 0) : 0
+    };
   });
 
-  const pool = CURRENT_PITCH_MODE === 'lastMatch' ? scored.filter(m => m._lmScore > 0).sort((a, b) => b._lmScore - a._lmScore) : [...scored].sort((a, b) => b._buildScore - a._buildScore);
+  const savedOverride = localStorage.getItem(`clubFormation_${GLOBAL_CLUB_ID || 'default'}`) || 'auto';
+  const selectEl = document.getElementById('formationOverrideSelect');
+  if (selectEl) selectEl.value = savedOverride;
+
+  let tpl = FORMATION_TEMPLATES['4-2-3-1 Narrow'];
+  if (savedOverride !== 'auto' && FORMATION_TEMPLATES[savedOverride]) {
+    tpl = FORMATION_TEMPLATES[savedOverride];
+  } else {
+    const lastMatchPros = scored.filter(m => m._lmScore > 0);
+    const activeSet = lastMatchPros.length > 0 ? lastMatchPros : scored;
+    const fwdsInMatch = activeSet.filter(m => m._activeNormPos === 'FWD');
+    const wingersInMatch = fwdsInMatch.filter(m => ['LW','RW','LF','RF'].includes(m._exactRole));
+
+    if (fwdsInMatch.length >= 3 || wingersInMatch.length >= 1) {
+      tpl = FORMATION_TEMPLATES['4-3-3 Attack'];
+    } else if (fwdsInMatch.length === 2) {
+      tpl = FORMATION_TEMPLATES['4-1-2-1-2 Narrow'];
+    } else {
+      tpl = FORMATION_TEMPLATES['4-2-3-1 Narrow'];
+    }
+  }
+
+  document.getElementById('formationBadge').innerText = tpl.name;
+  document.getElementById('formationSubtitle').innerText = CURRENT_PITCH_MODE === 'lastMatch'
+    ? `Active Lineup from your most recent match vs ${latestOpp} (${Object.keys(latestPlayersMap).length} Human Pros)`
+    : `Suggested Best XI based on Pro OVR, Exact Position (proPos) & Build Attributes`;
+
+  const pool = CURRENT_PITCH_MODE === 'lastMatch'
+    ? scored.filter(m => m._lmScore > 0).sort((a, b) => b._lmScore - a._lmScore)
+    : [...scored].sort((a, b) => b._buildScore - a._buildScore);
+
   const used = new Set(), assigned = [];
 
-  const claim = (pos, fallback = true) => {
-    let i = pool.findIndex(p => !used.has(p._displayName) && p._normalizedPos === pos);
-    if (i === -1 && fallback && pos !== 'GK') i = pool.findIndex(p => !used.has(p._displayName));
+  const claim = (groupPos, slotLabel, fallback = true) => {
+    let i = pool.findIndex(p => !used.has(p._displayName) && p._exactRole === slotLabel);
+    if (i === -1) i = pool.findIndex(p => !used.has(p._displayName) && p._activeNormPos === groupPos);
+    if (i === -1 && fallback && groupPos !== 'GK') i = pool.findIndex(p => !used.has(p._displayName));
     if (i !== -1) { used.add(pool[i]._displayName); return pool[i]; }
     return null;
   };
 
-  // Responsive Pitch Node (Compact on 360px Mobile so 4 Defenders Never Overlap!)
   const nodeHtml = (p, slot) => {
     if (!p) return `<div class="flex flex-col items-center opacity-35 select-none w-16 sm:w-24"><div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full border-2 border-dashed border-gray-400 bg-gray-950/70 flex items-center justify-center text-[9px] text-gray-300 font-black">AI</div><span class="text-[9px] font-bold text-gray-300 mt-1">CPU</span><span class="text-[8px] text-gray-400 uppercase font-extrabold">${slot}</span></div>`;
     assigned.push(p);
     const name = p._displayName, ovr = Number(p.proOverall || 85), tier = getCardTierTheme(ovr);
     const rat = (CURRENT_PITCH_MODE === 'lastMatch' && p._lmRat !== null ? p._lmRat : parseFloat(p.ratingAve || 7.0)).toFixed(1);
     const pill = CURRENT_PITCH_MODE === 'lastMatch' && p._lmRat !== null ? `${p._lmGA} G+A` : p._archetype;
-    return `<div onclick="openFutModal('${name.replace(/'/g,"\\'")}')" class="flex flex-col items-center hover:scale-105 transition cursor-pointer group w-[74px] sm:w-24"><div class="relative"><img src="${getPlayerAvatarUrl(name)}" class="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-full border-2 border-emerald-400 bg-gray-900 object-cover shadow-xl"><span class="absolute -top-1 -left-1.5 bg-gray-950 ${tier.badgeClass} border font-black text-[8px] sm:text-[9px] px-1 rounded">${ovr}</span><span class="absolute -bottom-1 -right-1 bg-yellow-500 text-black font-black text-[8px] sm:text-[9px] px-1 rounded-sm">${rat}</span></div><span class="text-[10px] sm:text-xs font-extrabold text-white mt-1 drop-shadow max-w-[70px] sm:max-w-[96px] truncate">${name}</span><div class="flex items-center gap-0.5 mt-0.5"><span class="text-[8px] sm:text-[9px] bg-black/60 text-emerald-300 px-1 rounded uppercase font-black">${slot}</span><span class="hidden sm:inline text-[9px] bg-black/60 text-gray-200 px-1 rounded font-semibold truncate max-w-[60px]">${pill}</span></div></div>`;
+    const roleTag = p._exactRole || slot;
+
+    return `<div onclick="openFutModal('${name.replace(/'/g,"\\'")}')" class="flex flex-col items-center hover:scale-105 transition cursor-pointer group w-[74px] sm:w-24"><div class="relative"><img src="${getPlayerAvatarUrl(name)}" class="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-full border-2 border-emerald-400 bg-gray-900 object-cover shadow-xl"><span class="absolute -top-1 -left-1.5 bg-gray-950 ${tier.badgeClass} border font-black text-[8px] sm:text-[9px] px-1 rounded">${ovr}</span><span class="absolute -bottom-1 -right-1 bg-yellow-500 text-black font-black text-[8px] sm:text-[9px] px-1 rounded-sm">${rat}</span></div><span class="text-[10px] sm:text-xs font-extrabold text-white mt-1 drop-shadow max-w-[70px] sm:max-w-[96px] truncate" title="${p._proNickname}">${name}</span><div class="flex items-center gap-0.5 mt-0.5"><span class="text-[8px] sm:text-[9px] bg-black/60 text-emerald-300 px-1 rounded uppercase font-black">${roleTag}</span><span class="hidden sm:inline text-[9px] bg-black/60 text-gray-200 px-1 rounded font-semibold truncate max-w-[60px]">${pill}</span></div></div>`;
   };
 
-  tpl.atk.forEach(s => rows[0].innerHTML += nodeHtml(claim('FWD', true), s));
-  tpl.cam.forEach(s => rows[1].innerHTML += nodeHtml(claim('MID', true), s));
-  tpl.mid.forEach(s => rows[2].innerHTML += nodeHtml(claim('MID', true), s));
-  tpl.def.forEach(s => rows[3].innerHTML += nodeHtml(claim('DEF', true), s));
-  rows[4].innerHTML = nodeHtml(claim('GK', false), 'GK');
+  tpl.atk.forEach(s => rows[0].innerHTML += nodeHtml(claim('FWD', s, true), s));
+  if (tpl.cam.length > 0) {
+    rows[1].classList.remove('hidden');
+    tpl.cam.forEach(s => rows[1].innerHTML += nodeHtml(claim('MID', s, true), s));
+  } else {
+    rows[1].classList.add('hidden');
+  }
+  tpl.mid.forEach(s => rows[2].innerHTML += nodeHtml(claim('MID', s, true), s));
+  tpl.def.forEach(s => rows[3].innerHTML += nodeHtml(claim('DEF', s, true), s));
+  rows[4].innerHTML = nodeHtml(claim('GK', 'GK', false), 'GK');
 
   const hCnt = assigned.length;
   document.getElementById('pitchMetricHumans').innerText = `${hCnt} / 11 Pros`;
@@ -903,8 +993,20 @@ function buildDynamicPitchTactic(members = [], matches = []) {
   document.getElementById('pitchMetricZone').innerText = 'Midfield Engine';
 }
 
-window.onload = () => {
+async function syncServerAppearances() {
+  try {
+    const res = await fetch(`${API_BASE}/appearances`);
+    if (res.ok) {
+      const serverMap = await res.json();
+      const localMap = getAppearanceMap();
+      localStorage.setItem('proClubsAppearanceV3', JSON.stringify({ ...localMap, ...serverMap }));
+    }
+  } catch (_) {}
+}
+
+window.onload = async () => {
   applyStoredTheme();
+  await syncServerAppearances();
   document.getElementById('skinSwatches').innerHTML = SKIN_HEX.map(h => `<button onclick="updateProLook('skin','${h}')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#${h}"></button>`).join('');
   document.getElementById('hairSwatches').innerHTML = HAIR_HEX.map(h => `<button onclick="updateProLook('hair','${h}')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#${h}"></button>`).join('');
   buildDynamicPitchTactic([], []);
