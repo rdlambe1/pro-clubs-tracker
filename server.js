@@ -657,6 +657,25 @@ app.get('/api/debug/raw-check/:clubId', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// Global Squad Appearance Locker (Syncs custom skin & hair across all devices)
+const SQUAD_APPEARANCES = {};
+
+app.get('/api/appearances', (req, res) => {
+  res.json(SQUAD_APPEARANCES);
+});
+
+app.post('/api/appearances', express.json(), (req, res) => {
+  const { playerName, skin, hair } = req.body || {};
+  if (playerName) {
+    const key = String(playerName).toLowerCase().trim();
+    SQUAD_APPEARANCES[key] = {
+      ...(SQUAD_APPEARANCES[key] || {}),
+      ...(skin ? { skin } : {}),
+      ...(hair ? { hair } : {})
+    };
+  }
+  res.json({ ok: true, appearances: SQUAD_APPEARANCES });
+});
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
