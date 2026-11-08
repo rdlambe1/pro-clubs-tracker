@@ -42,27 +42,6 @@
     @media (max-width: 400px) { .ut-modal-scaler { transform: scale(0.84); } }
     @media (min-width: 401px) and (max-width: 480px) { .ut-modal-scaler { transform: scale(0.91); } }
     .touch-scroll { -webkit-overflow-scrolling: touch; }
-
-    /* 3-Tab Navigation Styling */
-    .dash-tab-btn {
-      position: relative;
-      transition: all 0.2s ease;
-    }
-    .dash-tab-active-team {
-      background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(6, 78, 59, 0.25)) !important;
-      border-color: #10b981 !important;
-      box-shadow: 0 4px 20px rgba(16, 185, 129, 0.15);
-    }
-    .dash-tab-active-players {
-      background: linear-gradient(135deg, rgba(244, 63, 94, 0.18), rgba(136, 19, 55, 0.25)) !important;
-      border-color: #f43f5e !important;
-      box-shadow: 0 4px 20px rgba(244, 63, 94, 0.15);
-    }
-    .dash-tab-active-pitch {
-      background: linear-gradient(135deg, rgba(56, 189, 248, 0.18), rgba(12, 74, 110, 0.25)) !important;
-      border-color: #38bdf8 !important;
-      box-shadow: 0 4px 20px rgba(56, 189, 248, 0.15);
-    }
   </style>
 </head>
 <body class="p-2.5 sm:p-4 md:p-8">
@@ -175,64 +154,59 @@
       </div>
     </section>
 
-    <!-- 3-TAB NAVIGATION BAR (Team, Players, Pitch) -->
+    <!-- 3-TAB NAVIGATION BAR (Team / Players / Pitch) with Simple Vector Imagery -->
     <nav class="grid grid-cols-3 gap-2.5 sm:gap-4">
-      <!-- Tab 1: TEAM -->
-      <button id="tabBtn_team" onclick="switchDashboardTab('team')" class="dash-tab-btn dash-tab-active-team card p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 sm:gap-3.5 text-center sm:text-left cursor-pointer border-2">
-        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
-          <!-- Simple Club Shield + Analytics Bars SVG -->
-          <svg viewBox="0 0 48 48" class="w-6 h-6 sm:w-7 sm:h-7 text-emerald-400">
-            <path d="M24 4 L40 10 L40 24 C40 34 24 42 24 42 C24 42 8 34 8 24 L8 10 Z" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linejoin="round"/>
-            <rect x="16" y="24" width="4" height="8" rx="1" fill="currentColor"/>
-            <rect x="22" y="18" width="4" height="14" rx="1" fill="currentColor"/>
-            <rect x="28" y="14" width="4" height="18" rx="1" fill="currentColor"/>
+      <!-- Tab 1: Team -->
+      <button id="tabBtn_team" onclick="switchDashboardTab('team')" class="card p-3 sm:p-4 flex items-center justify-center gap-2.5 sm:gap-3.5 border-2 border-emerald-500 bg-emerald-500/10 transition group cursor-pointer shadow-lg">
+        <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center flex-shrink-0">
+          <svg viewBox="0 0 36 36" class="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400">
+            <path d="M18 3 L31 8 V17 C31 25.5 25.2 31.2 18 34 C10.8 31.2 5 25.5 5 17 V8 L18 3 Z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/>
+            <path d="M12 22 V16 M18 22 V12 M24 22 V18" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
           </svg>
         </div>
-        <div>
-          <div class="text-xs sm:text-base font-black text-white tracking-wide uppercase">1. Team</div>
-          <div class="hidden sm:block text-[11px] text-gray-400 font-medium">Session Report, Review, Seasons & Matches</div>
+        <div class="text-left min-w-0">
+          <div class="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate">Team</div>
+          <div class="text-[10px] text-gray-400 hidden sm:block truncate">Session, Matches & Review</div>
         </div>
       </button>
 
-      <!-- Tab 2: PLAYERS -->
-      <button id="tabBtn_players" onclick="switchDashboardTab('players')" class="dash-tab-btn card p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 sm:gap-3.5 text-center sm:text-left cursor-pointer border-2 border-gray-800 hover:border-gray-700">
-        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center flex-shrink-0">
-          <!-- Simple Twin Players + Star SVG -->
-          <svg viewBox="0 0 48 48" class="w-6 h-6 sm:w-7 sm:h-7 text-rose-400">
-            <circle cx="18" cy="15" r="6" fill="none" stroke="currentColor" stroke-width="3"/>
-            <path d="M6 36 C6 28 12 24 18 24 C24 24 30 28 30 36" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round"/>
-            <circle cx="32" cy="17" r="5" fill="none" stroke="currentColor" stroke-width="2.8"/>
-            <path d="M27 36 C28 30 32 27 36 27 C40 27 43 30 44 36" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/>
+      <!-- Tab 2: Players -->
+      <button id="tabBtn_players" onclick="switchDashboardTab('players')" class="card p-3 sm:p-4 flex items-center justify-center gap-2.5 sm:gap-3.5 border border-gray-800 hover:border-gray-700 transition group cursor-pointer">
+        <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center flex-shrink-0">
+          <svg viewBox="0 0 36 36" class="w-5 h-5 sm:w-6 sm:h-6 text-sky-400">
+            <circle cx="13" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2.5"/>
+            <path d="M5 28 C5 22.5 8.5 19.5 13 19.5 C17.5 19.5 21 22.5 21 28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+            <circle cx="24" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="2.3"/>
+            <path d="M21 28 C21.5 23.5 24 21 27.5 21 C30 21 32 22.8 32.5 26.5" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/>
           </svg>
         </div>
-        <div>
-          <div class="text-xs sm:text-base font-black text-white tracking-wide uppercase">2. Players</div>
-          <div class="hidden sm:block text-[11px] text-gray-400 font-medium">Squad Stats, Banter Board, Radars & UT Cards</div>
+        <div class="text-left min-w-0">
+          <div class="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate">Players</div>
+          <div class="text-[10px] text-gray-400 hidden sm:block truncate">Squad, Banter & Radars</div>
         </div>
       </button>
 
-      <!-- Tab 3: PITCH -->
-      <button id="tabBtn_pitch" onclick="switchDashboardTab('pitch')" class="dash-tab-btn card p-3 sm:p-4 flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-2.5 sm:gap-3.5 text-center sm:text-left cursor-pointer border-2 border-gray-800 hover:border-gray-700">
-        <div class="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center flex-shrink-0">
-          <!-- Simple Football Pitch Markings SVG -->
-          <svg viewBox="0 0 48 48" class="w-6 h-6 sm:w-7 sm:h-7 text-sky-400">
-            <rect x="6" y="8" width="36" height="32" rx="3" fill="none" stroke="currentColor" stroke-width="3.2"/>
-            <line x1="24" y1="8" x2="24" y2="40" stroke="currentColor" stroke-width="2.5"/>
-            <circle cx="24" cy="24" r="5.5" fill="none" stroke="currentColor" stroke-width="2.5"/>
-            <rect x="6" y="16" width="6" height="16" fill="none" stroke="currentColor" stroke-width="2.2"/>
-            <rect x="36" y="16" width="6" height="16" fill="none" stroke="currentColor" stroke-width="2.2"/>
+      <!-- Tab 3: Pitch -->
+      <button id="tabBtn_pitch" onclick="switchDashboardTab('pitch')" class="card p-3 sm:p-4 flex items-center justify-center gap-2.5 sm:gap-3.5 border border-gray-800 hover:border-gray-700 transition group cursor-pointer">
+        <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0">
+          <svg viewBox="0 0 36 36" class="w-5 h-5 sm:w-6 sm:h-6 text-amber-400">
+            <rect x="4" y="6" width="28" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="2.5"/>
+            <line x1="18" y1="6" x2="18" y2="30" stroke="currentColor" stroke-width="2.2"/>
+            <circle cx="18" cy="18" r="4.5" fill="none" stroke="currentColor" stroke-width="2.2"/>
+            <rect x="4" y="13" width="4.5" height="10" fill="none" stroke="currentColor" stroke-width="2"/>
+            <rect x="27.5" y="13" width="4.5" height="10" fill="none" stroke="currentColor" stroke-width="2"/>
           </svg>
         </div>
-        <div>
-          <div class="text-xs sm:text-base font-black text-white tracking-wide uppercase">3. Pitch</div>
-          <div class="hidden sm:block text-[11px] text-gray-400 font-medium">Last Match XI, Formation & Best XI Builder</div>
+        <div class="text-left min-w-0">
+          <div class="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate">Pitch</div>
+          <div class="text-[10px] text-gray-400 hidden sm:block truncate">Tactical Lineup & Best XI</div>
         </div>
       </button>
     </nav>
 
-    <!-- ========================================== -->
-    <!-- TAB 1 PANE: TEAM OVERVIEW & MATCH HISTORY  -->
-    <!-- ========================================== -->
+    <!-- ==========================================
+         TAB 1 PANE: TEAM (Session, Review, Seasons, Matches)
+         ========================================== -->
     <div id="tabPane_team" class="space-y-5">
 
       <!-- Session / Last 10 Report -->
@@ -291,6 +265,26 @@
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5" id="clubReviewGrid"></div>
       </section>
 
+      <!-- Dynamic Duo & Nemesis -->
+      <section id="intelSection" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="card p-4 flex items-center justify-between border-l-4 border-l-emerald-500">
+          <div class="space-y-1 min-w-0 pr-2">
+            <div class="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5"><i class="fa-solid fa-handshake"></i> Dynamic Duo (Last 10)</div>
+            <div id="duoNames" class="text-sm sm:text-base font-extrabold text-white truncate">-- & --</div>
+            <div id="duoMeta" class="text-xs text-gray-400">--</div>
+          </div>
+          <div id="duoAvatars" class="flex -space-x-3 flex-shrink-0"></div>
+        </div>
+        <div class="card p-4 flex items-center justify-between border-l-4 border-l-rose-500">
+          <div class="space-y-1 min-w-0 pr-2">
+            <div id="nemesisTitle" class="text-[10px] font-black uppercase tracking-widest text-rose-400 flex items-center gap-1.5"><i class="fa-solid fa-skull"></i> Toughest Opponent</div>
+            <div id="nemesisName" class="text-sm sm:text-base font-extrabold text-white truncate">--</div>
+            <div id="nemesisMeta" class="text-xs text-gray-400">--</div>
+          </div>
+          <div id="nemesisCrest" class="flex-shrink-0"></div>
+        </div>
+      </section>
+
       <!-- Seasons History -->
       <section id="seasonsSection" class="hidden card p-4 sm:p-6 space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
@@ -327,40 +321,18 @@
 
     </div>
 
-    <!-- ========================================== -->
-    <!-- TAB 2 PANE: PLAYERS, BANTER & RADAR GRAPHS -->
-    <!-- ========================================== -->
+    <!-- ==========================================
+         TAB 2 PANE: PLAYERS (Banter Board, Squad Table, Radars, Milestones)
+         ========================================== -->
     <div id="tabPane_players" class="hidden space-y-5">
 
-      <!-- Dynamic Duo & Nemesis -->
-      <section id="intelSection" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div class="card p-4 flex items-center justify-between border-l-4 border-l-emerald-500">
-          <div class="space-y-1 min-w-0 pr-2">
-            <div class="text-[10px] font-black uppercase tracking-widest text-emerald-400 flex items-center gap-1.5"><i class="fa-solid fa-handshake"></i> Dynamic Duo (Last 10)</div>
-            <div id="duoNames" class="text-sm sm:text-base font-extrabold text-white truncate">-- & --</div>
-            <div id="duoMeta" class="text-xs text-gray-400">--</div>
-          </div>
-          <div id="duoAvatars" class="flex -space-x-3 flex-shrink-0"></div>
-        </div>
-        <div class="card p-4 flex items-center justify-between border-l-4 border-l-rose-500">
-          <div class="space-y-1 min-w-0 pr-2">
-            <div id="nemesisTitle" class="text-[10px] font-black uppercase tracking-widest text-rose-400 flex items-center gap-1.5"><i class="fa-solid fa-skull"></i> Toughest Opponent</div>
-            <div id="nemesisName" class="text-sm sm:text-base font-extrabold text-white truncate">--</div>
-            <div id="nemesisMeta" class="text-xs text-gray-400">--</div>
-          </div>
-          <div id="nemesisCrest" class="flex-shrink-0"></div>
-        </div>
-      </section>
-
-      <!-- Dressing Room Banter & Shame Board (With Toggle: Last 10 Matches vs All-Time Career) -->
+      <!-- Dressing Room Banter & Shame Board (With Last 10 vs All-Time Career Toggle) -->
       <section id="shameBoardSection" class="hidden card p-4 sm:p-6 space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-gray-800 pb-3">
           <div>
             <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-masks-theater text-rose-400"></i> Dressing Room Banter & Shame Board</h3>
-            <p id="shameBoardSubtitle" class="text-xs text-gray-400 mt-0.5">Super-Subs, Clean Sheets, Skill Moves, Missed Passes, Barn Door & Bookings</p>
+            <p id="shameBoardSubtext" class="text-xs text-gray-400 mt-0.5">Super-Subs, Clean Sheets, Skill Moves, Missed Passes, Barn Door & Bookings</p>
           </div>
-
-          <!-- Toggle: Last 10 Matches vs All-Time Career -->
           <div class="flex items-center bg-gray-900 p-1 rounded-lg border border-gray-800">
             <button id="btnBanterLast10" onclick="switchBanterMode('last10')" class="px-3 py-1 rounded text-xs font-black bg-rose-500 text-white transition shadow">
               <i class="fa-solid fa-fire-flame-curved mr-1"></i>Last 10 Matches
@@ -436,9 +408,9 @@
 
     </div>
 
-    <!-- ========================================== -->
-    <!-- TAB 3 PANE: TACTICAL PITCH & SQUAD LINEUP  -->
-    <!-- ========================================== -->
+    <!-- ==========================================
+         TAB 3 PANE: PITCH (Tactical Pitch & Best XI)
+         ========================================== -->
     <div id="tabPane_pitch" class="hidden space-y-5">
 
       <section class="card p-4 sm:p-6 space-y-4">
@@ -449,7 +421,7 @@
               <span id="formationBadge" class="text-xs font-black px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">--</span>
               <select id="formationOverrideSelect" onchange="handleFormationOverride(this.value)" class="bg-gray-900 border border-gray-700 text-xs font-bold text-gray-200 px-2 py-1 rounded focus:outline-none focus:border-emerald-500 cursor-pointer" title="Select Active Club Formation">
                 <option value="auto">⚡ Auto-Detect from Match</option>
-                <option value="4-1-2-1-2 / 4-2-1-2">4-1-2-1-2 / 4-2-1-2</option>
+                <option value="4-1-2-1-2">4-1-2-1-2 (4-2-1-2)</option>
                 <option value="4-2-3-1 Narrow">4-2-3-1 Narrow</option>
                 <option value="4-3-3 Attack">4-3-3 Attack</option>
                 <option value="4-3-3 Holding">4-3-3 Holding</option>
