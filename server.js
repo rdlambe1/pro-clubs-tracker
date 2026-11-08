@@ -144,6 +144,95 @@ function computeGlobalPercentile(skillRating, wins, losses, ties, currDivNum) {
   };
 }
 
+// Computes Club Fans & Club Reputation Level (Levels 1 - 10)
+// Checks direct EA API fields first; falls back to milestone/match fan progression formula
+function computeClubReputationAndFans(statObj = {}, seasonObj = {}, infoObj = {}, peakDivNum = 2) {
+  const directFans = Number(
+    statObj.fans ?? statObj.fanCount ?? seasonObj.fans ?? seasonObj.fanCount ?? infoObj.fans ?? 0
+  );
+  const directLevel = Number(
+    statObj.reputationLevel ?? statObj.repLevel ?? seasonObj.reputationLevel ?? infoObj.reputationLevel ?? 0
+  );
+
+  const wins = Number(statObj.wins ?? statObj.overallWins ?? 0);
+  const ties = Number(statObj.ties ?? statObj.overallTies ?? 0);
+  const losses = Number(statObj.losses ?? statObj.overallLosses ?? 0);
+  const goals = Number(statObj.goals ?? statObj.overallGoals ?? 0);
+  const promotions = Math.max(Number(seasonObj.promotions || 0), Number(statObj.promotions || 0));
+  const titlesWon = Math.max(Number(seasonObj.titlesWon || 0), Number(statObj.titlesWon || 0));
+  const sr = Number(statObj.skillRating ?? statObj.rating ?? infoObj.skillRating ?? 1400);
+
+  // Official 10-Tier Club Reputation Ladder (Level 1 to Level 10 = 50M Fans)
+  const REP_TIERS = [
+    { level: 1, minFans: 0, title: 'Hometown Heroes', aiOvr: 80, budget: '€1.0M' },
+    { level: 2, minFans: 250000, title: 'Local Contenders', aiOvr: 81, budget: '€1.1M' },
+    { level: 3, minFans: 750000, title: 'Regional Rising', aiOvr: 82, budget: '€1.25M' },
+    { level: 4, minFans: 1750000, title: 'City Standouts', aiOvr: 83, budget: '€1.35M' },
+    { level: 5, minFans: 3500000, title: 'National Spotlight', aiOvr: 84, budget: '€1.5M' },
+    { level: 6, minFans: 6500000, title: 'Continental Force', aiOvr: 85, budget: '€1.7M' },
+    { level: 7, minFans: 11000000, title: 'Major Powerhouse', aiOvr: 86, budget: '€1.9M' },
+    { level: 8, minFans: 18500000, title: 'World Class Giants', aiOvr: 87, budget: '€2.15M' },
+    { level: 9, minFans: 30000000, title: 'Global Phenomenon', aiOvr: 88, budget: '€2.35M' },
+    { level: 10, minFans: 50000000, title: 'Immortal Dynasty', aiOvr: 88, budget: '€2.5M' }
+  ];
+
+  // Division multiplier bonus
+  const divBonusFans = peakDivNum === 0 ? 3200000 : (peakDivNum === 1 ? 1800000 : (peakDivNum === 2 ? 950000 : (peakDivNum === 3 ? 450000 : 150000)));
+  const srBonusFans = Math.max(0, (sr - 1000) * 1400);
+
+  const calculatedFans = Math.round(
+    100000 +
+    (wins * 42500) +
+    (ties * 14000) +
+    (losses * 6500) +
+    (goals * 2800) +
+    (promotions * 260000) +
+    (titlesWon * 650000) +
+    divBonusFans +
+    srBonusFans
+  );
+
+  const totalFans = directFans > 0 ? directFans : calculatedFans;
+
+  let activeTier = REP_TIERS[0];
+  let nextTier = REP_TIERS[1];
+
+  for (let i = 0; i < REP_TIERS.length; i++) {
+    if (totalFans >= REP_TIERS[i].minFans) {
+      activeTier = REP_TIERS[i];
+      nextTier = REP_TIERS[i + 1] || null;
+    }
+  }
+
+  if (directLevel >= 1 && directLevel <= 10) {
+    activeTier = REP_TIERS[directLevel - 1];
+    nextTier = REP_TIERS[directLevel] || null;
+  }
+
+  let progressPct = 100;
+  if (nextTier) {
+    const span = nextTier.minFans - activeTier.minFans;
+    const gained = Math.max(0, totalFans - activeTier.minFans);
+    progressPct = Math.min(99, Math.max(4, Math.round((gained / span) * 100)));
+  }
+
+  const formattedFans = totalFans >= 1000000
+    ? `${(totalFans / 1000000).toFixed(2)}M`
+    : `${Math.round(totalFans / 1000).toLocaleString()}K`;
+
+  return {
+    fans: totalFans,
+    formattedFans,
+    level: activeTier.level,
+    title: activeTier.title,
+    aiOvr: activeTier.aiOvr,
+    facilityBudget: activeTier.budget,
+    nextLevelFans: nextTier ? nextTier.minFans : null,
+    nextLevelFormatted: nextTier ? `${(nextTier.minFans / 1000000).toFixed(2)}M` : 'MAX',
+    progressPct
+  };
+}
+
 function getOfficialFc27SeasonCount(totalMatches) {
   if (totalMatches === 0) return 1;
   const fc27LaunchDate = new Date('2026-09-24T00:00:00Z').getTime();
@@ -310,7 +399,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
-// 2. Club Info + Stadium, Kits, Region, Percentile Rank, Accurate Peak Division & Season History
+// 2. Club Info + Fans & Reputation Level + Stadium + Kits + Region + Global Rank + Season History
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -381,6 +470,9 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     const ties = Number(statObj.ties ?? statObj.overallTies ?? 0);
     const globalRank = computeGlobalPercentile(sr, wins, losses, ties, currDivNum);
 
+    // Club Fans & Reputation Level (Levels 1-10)
+    const reputation = computeClubReputationAndFans(statObj, seasonObj, infoObj, peakDivNum);
+
     const seasonsData = buildSeasonsHistory(seasonObj, statObj, currDivNum, peakDivNum);
 
     const trophies = {
@@ -404,6 +496,7 @@ app.get('/api/club/:clubId/info', async (req, res) => {
       regionInfo,
       kits,
       globalRank,
+      reputation,
       trophies,
       seasonsHistory: seasonsData.list
     });
@@ -412,7 +505,7 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   }
 });
 
-// 3. Member / Squad Stats (Enriched with Clean Sheets, Shot Conversion & One-Club Loyalty vs Mercenary Stats)
+// 3. Member / Squad Stats
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const { platform = 'common-gen5' } = req.query;
@@ -452,16 +545,14 @@ app.get('/api/club/:clubId/members', async (req, res) => {
       if (!m.proWeight && careerObj.proWeight) m.proWeight = careerObj.proWeight;
       if (!m.proOverall && careerObj.proOverall) m.proOverall = careerObj.proOverall;
       if (!m.proNationality && careerObj.proNationality) m.proNationality = careerObj.proNationality;
+      if (!m.proPos && careerObj.proPos) m.proPos = careerObj.proPos;
 
-      // 1. Clean Sheets (Defender + GK Clean Sheets from EA API)
       const csDef = Number(m.cleanSheetsDef ?? careerObj.cleanSheetsDef ?? 0);
       const csGk = Number(m.cleanSheetsGK ?? careerObj.cleanSheetsGK ?? 0);
       m.totalCleanSheets = csDef + csGk;
 
-      // 2. Shot Success / Conversion Rate from EA API
       m.shotConvRate = Number(m.shotSuccessRate ?? careerObj.shotSuccessRate ?? 0);
 
-      // 3. One-Club Loyalist vs. Mercenary (Club Games vs All-Clubs Career Games)
       const clubGames = Number(m.gamesPlayed ?? m.games ?? 0);
       const careerGames = Math.max(clubGames, Number(careerObj.gamesPlayed ?? careerObj.games ?? clubGames));
       const otherClubGames = Math.max(0, careerGames - clubGames);
@@ -630,34 +721,8 @@ app.get('/api/crest/:crestId', async (req, res) => {
   res.setHeader('Cache-Control', 'public, max-age=3600');
   return res.send(generateFallbackSvg(clubName));
 });
-// 6. Q1 Verification Route: Inspects raw match player keys & 'vproattr' for hidden cosmetic data
-app.get('/api/debug/raw-check/:clubId', async (req, res) => {
-  const { clubId } = req.params;
-  const { platform = 'common-gen5' } = req.query;
-  try {
-    const [matchResp, memResp] = await Promise.all([
-      fetch(`https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${clubId}&platform=${platform}&matchType=leagueMatch&maxResultCount=1`, { headers: EA_HEADERS }).then(r => r.json()),
-      fetch(`https://proclubs.ea.com/api/fc/members/stats?clubId=${clubId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.json())
-    ]);
 
-    const latestMatch = Array.isArray(matchResp) ? matchResp[0] : Object.values(matchResp || {})[0];
-    const matchPlayers = latestMatch?.players?.[clubId] || {};
-    const firstMatchPlayer = Object.values(matchPlayers)[0] || {};
-    const memList = memResp?.members || (Array.isArray(memResp) ? memResp : Object.values(memResp || {}));
-
-    res.json({
-      clubId,
-      hasVproAttr: Boolean(firstMatchPlayer.vproattr),
-      vproattrSample: firstMatchPlayer.vproattr || 'NOT_PRESENT',
-      allMatchPlayerKeys: Object.keys(firstMatchPlayer),
-      sampleMatchPlayerRaw: firstMatchPlayer,
-      sampleMemberProfileRaw: memList[0] || {}
-    });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-// Global Squad Appearance Locker (Syncs custom skin & hair across all devices)
+// 6. Global Squad Appearance Locker
 const SQUAD_APPEARANCES = {};
 
 app.get('/api/appearances', (req, res) => {
@@ -676,6 +741,7 @@ app.post('/api/appearances', express.json(), (req, res) => {
   }
   res.json({ ok: true, appearances: SQUAD_APPEARANCES });
 });
+
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
