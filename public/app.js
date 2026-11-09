@@ -26,24 +26,74 @@ const FORMATION_TEMPLATES = {
   '5-3-2': { name: '5-3-2', atk: ['LS','RS'], cam: ['CAM'], mid: ['LCM','RCM'], def: ['LWB','LCB','CB','RCB','RWB'], gk: ['GK'] }
 };
 
-// Clean EA Ultimate Team Style Pro Silhouette Data URI (Default for uncustomized players)
+// High-Definition 512x512 EA FC Ultimate Team Style "Mystery Pro" Athlete Bust Silhouette
 const PRO_SILHOUETTE_DATA_URI = `data:image/svg+xml;utf8,` + encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" shape-rendering="geometricPrecision">
   <defs>
-    <linearGradient id="silBody" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#64748b"/>
-      <stop offset="55%" stop-color="#334155"/>
-      <stop offset="100%" stop-color="#0f172a"/>
-    </linearGradient>
-    <linearGradient id="silRim" x1="0%" y1="0%" x2="100%" y2="100%">
+    <radialGradient id="bgGlow" cx="50%" cy="38%" r="58%">
+      <stop offset="0%" stop-color="#1e293b"/>
+      <stop offset="65%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#070a12"/>
+    </radialGradient>
+    <radialGradient id="emeraldHalo" cx="50%" cy="32%" r="42%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="headGrad" x1="20%" y1="0%" x2="80%" y2="100%">
       <stop offset="0%" stop-color="#94a3b8"/>
+      <stop offset="45%" stop-color="#475569"/>
       <stop offset="100%" stop-color="#1e293b"/>
     </linearGradient>
+    <linearGradient id="jerseyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#334155"/>
+      <stop offset="50%" stop-color="#1e293b"/>
+      <stop offset="100%" stop-color="#090d16"/>
+    </linearGradient>
+    <linearGradient id="rimLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#e2e8f0" stop-opacity="0.9"/>
+      <stop offset="50%" stop-color="#64748b" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="#10b981" stop-opacity="0.7"/>
+    </linearGradient>
   </defs>
-  <path d="M 22 200 C 24 146 56 126 100 126 C 144 126 176 146 178 200 Z" fill="url(#silBody)" stroke="url(#silRim)" stroke-width="3"/>
-  <path d="M 74 129 L 100 156 L 126 129" fill="none" stroke="#10b981" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.65"/>
-  <rect x="87" y="102" width="26" height="28" rx="8" fill="url(#silBody)"/>
-  <path d="M 66 64 C 66 38 80 24 100 24 C 120 24 134 38 134 64 C 134 88 120 110 100 110 C 80 110 66 88 66 64 Z" fill="url(#silBody)" stroke="url(#silRim)" stroke-width="3"/>
+
+  <!-- Stadium Ambient Background -->
+  <rect width="256" height="256" fill="url(#bgGlow)"/>
+  <circle cx="128" cy="96" r="96" fill="url(#emeraldHalo)"/>
+
+  <!-- Athletic Neck & Traps -->
+  <path d="M 96 130 L 84 166 L 172 166 L 160 130 Z" fill="#1e293b"/>
+  <path d="M 102 130 L 96 164 L 128 176 L 160 164 L 154 130 Z" fill="url(#headGrad)" opacity="0.85"/>
+
+  <!-- Sculpted Football Jersey Shoulders & Torso -->
+  <path d="M 12 256 C 16 192 50 166 94 156 L 128 188 L 162 156 C 206 166 240 192 244 256 Z" fill="url(#jerseyGrad)" stroke="url(#rimLight)" stroke-width="2.5" stroke-linejoin="round"/>
+
+  <!-- Pro Kit Shoulder Stripes & Seam Piping -->
+  <path d="M 42 184 C 62 170 78 164 96 159" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.85"/>
+  <path d="M 214 184 C 194 170 178 164 160 159" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.85"/>
+  <path d="M 52 198 C 68 188 80 184 94 180" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+  <path d="M 204 198 C 188 188 176 184 162 180" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- Authentic Crew/V-Neck Collar Trim -->
+  <path d="M 90 156 L 128 194 L 166 156 L 156 153 L 128 181 L 100 153 Z" fill="#0f172a" stroke="#10b981" stroke-width="1.8" stroke-linejoin="round"/>
+
+  <!-- Sculpted Athlete Head, Ears & Modern Fade Hairline Contour -->
+  <path d="M 128 32
+           C 100 32 84 48 84 74
+           L 84 86
+           C 79 86 76 91 77 98
+           C 78 105 81 109 85 109
+           C 88 124 98 138 112 145
+           C 118 148 123 149 128 149
+           C 133 149 138 148 144 145
+           C 158 138 168 124 171 109
+           C 175 109 178 105 179 98
+           C 180 91 177 86 172 86
+           L 172 74
+           C 172 48 156 32 128 32 Z"
+        fill="url(#headGrad)" stroke="url(#rimLight)" stroke-width="2.5" stroke-linejoin="round"/>
+
+  <!-- Subtle 3D Facial Rim Highlight (Left Cheek & Brow) -->
+  <path d="M 94 64 C 94 48 108 38 128 38" fill="none" stroke="#f8fafc" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/>
 </svg>`);
 
 // 3-Tab Dashboard Switcher
@@ -357,7 +407,7 @@ function getPlayerAppearance(playerObj) {
   const key = String(rawName).toLowerCase().trim();
   const saved = getAppearanceMap()[key];
 
-  // Default to clean Pro Silhouette unless a custom look was explicitly saved
+  // Default to high-definition Pro Silhouette unless a custom look was explicitly saved
   if (!saved || (!saved.skin && !saved.hair)) {
     return { isCustom: false, skin: null, hair: null };
   }
