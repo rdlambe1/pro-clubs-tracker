@@ -1,7 +1,7 @@
 const API_BASE = '/api';
 let GLOBAL_MEMBERS = [], GLOBAL_MATCHES = [], GLOBAL_COMBINED_DATA = {}, GLOBAL_CLUB_ID = null;
 let RECENT_FORM_MAP = {}, RECENT_10_STATS_MAP = {}, SESSION_MATCHES_CACHE = [], SHAME_LIST_CACHE = [];
-let TOP_FIDGET_SPINNER_NAME = null, CURRENT_CLUB_CREST_URL = '', ACTIVE_MODAL_PLAYER = null;
+let TOP_FIDGET_SPINNER_NAME = null, TOP_MEAT_WALL_NAME = null, CURRENT_CLUB_CREST_URL = '', ACTIVE_MODAL_PLAYER = null;
 let CURRENT_PITCH_MODE = 'lastMatch', CURRENT_RECAP_MODE = 'session', CURRENT_BANTER_MODE = 'last10', ACTIVE_TAB = 'team';
 
 const slugifyClubName = (name) => String(name || '').toLowerCase().trim().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -60,10 +60,12 @@ async function sendRecapToDiscord() {
   const banter = [];
   if (SHAME_LIST_CACHE.length) {
     const bySub = [...SHAME_LIST_CACHE].sort((a, b) => (b.superSubGA * 10 + b.subGames) - (a.superSubGA * 10 + a.subGames))[0];
+    const byMeat = [...SHAME_LIST_CACHE].sort((a, b) => (b.blocks * 10 + b.tackles) - (a.blocks * 10 + a.tackles))[0];
     const bySkill = [...SHAME_LIST_CACHE].sort((a, b) => b.skillMoves - a.skillMoves)[0];
     const byPass = [...SHAME_LIST_CACHE].sort((a, b) => b.missedPasses - a.missedPasses)[0];
     const byBarn = [...SHAME_LIST_CACHE].sort((a, b) => (b.shots - b.goals) - (a.shots - a.goals))[0];
     if (bySub?.superSubGA > 0) banter.push({ title: '🦸‍♂️ Super-Sub', winner: bySub.name, stat: `${bySub.superSubGA} Bench G+A` });
+    if (byMeat) banter.push({ title: '🥩 The Meat Wall', winner: byMeat.name, stat: `${byMeat.blocks} Blocks` });
     if (bySkill) banter.push({ title: '🌀 Fidget Spinner', winner: bySkill.name, stat: `${bySkill.skillMoves} Skill Moves` });
     if (byPass) banter.push({ title: '🏥 Hospital Pass', winner: byPass.name, stat: `${byPass.missedPasses} Missed Passes` });
     if (byBarn) banter.push({ title: '🚪 Barn Door', winner: byBarn.name, stat: `${byBarn.shots} Shots (${byBarn.goals}G)` });
@@ -143,6 +145,7 @@ function computeMatchGradeAndUnitRatings(myG, oppG, stats = []) {
   return { grade, gradeCls, atk: atk.toFixed(1), def: def.toFixed(1) };
 }
 
+// Extracts Skill Moves, Dribbles, and Shot/Cross Blocks ("Meat Wall") from EA Match Event Aggregates
 function parsePlayerMatchEvents(p = {}) {
   const ev = {};
   for (let i = 0; i < 4; i++) {
@@ -154,7 +157,15 @@ function parsePlayerMatchEvents(p = {}) {
   const beats = ev[38] || 0, takeOns = ev[112] || 0, dribbles = ev[174] || 0, flair = ev[147] || 0;
   let skills = beats + flair + Math.max(0, takeOns - beats);
   if (skills === 0 && dribbles > 0) skills = Math.max(1, Math.round(dribbles * 0.35));
-  return { skillMoves: skills, dribblesCompleted: dribbles };
+
+  // EA Defensive Block & Clearance Event IDs (12, 13, 14, 51, 56) + fallback inference from tackles/clean-sheet grit
+  const rawBlocks = (ev[12] || 0) + (ev[13] || 0) + (ev[14] || 0) + (ev[51] || 0) + (ev[56] || 0);
+  const tackles = Number(p.tacklesmade || p.tackles || 0);
+  const posStr = String(p.pos || '').toLowerCase();
+  const isDef = ['defender','cb','lb','rb','lcb','rcb','cdm'].includes(posStr);
+  const blocks = rawBlocks > 0 ? rawBlocks : (isDef ? Math.max(1, Math.round(tackles * 0.65)) : Math.round(tackles * 0.4));
+
+  return { skillMoves: skills, dribblesCompleted: dribbles, blocks };
 }
 
 async function shareElementAsPng(elementId, filenamePrefix = 'ClubsTracker') {
@@ -179,6 +190,7 @@ function getPlayerFunTag(p) {
   const rat = parseFloat(p.ratingAve || p.rating || 0), motm = Number(p.manOfTheMatch ?? p.motm ?? 0) / g, r10 = RECENT_10_STATS_MAP[name];
 
   if (r10?.superSubGA >= 1) return { label: '🦸‍♂️ Super-Sub', cls: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/50' };
+  if (name === TOP_MEAT_WALL_NAME || (r10?.games > 0 && r10.blocks / r10.games >= 1.5)) return { label: '🥩 Meat Wall', cls: 'bg-orange-500/20 text-orange-300 border-orange-400/50' };
   if (name === TOP_FIDGET_SPINNER_NAME || (r10?.games > 0 && r10.skillMoves / r10.games >= 3.5)) return { label: '🌀 Fidget Spinner', cls: 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/40' };
   if (motm >= 0.28 && g >= 5) return { label: '👑 MoTM Merchant', cls: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/40' };
   if (gpg >= 0.75) return { label: '🎯 Clinical Poacher', cls: 'bg-rose-500/15 text-rose-400 border-rose-500/40' };
@@ -227,7 +239,7 @@ function computeArchetypeAndPlaystyles(p) {
     { slug: 'anticipate', name: 'Anticipate', desc: 'Standing tackles stop ball directly at feet.', score: (pos==='DEF'?45:10) + tpg*24 + tWin*0.4 + jit(17) },
     { slug: 'intercept', name: 'Intercept', desc: 'Increased reach and ball retention on interceptions.', score: (pos!=='FWD'?32:5) + tpg*26 + jit(18) },
     { slug: 'jockey', name: 'Jockey', desc: 'Increased max speed of Sprint Jockey.', score: (pos==='DEF'?38:12) + tWin*0.45 + jit(19) },
-    { slug: 'block', name: 'Block', desc: 'Increased reach when performing blocks.', score: (pos==='DEF'?40:6) + tpg*18 + jit(20) },
+    { slug: 'block', name: 'Block', desc: 'Increased reach when performing blocks.', score: (pos==='DEF'?40:6) + (name===TOP_MEAT_WALL_NAME?35:0) + tpg*18 + jit(20) },
     { slug: 'bruiser', name: 'Bruiser', desc: 'Greater physical strength in tackles.', score: (h>=184?28:8) + tpg*22 + jit(22) },
     { slug: 'aerial_fortress', name: 'Aerial Fortress', desc: 'Higher jumps and aerial dominance.', score: (h>=187?52:4) + gpg*15 + jit(23) },
     { slug: 'relentless', name: 'Relentless', desc: 'Reduces fatigue loss and boosts stamina recovery.', score: (g>=25?28:14) + (tpg+apg)*14 + jit(24) }
@@ -368,7 +380,7 @@ function renderClubReviewReport(clubData = {}, members = [], matches = [], shame
 }
 
 function computeMatchIntelligence(clubId, matchesPayload) {
-  RECENT_FORM_MAP = {}; RECENT_10_STATS_MAP = {}; TOP_FIDGET_SPINNER_NAME = null;
+  RECENT_FORM_MAP = {}; RECENT_10_STATS_MAP = {}; TOP_FIDGET_SPINNER_NAME = null; TOP_MEAT_WALL_NAME = null;
   const ratingBuckets = {}, duoContributions = {}, opponentCounts = {}, shameMap = {}, sessionMatches = [];
   let highestSrOpp = null, smallGames = 0, smallWins = 0, largeGames = 0, largeWins = 0, prevTs = null;
   const oppBuckets = { 2: { label: 'vs. 2-Man', w:0, d:0, l:0, total:0 }, 3: { label: 'vs. 3-Man', w:0, d:0, l:0, total:0 }, 4: { label: 'vs. 4-Man', w:0, d:0, l:0, total:0 }, 5: { label: 'vs. 5+ Man', w:0, d:0, l:0, total:0 } };
@@ -400,14 +412,14 @@ function computeMatchIntelligence(clubId, matchesPayload) {
       const isSub = maxSecs > 600 && Number(p.secondsPlayed || maxSecs) <= maxSecs * 0.78 && reds === 0, ev = parsePlayerMatchEvents(p);
 
       if (idx < 5 && r > 0) { if (!ratingBuckets[pName]) ratingBuckets[pName] = []; ratingBuckets[pName].push(r); }
-      if (!RECENT_10_STATS_MAP[pName]) RECENT_10_STATS_MAP[pName] = { games:0, goals:0, assists:0, shots:0, tackles:0, totalRating:0, skillMoves:0, superSubGA:0, subGames:0, recentCleanSheets:0 };
+      if (!RECENT_10_STATS_MAP[pName]) RECENT_10_STATS_MAP[pName] = { games:0, goals:0, assists:0, shots:0, tackles:0, totalRating:0, skillMoves:0, blocks:0, superSubGA:0, subGames:0, recentCleanSheets:0 };
       const r10 = RECENT_10_STATS_MAP[pName];
-      r10.games++; r10.goals += g; r10.assists += a; r10.shots += shots; r10.tackles += t; r10.totalRating += r; r10.skillMoves += ev.skillMoves;
+      r10.games++; r10.goals += g; r10.assists += a; r10.shots += shots; r10.tackles += t; r10.totalRating += r; r10.skillMoves += ev.skillMoves; r10.blocks += ev.blocks;
       if (isSub) r10.subGames++; if (isSub && (g + a > 0)) r10.superSubGA += (g + a); if (oppG === 0) r10.recentCleanSheets++;
 
-      if (!shameMap[pName]) shameMap[pName] = { name: pName, games:0, missedPasses:0, skillMoves:0, dribblesCompleted:0, shots:0, goals:0, reds:0, tackles:0, tackleAtt:0, superSubGA:0, subGames:0, cleanSheets:0 };
+      if (!shameMap[pName]) shameMap[pName] = { name: pName, games:0, missedPasses:0, skillMoves:0, dribblesCompleted:0, blocks:0, shots:0, goals:0, reds:0, tackles:0, tackleAtt:0, superSubGA:0, subGames:0, cleanSheets:0 };
       const sm = shameMap[pName];
-      sm.games++; sm.missedPasses += missedP; sm.skillMoves += ev.skillMoves; sm.dribblesCompleted += ev.dribblesCompleted; sm.shots += shots; sm.goals += g; sm.reds += reds; sm.tackles += t; sm.tackleAtt += tAtt;
+      sm.games++; sm.missedPasses += missedP; sm.skillMoves += ev.skillMoves; sm.dribblesCompleted += ev.dribblesCompleted; sm.blocks += ev.blocks; sm.shots += shots; sm.goals += g; sm.reds += reds; sm.tackles += t; sm.tackleAtt += tAtt;
       if (isSub) sm.subGames++; if (isSub && (g + a > 0)) sm.superSubGA += (g + a); if (oppG === 0) sm.cleanSheets++;
       if (g + a > 0) activeContributors.push({ name: pName, ga: g + a });
     });
@@ -426,6 +438,8 @@ function computeMatchIntelligence(clubId, matchesPayload) {
   SHAME_LIST_CACHE = Object.values(shameMap);
   const topSkiller = [...SHAME_LIST_CACHE].sort((a, b) => b.skillMoves - a.skillMoves)[0];
   if (topSkiller?.skillMoves > 0) TOP_FIDGET_SPINNER_NAME = topSkiller.name;
+  const topBlocker = [...SHAME_LIST_CACHE].sort((a, b) => b.blocks - a.blocks)[0];
+  if (topBlocker?.blocks > 0) TOP_MEAT_WALL_NAME = topBlocker.name;
 
   updateRecapMetricsDisplay(clubId, CURRENT_RECAP_MODE === 'session' ? sessionMatches : matchArr.slice(0, 10), CURRENT_RECAP_MODE);
   const sPct = smallGames > 0 ? Math.round((smallWins / smallGames) * 100) : null, lPct = largeGames > 0 ? Math.round((largeWins / largeGames) * 100) : null;
@@ -472,7 +486,7 @@ function renderShameBoard(shameList = []) {
 
   let cards = [];
   if (CURRENT_BANTER_MODE === 'allTime' && GLOBAL_MEMBERS.length) {
-    document.getElementById('shameBoardSubtext').innerText = 'All-Time Club Career leaders in impact, clean sheets, skill flair, missed passes, unconverted shots & bookings';
+    document.getElementById('shameBoardSubtext').innerText = 'All-Time Club Career leaders in Meat Wall blocks, impact, clean sheets, skill flair, missed passes, unconverted shots & bookings';
     const cList = GLOBAL_MEMBERS.map(m => {
       const name = m.name || m.proName || 'Pro', games = Math.max(1, Number(m.gamesPlayed ?? m.games ?? 1)), goals = Number(m.goals ?? 0), assists = Number(m.assists ?? 0);
       const pm = Number(m.passesMade ?? m.passesmade ?? 0), pPct = Math.max(1, Number(m.passSuccessRate ?? 75)), missedP = Math.max(0, Math.round(pm / (pPct / 100)) - pm);
@@ -480,10 +494,13 @@ function renderShameBoard(shameList = []) {
       const tkl = Number(m.tacklesMade ?? m.tacklesmade ?? m.tackles ?? 0), tPct = Math.max(10, Number(m.tackleSuccessRate ?? 25)), estTAtt = Math.round(tkl / (tPct / 100));
       const reds = Number(m.redCards ?? m.redcards ?? 0), cs = Number(m.totalCleanSheets ?? 0), r10 = RECENT_10_STATS_MAP[name] || {};
       const skills = Math.max(r10.skillMoves || 0, Math.round((r10.games > 0 ? r10.skillMoves / r10.games : ((goals + assists) / games) * 2.2) * games));
-      return { name, games, goals, assists, missedP, estShots, missedS, sConv, tkl, estTAtt, reds, cs, skills, superSubGA: r10.superSubGA || 0 };
+      const isDef = normalizePosition(m.favoritePosition || m.pos) === 'DEF';
+      const careerBlocks = Math.max(r10.blocks || 0, Math.round(r10.games > 0 ? (r10.blocks / r10.games) * games : tkl * (isDef ? 0.68 : 0.42) + cs * 0.8));
+      return { name, games, goals, assists, missedP, estShots, missedS, sConv, tkl, estTAtt, reds, cs, skills, careerBlocks, superSubGA: r10.superSubGA || 0 };
     });
-    const [bySub, byPad, bySkill, byPass, byBarn, byRed] = [
+    const [bySub, byMeat, byPad, bySkill, byPass, byBarn, byRed] = [
       [...cList].sort((a, b) => (b.superSubGA * 25 + ((b.goals + b.assists) / b.games) * 10) - (a.superSubGA * 25 + ((a.goals + a.assists) / a.games) * 10))[0],
+      [...cList].sort((a, b) => b.careerBlocks - a.careerBlocks)[0],
       [...cList].sort((a, b) => (b.cs * 5 + b.tkl * 0.1) - (a.cs * 5 + a.tkl * 0.1))[0],
       [...cList].sort((a, b) => b.skills - a.skills)[0],
       [...cList].sort((a, b) => b.missedP - a.missedP)[0],
@@ -491,6 +508,7 @@ function renderShameBoard(shameList = []) {
       [...cList].sort((a, b) => (b.reds * 25 + (b.estTAtt - b.tkl)) - (a.reds * 25 + (a.estTAtt - a.tkl)))[0]
     ];
     cards = [
+      { title: '🥩 All-Time Meat Wall (Blocks)', w: byMeat.name, st: `~${byMeat.careerBlocks} Career Body Blocks`, sub: `Putting face, ribs & shins in the firing line (${byMeat.games} GP)`, b: 'border-orange-500/40', c: 'text-orange-400' },
       { title: '🦸‍♂️ All-Time Impact / Super-Sub', w: bySub.name, st: bySub.superSubGA > 0 ? `${bySub.superSubGA} Bench G+A` : `${((bySub.goals+bySub.assists)/bySub.games).toFixed(2)} G+A / Game`, sub: `${bySub.goals}G & ${bySub.assists}A across ${bySub.games} career games`, b: 'border-emerald-500/40', c: 'text-emerald-400' },
       { title: '🔒 All-Time Padlock (Clean Sheets)', w: byPad.name, st: `${byPad.cs} Career Clean Sheets`, sub: `${byPad.tkl} career tackles won (${byPad.games} GP)`, b: 'border-sky-500/40', c: 'text-sky-400' },
       { title: '🌀 All-Time Fidget Spinner', w: bySkill.name, st: `~${bySkill.skills} Career Skill Moves`, sub: `Averaging ${(bySkill.skills/bySkill.games).toFixed(1)} skill beats per match`, b: 'border-fuchsia-500/40', c: 'text-fuchsia-400' },
@@ -499,10 +517,11 @@ function renderShameBoard(shameList = []) {
       { title: '🟥 All-Time Sunday League Butcher', w: byRed.name, st: byRed.reds > 0 ? `${byRed.reds} Career Red Cards` : `${byRed.tkl} Career Tackles`, sub: `${Math.max(0, byRed.estTAtt - byRed.tkl)} missed lunges across ${byRed.games} GP`, b: 'border-red-500/40', c: 'text-red-400' }
     ];
   } else if (shameList.length) {
-    document.getElementById('shameBoardSubtext').innerText = 'Last 10 Matches telemetry: mid-match super-subs, clean sheets, skill moves, missed passes, shot conversion & bookings';
+    document.getElementById('shameBoardSubtext').innerText = 'Last 10 Matches telemetry: Meat Wall shot blocks, super-subs, clean sheets, skill moves, missed passes, shot conversion & bookings';
     shameList.forEach(i => i.careerCS = Number(GLOBAL_MEMBERS.find(m => (m.name || m.proName) === i.name)?.totalCleanSheets || 0));
-    const [bySub, byPad, bySkill, byPass, byBarn, byRed] = [
+    const [bySub, byMeat, byPad, bySkill, byPass, byBarn, byRed] = [
       [...shameList].sort((a, b) => (b.superSubGA * 10 + b.subGames) - (a.superSubGA * 10 + a.subGames))[0],
+      [...shameList].sort((a, b) => (b.blocks * 10 + b.tackles) - (a.blocks * 10 + a.tackles))[0],
       [...shameList].sort((a, b) => (b.cleanSheets * 10 + b.tackles * 0.2) - (a.cleanSheets * 10 + a.tackles * 0.2))[0],
       [...shameList].sort((a, b) => b.skillMoves - a.skillMoves)[0],
       [...shameList].sort((a, b) => b.missedPasses - a.missedPasses)[0],
@@ -510,6 +529,7 @@ function renderShameBoard(shameList = []) {
       [...shameList].sort((a, b) => (b.reds * 15 + (b.tackleAtt - b.tackles)) - (a.reds * 15 + (a.tackleAtt - a.tackles)))[0]
     ];
     cards = [
+      { title: '🥩 The Meat Wall (Most Blocks)', w: byMeat.name, st: `${byMeat.blocks} Shot & Cross Blocks`, sub: `Human sandbag across ${byMeat.games} recent matches`, b: 'border-orange-500/40', c: 'text-orange-400' },
       { title: '🦸‍♂️ The Super-Sub Award', w: bySub.name, st: bySub.superSubGA > 0 ? `${bySub.superSubGA} G+A off Bench` : `${bySub.subGames} Sub Apps`, sub: 'Mid-match joiner impact (Last 10)', b: 'border-emerald-500/40', c: 'text-emerald-400' },
       { title: '🔒 The Padlock (Clean Sheets)', w: byPad.name, st: `${byPad.cleanSheets} Clean Sheets (Last 10)`, sub: `${byPad.careerCS} all-time career shutouts`, b: 'border-sky-500/40', c: 'text-sky-400' },
       { title: '🌀 Fidget Spinner', w: bySkill.name, st: `${bySkill.skillMoves} Skill Moves`, sub: `${bySkill.dribblesCompleted} dribbles completed (Last 10)`, b: 'border-fuchsia-500/40', c: 'text-fuchsia-400' },
@@ -602,6 +622,10 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
   document.getElementById('clubRegionName').innerText = reg.name;
   document.getElementById('clubStadiumName').innerText = data.stadiumName || 'Pro Clubs Arena';
 
+  const rep = data.clubRep || { formattedFans: '50.0K', level: 5, tierTitle: 'Hometown Heroes' };
+  const lvlBadge = document.getElementById('clubLevelBadgeText');
+  if (lvlBadge) lvlBadge.innerText = `Lvl ${rep.level} • ${rep.formattedFans} Fans`;
+
   const kits = data.kits || { home: ['#10b981','#ffffff','#064e3b'], away: ['#1e293b','#38bdf8','#0f172a'], third: ['#f59e0b','#111827','#ffffff'] };
   document.getElementById('clubKitsContainer').innerHTML = `${renderMiniJerseySvg(kits.home,'Home')}<span class="text-gray-700">|</span>${renderMiniJerseySvg(kits.away,'Away')}<span class="text-gray-700">|</span>${renderMiniJerseySvg(kits.third,'3rd')}`;
   if (data.globalRank) { const rb = document.getElementById('globalRankBadge'); rb.innerText = `🌍 ${data.globalRank.label}`; rb.classList.remove('hidden'); }
@@ -612,6 +636,9 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
     document.getElementById('trophyLeagues').innerText = data.trophies.leaguesWon ?? 0;
     document.getElementById('trophyPromos').innerText = data.trophies.promotions ?? 0;
     document.getElementById('trophyRelegs').innerText = data.trophies.relegations ?? 0;
+    const fansEl = document.getElementById('trophyFansText'), repSubEl = document.getElementById('trophyRepSubtext');
+    if (fansEl) fansEl.innerText = `${rep.formattedFans} Fans`;
+    if (repSubEl) repSubEl.innerText = `Lvl ${rep.level} • ${rep.tierTitle}`;
     const pk = data.trophies.bestDivision || data.division || 'Div 5';
     document.getElementById('trophyPeakDivText').innerText = pk;
     document.getElementById('trophyPeakDivShield').innerHTML = renderDivisionShieldHtml(data.trophies.bestDivisionNum ?? pk, 'md');
