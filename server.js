@@ -99,6 +99,38 @@ function computeGlobalPercentile(sr, w, l, d, currDiv) {
   return { percentile: pct, label: `Top ${pct}% Worldwide` };
 }
 
+// Computes Club Fan Count & Reputation Level (Lvl 1 to Lvl 10)
+function computeClubRepAndFans(stat = {}, season = {}, info = {}, currDiv = 5, peakDiv = 2) {
+  const w = Number(stat.wins ?? stat.overallWins ?? 0);
+  const d = Number(stat.ties ?? stat.overallTies ?? 0);
+  const l = Number(stat.losses ?? stat.overallLosses ?? 0);
+  const gf = Number(stat.goals ?? stat.overallGoals ?? 0);
+  const sr = Number(stat.skillRating ?? stat.rating ?? 1500);
+  const promos = Math.max(Number(season.promotions || 0), Number(stat.promotions || 0));
+  const titles = Math.max(Number(season.titlesWon || 0), Number(stat.titlesWon || 0));
+  const totalGames = w + d + l;
+
+  const rawFans = Number(stat.fans ?? stat.fanCount ?? season.fans ?? info.fans ?? 0);
+  const divBonus = Math.max(0, (5 - peakDiv) * 48000) + Math.max(0, (5 - currDiv) * 22000);
+  const srBonus = Math.max(0, (sr - 1000) * 195);
+  const calcFans = 25000 + (totalGames * 1450) + (w * 3200) + (gf * 410) + (promos * 28000) + (titles * 85000) + divBonus + srBonus;
+  const fans = rawFans > 1000 ? rawFans : Math.round(calcFans);
+
+  const rawLvl = Number(stat.reputationtier ?? stat.clubLevel ?? season.reputationtier ?? info.reputationtier ?? 0);
+  const repPts = totalGames * 12 + w * 25 + promos * 180 + titles * 450 + Math.max(0, sr - 1100) * 2;
+  const calcLvl = repPts >= 9500 ? 10 : repPts >= 7200 ? 9 : repPts >= 5400 ? 8 : repPts >= 3900 ? 7 : repPts >= 2700 ? 6 : repPts >= 1800 ? 5 : repPts >= 1100 ? 4 : repPts >= 600 ? 3 : repPts >= 250 ? 2 : 1;
+  const level = (rawLvl >= 1 && rawLvl <= 10) ? rawLvl : calcLvl;
+
+  const tierTitles = {
+    1: 'Local Park XI', 2: 'Sunday League Regulars', 3: 'Borough Contenders', 4: 'City Standouts',
+    5: 'Regional Powerhouse', 6: 'Hometown Heroes', 7: 'National Favorites', 8: 'Cult Icons',
+    9: 'Continental Giants', 10: 'Global Immortals'
+  };
+
+  const formattedFans = fans >= 1000000 ? `${(fans / 1000000).toFixed(2)}M` : fans >= 1000 ? `${(fans / 1000).toFixed(1)}K` : String(fans);
+  return { fans, formattedFans, level, tierTitle: tierTitles[level] || 'Hometown Heroes' };
+}
+
 function buildSeasonsHistory(season = {}, stat = {}, currDiv = 5, peakDiv = 2) {
   const promos = Math.max(Number(season.promotions || 0), Number(stat.promotions || 0));
   const relegs = Math.max(Number(season.relegations || 0), Number(stat.relegations || 0));
@@ -153,7 +185,7 @@ app.get('/api/search', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 2. Club Info
+// 2. Club Info (Includes Club Fans & Club Reputation Level)
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params, { platform = 'common-gen5' } = req.query, numId = parseInt(clubId, 10);
   if (isNaN(numId) || numId <= 0) return res.status(400).json({ error: 'Invalid clubId' });
@@ -180,12 +212,14 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     const sr = Number(statObj.skillRating ?? statObj.rating ?? infoObj.skillRating ?? 1500);
     const wins = Number(statObj.wins ?? statObj.overallWins ?? 0), losses = Number(statObj.losses ?? statObj.overallLosses ?? 0), ties = Number(statObj.ties ?? statObj.overallTies ?? 0);
     const seasonsData = buildSeasonsHistory(seasonObj, statObj, currDivNum, peakDivNum);
+    const clubRep = computeClubRepAndFans(statObj, seasonObj, infoObj, currDivNum, peakDivNum);
 
     res.json({
       info: infoObj, overall: statObj, division: divisionLabel, divisionNum: currDivNum,
       crestId: resolveCrestId(infoObj, statObj), stadiumName: ck.stadName || infoObj.stadName || infoObj.stadiumName || 'Pro Clubs Arena',
       regionInfo: resolveClubRegion(infoObj.regionId || statObj.regionId), kits,
       globalRank: computeGlobalPercentile(sr, wins, losses, ties, currDivNum),
+      clubRep,
       trophies: {
         titlesWon: Math.max(Number(seasonObj.titlesWon || 0), Number(statObj.titlesWon || 0)),
         leaguesWon: Math.max(Number(seasonObj.leaguesWon || 0), Number(statObj.leaguesWon || 0)),
