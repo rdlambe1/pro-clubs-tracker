@@ -204,6 +204,7 @@
     <!-- TAB 1 PANE: TEAM -->
     <div id="tabPane_team" class="space-y-5">
 
+      <!-- Session / Last 10 Report (With Post to Discord Webhook Button) -->
       <section id="sessionRecapSection" class="hidden card p-4 sm:p-5 border-l-4 border-l-amber-400 space-y-4">
         <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-gray-800 pb-3">
           <div class="flex flex-wrap items-center gap-2.5">
@@ -213,8 +214,11 @@
             </div>
             <span id="sessionTimeWindow" class="text-xs text-gray-400 font-medium">--</span>
           </div>
-          <div class="flex items-center justify-between sm:justify-end gap-2">
+          <div class="flex flex-wrap items-center justify-between sm:justify-end gap-2">
             <span id="sessionTiltBadge" class="px-2.5 py-0.5 rounded-full text-[10px] sm:text-[11px] font-black">--</span>
+            <button onclick="openDiscordModal()" class="bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 px-2.5 py-1 rounded text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap" title="Send Session Recap & MVP to Discord">
+              <i class="fa-brands fa-discord text-indigo-400"></i> Post to Discord
+            </button>
             <button onclick="shareElementAsPng('sessionRecapSection', 'Session-Recap')" class="bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap"><i class="fa-solid fa-camera"></i> Share</button>
           </div>
         </div>
@@ -453,6 +457,38 @@
       </p>
     </footer>
 
+  </div>
+
+  <!-- Discord Webhook Configuration & Dispatch Modal -->
+  <div id="discordModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-50 p-4" onclick="closeDiscordModal()">
+    <div class="card max-w-md w-full p-5 space-y-4 border border-indigo-500/40 shadow-2xl" onclick="event.stopPropagation()">
+      <div class="flex items-center justify-between border-b border-gray-800 pb-3">
+        <div class="flex items-center gap-2">
+          <i class="fa-brands fa-discord text-indigo-400 text-xl"></i>
+          <h3 class="text-base font-black text-white">Post Session Recap to Discord</h3>
+        </div>
+        <button onclick="closeDiscordModal()" class="text-gray-400 hover:text-white"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <p class="text-xs text-gray-300 leading-relaxed">
+        Paste your Discord channel's <b>Webhook URL</b> below. We'll save it for this club so you can post Session Recaps, MVP shout-outs, and Dressing Room Banter embeds with 1 click.
+      </p>
+
+      <div class="space-y-1.5">
+        <label class="text-[10px] font-black uppercase tracking-wider text-gray-400">Discord Channel Webhook URL</label>
+        <input id="discordWebhookInput" type="url" placeholder="https://discord.com/api/webhooks/..." class="w-full bg-gray-900 border border-gray-700 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500">
+        <p class="text-[10px] text-gray-500">Discord Channel Settings → Integrations → Webhooks → New Webhook → Copy Webhook URL</p>
+      </div>
+
+      <div id="discordModalStatus" class="hidden text-xs px-3 py-2 rounded font-semibold"></div>
+
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-800">
+        <button onclick="closeDiscordModal()" class="px-3 py-1.5 rounded text-xs font-bold text-gray-400 hover:text-white">Cancel</button>
+        <button id="btnSendDiscord" onclick="sendRecapToDiscord()" class="bg-indigo-500 hover:bg-indigo-600 text-white font-black px-4 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 shadow-lg">
+          <i class="fa-solid fa-paper-plane"></i> Send Recap Now
+        </button>
+      </div>
+    </div>
   </div>
 
   <!-- Responsive FC27 Ultimate Team Card Modal -->
