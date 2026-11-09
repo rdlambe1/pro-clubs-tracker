@@ -4,16 +4,13 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { ProClubsClient } from 'proclubs-sdk';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const proclubs = new ProClubsClient({ cache: false });
-
 const EA_HEADERS = {
   'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
   'Accept': 'application/json, text/plain, */*',
@@ -22,811 +19,333 @@ const EA_HEADERS = {
   'Origin': 'https://www.ea.com'
 };
 
-function extractClubId(obj, keyFallback = null) {
-  if (!obj) return null;
-  if (obj.clubId && Number(obj.clubId) > 0) return String(obj.clubId);
-  if (obj.id && Number(obj.id) > 0) return String(obj.id);
-  if (obj.clubInfo?.clubId && Number(obj.clubInfo.clubId) > 0) return String(obj.clubInfo.clubId);
-  if (keyFallback && /^\d+$/.test(keyFallback) && Number(keyFallback) > 0) return String(keyFallback);
-  return null;
-}
+const eaFetch = (url) => fetch(url, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null).catch(() => null);
+const valOf = (res) => (res?.status === 'fulfilled' && res.value ? res.value : {});
 
-function resolveCrestId(infoObj = {}, statObj = {}, matchClubObj = {}) {
-  const details = matchClubObj?.details || {};
-  const customKit = infoObj?.customKit || details?.customKit || statObj?.customKit || matchClubObj?.customKit || {};
-  const kitType = String(customKit.selectedKitType ?? infoObj?.selectedKitType ?? details?.selectedKitType ?? '');
-
-  if (kitType === '0') {
-    const authenticId = infoObj?.teamId || details?.teamId || matchClubObj?.TEAM || statObj?.teamId;
-    if (authenticId && String(authenticId) !== '0') return String(authenticId);
-  }
-
-  const candidates = [
-    matchClubObj?.crestId,
-    matchClubObj?.TEAM,
-    customKit.crestAssetId,
-    customKit.crestId,
-    infoObj?.crestAssetId,
-    details?.crestAssetId,
-    infoObj?.teamId,
-    details?.teamId,
-    statObj?.crestAssetId,
-    statObj?.teamId
-  ];
-
-  for (const c of candidates) {
-    if (c !== undefined && c !== null && String(c).trim() !== '' && String(c) !== '0' && String(c) !== '-1') {
-      return String(c).trim();
-    }
-  }
-  return null;
-}
-
-function parseDivisionNumber(raw, allowZeroAsElite = false) {
-  if (raw === undefined || raw === null || raw === '') return null;
-  const str = String(raw).trim().toLowerCase();
-  if (str === 'elite') return 0;
-  const num = parseInt(str.replace(/[^0-9-]/g, ''), 10);
-  if (isNaN(num) || num < 0 || num > 10) return null;
-  if (num === 0 && !allowZeroAsElite) return null;
-  // In FC 25/26/27 Pro Clubs, divisions run from Div 5 (5) up to Elite (0)
-  if (num > 5) return 5;
-  return num;
-}
-
-function formatDivisionLabel(divNum) {
-  if (divNum === null || divNum === undefined || isNaN(divNum)) return 'Div 5';
-  if (divNum <= 0) return 'Elite';
-  return `Div ${Math.min(5, Math.max(1, divNum))}`;
-}
-
-function unwrapEaObject(payload, clubId) {
+function unwrapEa(payload, clubId) {
   if (!payload) return {};
   if (Array.isArray(payload)) return payload[0] || {};
   if (typeof payload === 'object') {
     if (clubId && payload[clubId] && typeof payload[clubId] === 'object') return payload[clubId];
-    const vals = Object.values(payload);
-    if (vals.length === 1 && vals[0] && typeof vals[0] === 'object' && !Array.isArray(vals[0])) {
-      return vals[0];
-    }
-    return payload;
+    const v = Object.values(payload);
+    return (v.length === 1 && v[0] && typeof v[0] === 'object' && !Array.isArray(v[0])) ? v[0] : payload;
   }
   return {};
 }
 
-// Accurately resolves Current Division vs Peak Division without false "Div 2" fallbacks
-function resolveClubDivisions(seasonObj = {}, statObj = {}, infoObj = {}) {
-  // 1. Check explicit currentDivision from seasonalStats first
-  const rawCurrent =
-    seasonObj.currentDivision ??
-    seasonObj.activeDivision ??
-    seasonObj.division ??
-    statObj.currentDivision ??
-    infoObj.currentDivision ??
-    null;
+function extractClubId(o, key = null) {
+  const c = o?.clubId || o?.id || o?.clubInfo?.clubId || (key && /^\d+$/.test(key) ? key : null);
+  return c && Number(c) > 0 ? String(c) : null;
+}
 
-  let currDivNum = parseDivisionNumber(rawCurrent, true);
-
-  // 2. If EA didn't return currentDivision in seasonalStats, infer from current season games/promotions (Default Div 5 start)
-  if (currDivNum === null) {
-    const seasonGames = Number(seasonObj.gamesPlayed ?? seasonObj.wins ?? 0);
-    const seasonPromos = Number(seasonObj.promotions ?? 0);
-    const seasonRelegs = Number(seasonObj.relegations ?? 0);
-    if (seasonGames > 0 || seasonPromos > 0) {
-      currDivNum = Math.max(0, Math.min(5, 5 - Math.max(0, seasonPromos - seasonRelegs)));
-    } else {
-      currDivNum = 5; // Every club starts a fresh season in Division 5
-    }
+function resolveCrestId(info = {}, stat = {}, matchClub = {}) {
+  const det = matchClub?.details || {}, ck = info?.customKit || det?.customKit || stat?.customKit || matchClub?.customKit || {};
+  if (String(ck.selectedKitType ?? info?.selectedKitType ?? det?.selectedKitType ?? '') === '0') {
+    const auth = info?.teamId || det?.teamId || matchClub?.TEAM || stat?.teamId;
+    if (auth && String(auth) !== '0') return String(auth);
   }
-
-  // 3. Peak Division (bestDivision): Lower number = higher tier (0=Elite, 1=Div1 ... 5=Div5)
-  const sr = Number(statObj.skillRating ?? statObj.rating ?? infoObj.skillRating ?? 1500);
-  const promos = Math.max(Number(seasonObj.promotions || 0), Number(statObj.promotions || 0));
-  const allowElitePeak = (currDivNum === 0 || sr >= 1950);
-
-  const bestSeasonNum = parseDivisionNumber(seasonObj.bestDivision, allowElitePeak);
-  const bestOverallNum = parseDivisionNumber(statObj.bestDivision, allowElitePeak);
-
-  // Guard against EA returning "bestDivision: 1" or "2" for clubs that haven't won enough promotions to reach it
-  const minPossibleDivByPromos = Math.max(0, 5 - promos);
-
-  const validPeakCandidates = [currDivNum, bestSeasonNum, bestOverallNum]
-    .filter(n => n !== null && n >= 0 && n <= 5)
-    .map(n => Math.max(n, minPossibleDivByPromos));
-
-  const peakDivNum = validPeakCandidates.length > 0 ? Math.min(...validPeakCandidates) : currDivNum;
-
-  return {
-    currDivNum,
-    divisionLabel: formatDivisionLabel(currDivNum),
-    peakDivNum,
-    peakDivisionLabel: formatDivisionLabel(peakDivNum)
-  };
+  const cands = [matchClub?.crestId, matchClub?.TEAM, ck.crestAssetId, ck.crestId, info?.crestAssetId, det?.crestAssetId, info?.teamId, det?.teamId, stat?.crestAssetId, stat?.teamId];
+  const hit = cands.find(c => c !== undefined && c !== null && !['', '0', '-1'].includes(String(c).trim()));
+  return hit ? String(hit).trim() : null;
 }
 
-function eaIntToHex(val, fallback = '#10b981') {
-  if (val === undefined || val === null || val === '') return fallback;
-  const num = parseInt(val, 10);
-  if (isNaN(num) || num < 0) return fallback;
-  const hex = (num & 0xFFFFFF).toString(16).padStart(6, '0');
-  return `#${hex}`;
+function parseDivNum(raw, allowZero = false) {
+  if (raw === undefined || raw === null || raw === '') return null;
+  const s = String(raw).trim().toLowerCase();
+  if (s === 'elite') return 0;
+  const n = parseInt(s.replace(/[^0-9-]/g, ''), 10);
+  if (isNaN(n) || n < 0 || n > 10 || (n === 0 && !allowZero)) return null;
+  return Math.min(5, n);
 }
 
-function resolveClubRegion(regionId) {
-  const r = String(regionId || '').trim();
+const fmtDiv = (n) => (n === null || n === undefined || isNaN(n)) ? 'Div 5' : (n <= 0 ? 'Elite' : `Div ${Math.min(5, Math.max(1, n))}`);
+
+function resolveClubDivisions(season = {}, stat = {}, info = {}) {
+  const rawCurr = season.currentDivision ?? season.activeDivision ?? season.division ?? stat.currentDivision ?? info.currentDivision ?? null;
+  let curr = parseDivNum(rawCurr, true);
+  if (curr === null) {
+    const sGames = Number(season.gamesPlayed ?? season.wins ?? 0), sPromos = Number(season.promotions ?? 0), sRelegs = Number(season.relegations ?? 0);
+    curr = (sGames > 0 || sPromos > 0) ? Math.max(0, Math.min(5, 5 - Math.max(0, sPromos - sRelegs))) : 5;
+  }
+  const sr = Number(stat.skillRating ?? stat.rating ?? info.skillRating ?? 1500);
+  const promos = Math.max(Number(season.promotions || 0), Number(stat.promotions || 0));
+  const allowElite = (curr === 0 || sr >= 1950), minByPromo = Math.max(0, 5 - promos);
+  const cands = [curr, parseDivNum(season.bestDivision, allowElite), parseDivNum(stat.bestDivision, allowElite)]
+    .filter(n => n !== null && n >= 0 && n <= 5).map(n => Math.max(n, minByPromo));
+  const peak = cands.length ? Math.min(...cands) : curr;
+  return { currDivNum: curr, divisionLabel: fmtDiv(curr), peakDivNum: peak, peakDivisionLabel: fmtDiv(peak) };
+}
+
+function eaIntToHex(val, fb = '#10b981') {
+  const n = parseInt(val, 10);
+  return (isNaN(n) || n < 0) ? fb : `#${(n & 0xFFFFFF).toString(16).padStart(6, '0')}`;
+}
+
+function resolveClubRegion(id) {
   const map = {
-    '4344147': { name: 'British Isles', flag: 'ie', label: 'British Isles (UK & Ireland)' },
-    '4540759': { name: 'British Isles', flag: 'gb-eng', label: 'British Isles' },
-    '5719125': { name: 'Western Europe', flag: 'eu', label: 'Western Europe' },
-    '5194837': { name: 'Northern Europe', flag: 'eu', label: 'Northern Europe' },
-    '5391443': { name: 'Southern Europe', flag: 'eu', label: 'Southern Europe' },
-    '4606293': { name: 'Eastern Europe', flag: 'eu', label: 'Eastern Europe' },
-    '5063765': { name: 'North America East', flag: 'us', label: 'NA East' },
-    '5063767': { name: 'North America West', flag: 'us', label: 'NA West' },
-    '5391425': { name: 'South America', flag: 'br', label: 'South America' }
+    '4344147': { name: 'British Isles', flag: 'ie' }, '4540759': { name: 'British Isles', flag: 'gb-eng' },
+    '5719125': { name: 'Western Europe', flag: 'eu' }, '5194837': { name: 'Northern Europe', flag: 'eu' },
+    '5391443': { name: 'Southern Europe', flag: 'eu' }, '4606293': { name: 'Eastern Europe', flag: 'eu' },
+    '5063765': { name: 'NA East', flag: 'us' }, '5063767': { name: 'NA West', flag: 'us' }, '5391425': { name: 'South America', flag: 'br' }
   };
-  return map[r] || { name: 'British Isles / EU', flag: 'ie', label: 'British Isles / Europe' };
+  return map[String(id || '').trim()] || { name: 'British Isles / EU', flag: 'ie' };
 }
 
-function computeGlobalPercentile(skillRating, wins, losses, ties, currDivNum) {
-  const sr = Number(skillRating || 0);
-  const total = wins + losses + ties;
-  const winRatio = total > 0 ? wins / total : 0.45;
-
-  let pct = 25;
-  if (sr >= 2100) pct = 0.5;
-  else if (sr >= 1950) pct = 1;
-  else if (sr >= 1800) pct = 2;
-  else if (sr >= 1700) pct = 4;
-  else if (sr >= 1600) pct = 7;
-  else if (sr >= 1500) pct = 12;
-  else if (sr >= 1400) pct = 18;
-  else if (sr >= 1300) pct = 28;
-  else if (sr >= 1150) pct = 42;
-  else pct = 55;
-
-  if (currDivNum === 0) pct = Math.min(pct, 2);
-  else if (currDivNum === 1) pct = Math.min(pct, 6);
-  else if (currDivNum === 2) pct = Math.min(pct, 12);
-
-  if (winRatio >= 0.6) pct = Math.max(0.5, pct - 2);
-
-  return {
-    percentile: pct,
-    label: `Top ${pct}% Worldwide`,
-    tierName: pct <= 2 ? 'Elite Global Tier' : (pct <= 10 ? 'Prestige Tier' : (pct <= 25 ? 'Challenger Tier' : 'Contender Tier'))
-  };
+function computeGlobalPercentile(sr, w, l, d, currDiv) {
+  const s = Number(sr || 0), tot = w + l + d;
+  let pct = s >= 2100 ? 0.5 : s >= 1950 ? 1 : s >= 1800 ? 2 : s >= 1700 ? 4 : s >= 1600 ? 7 : s >= 1500 ? 12 : s >= 1400 ? 18 : s >= 1300 ? 28 : s >= 1150 ? 42 : 55;
+  if (currDiv === 0) pct = Math.min(pct, 2); else if (currDiv === 1) pct = Math.min(pct, 6); else if (currDiv === 2) pct = Math.min(pct, 12);
+  if (tot > 0 && w / tot >= 0.6) pct = Math.max(0.5, pct - 2);
+  return { percentile: pct, label: `Top ${pct}% Worldwide` };
 }
 
-function getOfficialFc27SeasonCount(totalMatches) {
-  if (totalMatches === 0) return 1;
-  const fc27LaunchDate = new Date('2026-09-24T00:00:00Z').getTime();
-  const now = Date.now();
-  const daysSinceLaunch = Math.max(1, Math.floor((now - fc27LaunchDate) / (1000 * 60 * 60 * 24)));
-  const calendarSeason = Math.max(1, Math.min(10, Math.ceil(daysSinceLaunch / 42)));
-  return totalMatches < 10 ? 1 : calendarSeason;
-}
+function buildSeasonsHistory(season = {}, stat = {}, currDiv = 5, peakDiv = 2) {
+  const promos = Math.max(Number(season.promotions || 0), Number(stat.promotions || 0));
+  const relegs = Math.max(Number(season.relegations || 0), Number(stat.relegations || 0));
+  const titles = Math.max(Number(season.titlesWon || 0), Number(stat.titlesWon || 0));
+  const tW = Number(stat.wins ?? stat.overallWins ?? season.wins ?? 0), tD = Number(stat.ties ?? stat.overallTies ?? season.ties ?? 0), tL = Number(stat.losses ?? stat.overallLosses ?? season.losses ?? 0);
+  const tGF = Number(stat.goals ?? stat.overallGoals ?? season.goals ?? 0), tGA = Number(stat.goalsAgainst ?? stat.overallGoalsAgainst ?? season.goalsAgainst ?? 0);
+  const days = Math.max(1, (Date.now() - new Date('2026-09-24T00:00:00Z').getTime()) / 86400000);
+  const count = (tW + tD + tL) < 10 ? 1 : Math.max(1, Math.min(10, Math.ceil(days / 42)));
 
-function buildSeasonsHistory(seasonObj = {}, statObj = {}, currDivNum = 5, peakDivNum = 2) {
-  const promotions = Math.max(Number(seasonObj.promotions || 0), Number(statObj.promotions || 0));
-  const relegations = Math.max(Number(seasonObj.relegations || 0), Number(statObj.relegations || 0));
-  const titlesWon = Math.max(Number(seasonObj.titlesWon || 0), Number(statObj.titlesWon || 0));
+  if (count <= 1) {
+    return { totalSeasonsCount: 1, list: [{ seasonNumber: 1, label: 'Season 1 (Current)', divisionNum: currDiv, division: fmtDiv(currDiv), wins: tW, draws: tD, losses: tL, goalsFor: tGF, goalsAgainst: tGA, points: tW * 3 + tD, outcome: `IN PROGRESS (${promos}⬆️ ${relegs}⬇️)`, badgeType: 'active', isCurrent: true }] };
+  }
 
-  const totalWins = Number(statObj.wins ?? statObj.overallWins ?? seasonObj.wins ?? 0);
-  const totalTies = Number(statObj.ties ?? statObj.overallTies ?? seasonObj.ties ?? 0);
-  const totalLosses = Number(statObj.losses ?? statObj.overallLosses ?? seasonObj.losses ?? 0);
-  const totalGoals = Number(statObj.goals ?? statObj.overallGoals ?? seasonObj.goals ?? 0);
-  const totalGoalsAgainst = Number(statObj.goalsAgainst ?? statObj.overallGoalsAgainst ?? seasonObj.goalsAgainst ?? 0);
-
-  const totalMatches = totalWins + totalTies + totalLosses;
-  const totalSeasons = getOfficialFc27SeasonCount(totalMatches);
-
-  if (totalSeasons <= 1) {
+  const comp = count - 1, curDays = Math.max(3, days - comp * 42);
+  const weights = [...Array(comp).fill(42 / days), curDays / days];
+  let uW = 0, uD = 0, uL = 0, uGF = 0, uGA = 0, uP = 0, uR = 0;
+  const list = weights.map((w, i) => {
+    const last = i === count - 1, sNum = i + 1;
+    const sW = last ? Math.max(0, tW - uW) : Math.round(tW * w), sD = last ? Math.max(0, tD - uD) : Math.round(tD * w), sL = last ? Math.max(0, tL - uL) : Math.round(tL * w);
+    const sGF = last ? Math.max(0, tGF - uGF) : Math.round(tGF * w), sGA = last ? Math.max(0, tGA - uGA) : Math.round(tGA * w);
+    const sP = last ? Math.max(0, promos - uP) : Math.round(promos * w), sR = last ? Math.max(0, relegs - uR) : Math.round(relegs * w);
+    uW += sW; uD += sD; uL += sL; uGF += sGF; uGA += sGA; uP += sP; uR += sR;
+    const dTier = last ? currDiv : Math.min(5, Math.max(peakDiv, 5 - sP));
+    const isTitle = !last && titles > 0 && i === 0;
     return {
-      totalSeasonsCount: 1,
-      list: [{
-        seasonNumber: 1,
-        label: 'Season 1 (Current)',
-        divisionNum: currDivNum,
-        division: formatDivisionLabel(currDivNum),
-        wins: totalWins,
-        draws: totalTies,
-        losses: totalLosses,
-        goalsFor: totalGoals,
-        goalsAgainst: totalGoalsAgainst,
-        points: (totalWins * 3) + totalTies,
-        outcome: `IN PROGRESS (${promotions}⬆️ ${relegations}⬇️)`,
-        badgeType: 'active',
-        isCurrent: true
-      }]
+      seasonNumber: sNum, label: last ? `Season ${sNum} (Current)` : `Season ${sNum}`, divisionNum: dTier, division: fmtDiv(dTier),
+      wins: sW, draws: sD, losses: sL, goalsFor: sGF, goalsAgainst: sGA, points: sW * 3 + sD,
+      outcome: isTitle ? `TITLE WINNER (${sP}⬆️ ${sR}⬇️)` : `${last ? 'IN PROGRESS' : 'COMPLETED'} (${sP}⬆️ ${sR}⬇️)`,
+      badgeType: isTitle ? 'title' : (last ? 'active' : (sP >= sR ? 'promo' : 'hold')), isCurrent: last
     };
-  }
-
-  const fc27LaunchDate = new Date('2026-09-24T00:00:00Z').getTime();
-  const daysSinceLaunch = Math.max(1, (Date.now() - fc27LaunchDate) / (1000 * 60 * 60 * 24));
-  const completedSeasons = totalSeasons - 1;
-  const daysIntoCurrentSeason = Math.max(3, daysSinceLaunch - (completedSeasons * 42));
-
-  const weights = [];
-  for (let i = 0; i < completedSeasons; i++) weights.push(42 / daysSinceLaunch);
-  weights.push(daysIntoCurrentSeason / daysSinceLaunch);
-
-  let usedW = 0, usedD = 0, usedL = 0, usedGF = 0, usedGA = 0, usedPromos = 0, usedRelegs = 0;
-  const seasonsList = [];
-
-  for (let i = 0; i < totalSeasons; i++) {
-    const sNum = i + 1;
-    const isLast = i === totalSeasons - 1;
-    const w = weights[i];
-
-    const sW = isLast ? Math.max(0, totalWins - usedW) : Math.round(totalWins * w);
-    const sD = isLast ? Math.max(0, totalTies - usedD) : Math.round(totalTies * w);
-    const sL = isLast ? Math.max(0, totalLosses - usedL) : Math.round(totalLosses * w);
-    const sGF = isLast ? Math.max(0, totalGoals - usedGF) : Math.round(totalGoals * w);
-    const sGA = isLast ? Math.max(0, totalGoalsAgainst - usedGA) : Math.round(totalGoalsAgainst * w);
-
-    const sPromos = isLast ? Math.max(0, promotions - usedPromos) : Math.round(promotions * w);
-    const sRelegs = isLast ? Math.max(0, relegations - usedRelegs) : Math.round(relegations * w);
-
-    usedW += sW;
-    usedD += sD;
-    usedL += sL;
-    usedGF += sGF;
-    usedGA += sGA;
-    usedPromos += sPromos;
-    usedRelegs += sRelegs;
-
-    // Current season uses exact currDivNum; earlier completed seasons reflect where the club climbed (e.g. Peak Div)
-    const divTier = isLast ? currDivNum : Math.min(5, Math.max(peakDivNum, 5 - sPromos));
-
-    let outcome = isLast ? `IN PROGRESS (${sPromos}⬆️ ${sRelegs}⬇️)` : `COMPLETED (${sPromos}⬆️ ${sRelegs}⬇️)`;
-    let badgeType = isLast ? 'active' : (sPromos >= sRelegs ? 'promo' : 'hold');
-
-    if (!isLast && titlesWon > 0 && i === 0) {
-      outcome = `TITLE WINNER (${sPromos}⬆️ ${sRelegs}⬇️)`;
-      badgeType = 'title';
-    }
-
-    seasonsList.push({
-      seasonNumber: sNum,
-      label: isLast ? `Season ${sNum} (Current)` : `Season ${sNum}`,
-      divisionNum: divTier,
-      division: formatDivisionLabel(divTier),
-      wins: sW,
-      draws: sD,
-      losses: sL,
-      goalsFor: sGF,
-      goalsAgainst: sGA,
-      points: (sW * 3) + sD,
-      outcome,
-      badgeType,
-      isCurrent: isLast
-    });
-  }
-
-  return {
-    totalSeasonsCount: totalSeasons,
-    list: seasonsList.reverse()
-  };
+  });
+  return { totalSeasonsCount: count, list: list.reverse() };
 }
 
 function generateFallbackSvg(name) {
-  const initials = (name || 'FC').substring(0, 2).toUpperCase();
-  const palettes = [
-    { bg1: '#10b981', bg2: '#064e3b', stroke: '#34d399' },
-    { bg1: '#3b82f6', bg2: '#1e3a8a', stroke: '#60a5fa' },
-    { bg1: '#f59e0b', bg2: '#78350f', stroke: '#fbbf24' },
-    { bg1: '#8b5cf6', bg2: '#4c1d95', stroke: '#a78bfa' }
-  ];
-  let hash = 0;
-  for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  const p = palettes[Math.abs(hash) % palettes.length];
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 115">
-      <defs>
-        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="${p.bg1}" />
-          <stop offset="100%" stop-color="${p.bg2}" />
-        </linearGradient>
-      </defs>
-      <path d="M 50 5 C 80 5 95 15 95 35 C 95 75 50 110 50 110 C 50 110 5 75 5 35 C 5 15 20 5 50 5 Z" fill="url(#g)" stroke="${p.stroke}" stroke-width="4"/>
-      <text x="50" y="66" font-family="-apple-system, BlinkMacSystemFont, sans-serif" font-size="29" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="1">${initials}</text>
-    </svg>`;
+  const init = (name || 'FC').substring(0, 2).toUpperCase();
+  const pals = [['#10b981','#064e3b','#34d399'], ['#3b82f6','#1e3a8a','#60a5fa'], ['#f59e0b','#78350f','#fbbf24'], ['#8b5cf6','#4c1d95','#a78bfa']];
+  let h = 0; for (let i = 0; i < (name || '').length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+  const [b1, b2, st] = pals[Math.abs(h) % pals.length];
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 115"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${b1}"/><stop offset="100%" stop-color="${b2}"/></linearGradient></defs><path d="M50 5 C80 5 95 15 95 35 C95 75 50 110 50 110 C50 110 5 75 5 35 C5 15 20 5 50 5 Z" fill="url(#g)" stroke="${st}" stroke-width="4"/><text x="50" y="66" font-family="sans-serif" font-size="29" font-weight="900" fill="#fff" text-anchor="middle">${init}</text></svg>`;
 }
 
-// 1. Search clubs by name
+// 1. Search Clubs
 app.get('/api/search', async (req, res) => {
   const { clubName, platform = 'common-gen5' } = req.query;
   if (!clubName) return res.status(400).json({ error: 'Club name required' });
-
   try {
     const raw = await proclubs.clubs.search({ name: clubName.trim(), platform });
-    const results = [];
-
-    if (Array.isArray(raw)) {
-      raw.forEach(item => {
-        const id = extractClubId(item);
-        const name = item.name || item.clubName || item.clubInfo?.name || clubName;
-        if (id) results.push({ id, name });
-      });
-    } else if (typeof raw === 'object' && raw !== null) {
-      Object.entries(raw).forEach(([k, v]) => {
-        const id = extractClubId(v, k);
-        const name = v?.name || v?.clubName || v?.clubInfo?.name || clubName;
-        if (id) results.push({ id, name });
-      });
-    }
-
-    if (results.length === 0) return res.status(404).json({ error: `No clubs found matching "${clubName}".` });
-    res.json(results);
-  } catch (error) {
-    res.status(500).json({ error: error.message || 'Error searching clubs' });
-  }
+    const entries = Array.isArray(raw) ? raw.map(v => [null, v]) : Object.entries(raw || {});
+    const results = entries.map(([k, v]) => ({ id: extractClubId(v, k), name: v?.name || v?.clubName || v?.clubInfo?.name || clubName })).filter(r => r.id);
+    return results.length ? res.json(results) : res.status(404).json({ error: `No clubs found matching "${clubName}".` });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 2. Club Info + Accurate Current Division vs Peak Division
+// 2. Club Info
 app.get('/api/club/:clubId/info', async (req, res) => {
-  const { clubId } = req.params;
-  const { platform = 'common-gen5' } = req.query;
-  const numericId = parseInt(clubId, 10);
-  if (isNaN(numericId) || numericId <= 0) return res.status(400).json({ error: 'Invalid clubId' });
-
+  const { clubId } = req.params, { platform = 'common-gen5' } = req.query, numId = parseInt(clubId, 10);
+  if (isNaN(numId) || numId <= 0) return res.status(400).json({ error: 'Invalid clubId' });
   try {
-    const [infoRes, statsRes, rawInfoRes, seasonSdkRes, seasonDirectRes] = await Promise.allSettled([
-      proclubs.clubs.get({ clubId: numericId, platform }),
-      proclubs.clubs.overallStats({ clubId: numericId, platform }),
-      fetch(`https://proclubs.ea.com/api/fc/clubs/info?clubIds=${numericId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null),
-      proclubs.clubs.seasonalStats ? proclubs.clubs.seasonalStats({ clubId: numericId, platform }) : Promise.resolve(null),
-      fetch(`https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${numericId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null)
+    const [iRes, sRes, rInfo, sSdk, sDir] = await Promise.allSettled([
+      proclubs.clubs.get({ clubId: numId, platform }),
+      proclubs.clubs.overallStats({ clubId: numId, platform }),
+      eaFetch(`https://proclubs.ea.com/api/fc/clubs/info?clubIds=${numId}&platform=${platform}`),
+      proclubs.clubs.seasonalStats ? proclubs.clubs.seasonalStats({ clubId: numId, platform }) : Promise.resolve(null),
+      eaFetch(`https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${numId}&platform=${platform}`)
     ]);
+    const statObj = unwrapEa(valOf(sRes), clubId);
+    const dUnwrapped = unwrapEa(valOf(rInfo), clubId);
+    const infoObj = Object.keys(dUnwrapped).length ? dUnwrapped : unwrapEa(valOf(iRes), clubId);
+    const seasonObj = { ...unwrapEa(valOf(sSdk), clubId), ...unwrapEa(valOf(sDir), clubId) };
 
-    const sdkInfo = infoRes.status === 'fulfilled' ? infoRes.value : {};
-    const overall = statsRes.status === 'fulfilled' ? statsRes.value : {};
-    const directInfo = rawInfoRes.status === 'fulfilled' && rawInfoRes.value ? rawInfoRes.value : {};
-    const seasonSdk = seasonSdkRes.status === 'fulfilled' ? seasonSdkRes.value : null;
-    const seasonDirect = seasonDirectRes.status === 'fulfilled' ? seasonDirectRes.value : null;
-
-    const statObj = unwrapEaObject(overall, clubId);
-    const infoObj = Object.keys(unwrapEaObject(directInfo, clubId)).length > 0
-      ? unwrapEaObject(directInfo, clubId)
-      : unwrapEaObject(sdkInfo, clubId);
-
-    const seasonObj = {
-      ...unwrapEaObject(seasonSdk, clubId),
-      ...unwrapEaObject(seasonDirect, clubId)
-    };
-
-    const {
-      currDivNum,
-      divisionLabel,
-      peakDivNum,
-      peakDivisionLabel
-    } = resolveClubDivisions(seasonObj, statObj, infoObj);
-
-    const crestId = resolveCrestId(infoObj, statObj);
-
-    const customKit = infoObj.customKit || statObj.customKit || {};
-    const stadiumName = customKit.stadName || infoObj.stadName || infoObj.stadiumName || 'Pro Clubs Arena';
-    const regionInfo = resolveClubRegion(infoObj.regionId || statObj.regionId);
-
+    const { currDivNum, divisionLabel, peakDivNum, peakDivisionLabel } = resolveClubDivisions(seasonObj, statObj, infoObj);
+    const ck = infoObj.customKit || statObj.customKit || {};
     const kits = {
-      home: [
-        eaIntToHex(customKit.kitColor1, '#10b981'),
-        eaIntToHex(customKit.kitColor2, '#ffffff'),
-        eaIntToHex(customKit.kitColor3, '#064e3b')
-      ],
-      away: [
-        eaIntToHex(customKit.kitAColor1, '#1e293b'),
-        eaIntToHex(customKit.kitAColor2, '#38bdf8'),
-        eaIntToHex(customKit.kitAColor3, '#0f172a')
-      ],
-      third: [
-        eaIntToHex(customKit.kitThrdColor1 || customKit.dCustomKit || customKit.kitColor3, '#f59e0b'),
-        eaIntToHex(customKit.kitThrdColor2 || customKit.kitColor1, '#111827'),
-        eaIntToHex(customKit.kitThrdColor3 || customKit.kitAColor2, '#ffffff')
-      ]
+      home: [eaIntToHex(ck.kitColor1, '#10b981'), eaIntToHex(ck.kitColor2, '#ffffff'), eaIntToHex(ck.kitColor3, '#064e3b')],
+      away: [eaIntToHex(ck.kitAColor1, '#1e293b'), eaIntToHex(ck.kitAColor2, '#38bdf8'), eaIntToHex(ck.kitAColor3, '#0f172a')],
+      third: [eaIntToHex(ck.kitThrdColor1 || ck.dCustomKit || ck.kitColor3, '#f59e0b'), eaIntToHex(ck.kitThrdColor2 || ck.kitColor1, '#111827'), eaIntToHex(ck.kitThrdColor3 || ck.kitAColor2, '#ffffff')]
     };
-
     const sr = Number(statObj.skillRating ?? statObj.rating ?? infoObj.skillRating ?? 1500);
-    const wins = Number(statObj.wins ?? statObj.overallWins ?? 0);
-    const losses = Number(statObj.losses ?? statObj.overallLosses ?? 0);
-    const ties = Number(statObj.ties ?? statObj.overallTies ?? 0);
-    const globalRank = computeGlobalPercentile(sr, wins, losses, ties, currDivNum);
-
+    const wins = Number(statObj.wins ?? statObj.overallWins ?? 0), losses = Number(statObj.losses ?? statObj.overallLosses ?? 0), ties = Number(statObj.ties ?? statObj.overallTies ?? 0);
     const seasonsData = buildSeasonsHistory(seasonObj, statObj, currDivNum, peakDivNum);
 
-    const trophies = {
-      titlesWon: Math.max(Number(seasonObj.titlesWon || 0), Number(statObj.titlesWon || 0)),
-      leaguesWon: Math.max(Number(seasonObj.leaguesWon || 0), Number(statObj.leaguesWon || 0)),
-      promotions: Math.max(Number(seasonObj.promotions || 0), Number(statObj.promotions || 0)),
-      relegations: Math.max(Number(seasonObj.relegations || 0), Number(statObj.relegations || 0)),
-      holds: Math.max(Number(seasonObj.holds || 0), Number(statObj.holds || 0)),
-      totalSeasons: seasonsData.totalSeasonsCount,
-      bestDivision: peakDivisionLabel,
-      bestDivisionNum: peakDivNum
-    };
-
     res.json({
-      info: infoObj,
-      overall: statObj,
-      division: divisionLabel,
-      divisionNum: currDivNum,
-      crestId,
-      stadiumName,
-      regionInfo,
-      kits,
-      globalRank,
-      trophies,
+      info: infoObj, overall: statObj, division: divisionLabel, divisionNum: currDivNum,
+      crestId: resolveCrestId(infoObj, statObj), stadiumName: ck.stadName || infoObj.stadName || infoObj.stadiumName || 'Pro Clubs Arena',
+      regionInfo: resolveClubRegion(infoObj.regionId || statObj.regionId), kits,
+      globalRank: computeGlobalPercentile(sr, wins, losses, ties, currDivNum),
+      trophies: {
+        titlesWon: Math.max(Number(seasonObj.titlesWon || 0), Number(statObj.titlesWon || 0)),
+        leaguesWon: Math.max(Number(seasonObj.leaguesWon || 0), Number(statObj.leaguesWon || 0)),
+        promotions: Math.max(Number(seasonObj.promotions || 0), Number(statObj.promotions || 0)),
+        relegations: Math.max(Number(seasonObj.relegations || 0), Number(statObj.relegations || 0)),
+        holds: Math.max(Number(seasonObj.holds || 0), Number(statObj.holds || 0)),
+        totalSeasons: seasonsData.totalSeasonsCount, bestDivision: peakDivisionLabel, bestDivisionNum: peakDivNum
+      },
       seasonsHistory: seasonsData.list
     });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 3. Member / Squad Stats
+// 3. Squad Members
 app.get('/api/club/:clubId/members', async (req, res) => {
-  const { clubId } = req.params;
-  const { platform = 'common-gen5' } = req.query;
-  const numericId = parseInt(clubId, 10);
-
+  const { clubId } = req.params, { platform = 'common-gen5' } = req.query, numId = parseInt(clubId, 10);
   try {
-    const [clubMemRes, careerMemRes] = await Promise.allSettled([
-      proclubs.members.stats({ clubId: numericId, platform }),
-      fetch(`https://proclubs.ea.com/api/fc/members/career/stats?clubId=${numericId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null)
+    const [cRes, carRes] = await Promise.allSettled([
+      proclubs.members.stats({ clubId: numId, platform }),
+      eaFetch(`https://proclubs.ea.com/api/fc/members/career/stats?clubId=${numId}&platform=${platform}`)
     ]);
-
-    const rawMembers = clubMemRes.status === 'fulfilled' ? clubMemRes.value : {};
-    const careerPayload = careerMemRes.status === 'fulfilled' ? careerMemRes.value : null;
-
-    let list = [];
-    if (Array.isArray(rawMembers)) list = rawMembers;
-    else if (rawMembers?.members && Array.isArray(rawMembers.members)) list = rawMembers.members;
-    else if (typeof rawMembers === 'object' && rawMembers !== null) list = Object.values(rawMembers.members || rawMembers);
-
-    const careerMap = new Map();
-    if (careerPayload) {
-      const cList = Array.isArray(careerPayload) ? careerPayload : (careerPayload.members || Object.values(careerPayload));
-      if (Array.isArray(cList)) {
-        cList.forEach(cm => {
-          if (cm && cm.name) careerMap.set(String(cm.name).toLowerCase().trim(), cm);
-        });
-      }
-    }
+    const rawM = valOf(cRes), carP = valOf(carRes);
+    const list = Array.isArray(rawM) ? rawM : (Array.isArray(rawM?.members) ? rawM.members : Object.values(rawM?.members || rawM || {}));
+    const carMap = new Map();
+    const cList = Array.isArray(carP) ? carP : (carP?.members || Object.values(carP || {}));
+    if (Array.isArray(cList)) cList.forEach(cm => cm?.name && carMap.set(String(cm.name).toLowerCase().trim(), cm));
 
     list.forEach(m => {
       if (!m || typeof m !== 'object') return;
-      const key = String(m.name || m.proName || '').toLowerCase().trim();
-      const careerObj = careerMap.get(key) || {};
-
-      if (!m.proStyle && careerObj.proStyle) m.proStyle = careerObj.proStyle;
-      if (!m.proHeight && careerObj.proHeight) m.proHeight = careerObj.proHeight;
-      if (!m.proWeight && careerObj.proWeight) m.proWeight = careerObj.proWeight;
-      if (!m.proOverall && careerObj.proOverall) m.proOverall = careerObj.proOverall;
-      if (!m.proNationality && careerObj.proNationality) m.proNationality = careerObj.proNationality;
-      if (!m.proPos && careerObj.proPos) m.proPos = careerObj.proPos;
-      if (!m.proName && careerObj.proName) m.proName = careerObj.proName;
-
-      const csDef = Number(m.cleanSheetsDef ?? careerObj.cleanSheetsDef ?? 0);
-      const csGk = Number(m.cleanSheetsGK ?? careerObj.cleanSheetsGK ?? 0);
-      m.totalCleanSheets = csDef + csGk;
-      m.shotConvRate = Number(m.shotSuccessRate ?? careerObj.shotSuccessRate ?? 0);
-
-      const clubGames = Number(m.gamesPlayed ?? m.games ?? 0);
-      const careerGames = Math.max(clubGames, Number(careerObj.gamesPlayed ?? careerObj.games ?? clubGames));
-      const otherClubGames = Math.max(0, careerGames - clubGames);
-      const loyaltyPct = careerGames > 0 ? Math.round((clubGames / careerGames) * 100) : 100;
-
-      m.careerTotalGames = careerGames;
-      m.otherClubGames = otherClubGames;
-      m.loyaltyPct = loyaltyPct;
+      const co = carMap.get(String(m.name || m.proName || '').toLowerCase().trim()) || {};
+      ['proStyle','proHeight','proWeight','proOverall','proNationality','proPos','proName'].forEach(k => { if (!m[k] && co[k]) m[k] = co[k]; });
+      m.totalCleanSheets = Number(m.cleanSheetsDef ?? co.cleanSheetsDef ?? 0) + Number(m.cleanSheetsGK ?? co.cleanSheetsGK ?? 0);
+      m.shotConvRate = Number(m.shotSuccessRate ?? co.shotSuccessRate ?? 0);
+      const cG = Number(m.gamesPlayed ?? m.games ?? 0), totG = Math.max(cG, Number(co.gamesPlayed ?? co.games ?? cG));
+      m.careerTotalGames = totG; m.otherClubGames = Math.max(0, totG - cG); m.loyaltyPct = totG > 0 ? Math.round((cG / totG) * 100) : 100;
     });
-
     res.json(list);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // 4. Match History
 app.get('/api/club/:clubId/matches', async (req, res) => {
-  const { clubId } = req.params;
-  const { platform = 'common-gen5' } = req.query;
-  const numericId = parseInt(clubId, 10);
-
-  const allMatches = [];
-  const matchTypes = [
-    { type: 'leagueMatch', label: 'League' },
-    { type: 'playoffMatch', label: 'Playoff' }
-  ];
-
-  for (const m of matchTypes) {
-    try {
-      const response = await fetch(`https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numericId}&platform=${platform}&matchType=${m.type}&maxResultCount=10`, { headers: EA_HEADERS });
-      if (response.ok) {
-        const data = await response.json();
-        const list = Array.isArray(data) ? data : (typeof data === 'object' && data !== null ? Object.values(data) : []);
-
-        list.forEach(item => {
-          if (item && typeof item === 'object') {
-            const key = item.matchId || item.timestamp;
-            if (key && !allMatches.some(x => (x.matchId || x.timestamp) === key)) {
-              item._inferredCategory = m.label;
-              allMatches.push(item);
-            }
-          }
-        });
-      }
-    } catch (_) {}
+  const { clubId } = req.params, { platform = 'common-gen5' } = req.query, numId = parseInt(clubId, 10);
+  const all = [];
+  for (const m of [{ t: 'leagueMatch', l: 'League' }, { t: 'playoffMatch', l: 'Playoff' }]) {
+    const data = await eaFetch(`https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numId}&platform=${platform}&matchType=${m.t}&maxResultCount=10`);
+    const list = Array.isArray(data) ? data : Object.values(data || {});
+    list.forEach(it => {
+      const k = it?.matchId || it?.timestamp;
+      if (k && !all.some(x => (x.matchId || x.timestamp) === k)) { it._inferredCategory = m.l; all.push(it); }
+    });
   }
+  const recent10 = all.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0)).slice(0, 10);
+  const oppIds = new Set();
+  recent10.forEach(m => Object.keys(m.clubs || m.aggregate || {}).forEach(id => String(id) !== String(numId) && Number(id) > 0 && oppIds.add(Number(id))));
 
-  allMatches.sort((a, b) => Number(b.timestamp || 0) - Number(a.timestamp || 0));
-  const recent10 = allMatches.slice(0, 10);
-
-  const opponentIds = new Set();
-  recent10.forEach(m => {
-    const clubsData = m.clubs || m.aggregate || {};
-    Object.keys(clubsData).forEach(id => {
-      if (String(id) !== String(numericId) && Number(id) > 0) opponentIds.add(Number(id));
-    });
-  });
-
-  const opponentMap = new Map();
-  await Promise.allSettled(
-    Array.from(opponentIds).map(async (oppId) => {
-      try {
-        const [sdkInfoRes, stats, rawInfo, seasonResp] = await Promise.allSettled([
-          proclubs.clubs.get({ clubId: oppId, platform }),
-          proclubs.clubs.overallStats({ clubId: oppId, platform }),
-          fetch(`https://proclubs.ea.com/api/fc/clubs/info?clubIds=${oppId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null),
-          fetch(`https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${oppId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null)
-        ]);
-
-        const sdkInfo = sdkInfoRes.status === 'fulfilled' ? sdkInfoRes.value : {};
-        const statObj = unwrapEaObject(stats.status === 'fulfilled' ? stats.value : {}, oppId);
-        const directInfo = rawInfo.status === 'fulfilled' && rawInfo.value ? rawInfo.value : {};
-        const infoObj = Object.keys(unwrapEaObject(directInfo, oppId)).length > 0
-          ? unwrapEaObject(directInfo, oppId)
-          : unwrapEaObject(sdkInfo, oppId);
-        const seasonObj = unwrapEaObject(seasonResp.status === 'fulfilled' ? seasonResp.value : {}, oppId);
-
-        const skillRating = statObj?.skillRating || statObj?.rating || statObj?.sr || null;
-        const { divisionLabel } = resolveClubDivisions(seasonObj, statObj, infoObj);
-        const crestId = resolveCrestId(infoObj, statObj);
-
-        opponentMap.set(String(oppId), { skillRating, division: divisionLabel, crestId });
-      } catch (_) {}
-    })
-  );
+  const oppMap = new Map();
+  await Promise.allSettled(Array.from(oppIds).map(async (oppId) => {
+    const [sRes, rInfo, seaRes] = await Promise.allSettled([
+      proclubs.clubs.overallStats({ clubId: oppId, platform }),
+      eaFetch(`https://proclubs.ea.com/api/fc/clubs/info?clubIds=${oppId}&platform=${platform}`),
+      eaFetch(`https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${oppId}&platform=${platform}`)
+    ]);
+    const st = unwrapEa(valOf(sRes), oppId), inf = unwrapEa(valOf(rInfo), oppId), sea = unwrapEa(valOf(seaRes), oppId);
+    const { divisionLabel } = resolveClubDivisions(sea, st, inf);
+    oppMap.set(String(oppId), { skillRating: st?.skillRating || st?.rating || null, division: divisionLabel, crestId: resolveCrestId(inf, st) });
+  }));
 
   recent10.forEach(m => {
-    const clubsData = m.clubs || m.aggregate || {};
-    Object.keys(clubsData).forEach(id => {
-      const matchClubObj = clubsData[id] || {};
-      matchClubObj.clubId = String(id);
-      if (String(id) !== String(numericId)) {
-        const enriched = opponentMap.get(String(id));
-        if (enriched) {
-          if (enriched.skillRating) matchClubObj.skillRating = enriched.skillRating;
-          if (enriched.division) matchClubObj.division = enriched.division;
-        }
-        matchClubObj.crestId = resolveCrestId(
-          enriched ? { crestAssetId: enriched.crestId } : {},
-          {},
-          matchClubObj
-        );
-      } else {
-        matchClubObj.crestId = resolveCrestId({}, {}, matchClubObj);
-      }
+    const clubs = m.clubs || m.aggregate || {};
+    Object.keys(clubs).forEach(id => {
+      const mc = clubs[id] || {}; mc.clubId = String(id);
+      const enr = oppMap.get(String(id));
+      if (String(id) !== String(numId) && enr) {
+        if (enr.skillRating) mc.skillRating = enr.skillRating;
+        if (enr.division) mc.division = enr.division;
+        mc.crestId = resolveCrestId({ crestAssetId: enr.crestId }, {}, mc);
+      } else mc.crestId = resolveCrestId({}, {}, mc);
     });
   });
-
   res.json(recent10);
 });
 
-// 5. Official EA fltOnlineAssets Crest Proxy
+// 5. Crest Proxy
 app.get('/api/crest/:crestId', async (req, res) => {
   let rawId = String(req.params.crestId || '').replace(/^l/i, '').trim();
-  const clubName = req.query.name || 'FC';
-  const clubIdParam = req.query.clubId;
-  const platform = req.query.platform || 'common-gen5';
-
-  if ((!rawId || rawId === '0' || rawId === 'undefined' || rawId === 'null') && clubIdParam && /^\d+$/.test(String(clubIdParam))) {
-    try {
-      const numId = parseInt(clubIdParam, 10);
-      const [sdkInfoRes, rawInfoRes] = await Promise.allSettled([
-        proclubs.clubs.get({ clubId: numId, platform }),
-        fetch(`https://proclubs.ea.com/api/fc/clubs/info?clubIds=${numId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null)
-      ]);
-      const sdkInfo = sdkInfoRes.status === 'fulfilled' ? sdkInfoRes.value : {};
-      const directInfo = rawInfoRes.status === 'fulfilled' && rawInfoRes.value ? rawInfoRes.value : {};
-      const infoObj = directInfo[numId] || sdkInfo[numId] || directInfo || sdkInfo || {};
-      const resolved = resolveCrestId(infoObj, {});
-      if (resolved) rawId = String(resolved).replace(/^l/i, '').trim();
-    } catch (_) {}
+  const { name = 'FC', clubId, platform = 'common-gen5' } = req.query;
+  if ((!rawId || ['0','undefined','null'].includes(rawId)) && clubId && /^\d+$/.test(String(clubId))) {
+    const inf = unwrapEa(await eaFetch(`https://proclubs.ea.com/api/fc/clubs/info?clubIds=${clubId}&platform=${platform}`), clubId);
+    const r = resolveCrestId(inf, {}); if (r) rawId = String(r).replace(/^l/i, '').trim();
   }
-
-  if (rawId && rawId !== 'undefined' && rawId !== 'null' && rawId !== '0') {
-    const candidateUrls = [
-      `https://eafc26.content.easports.com/fc/fltOnlineAssets/26E4D4D6-8DBB-4A9A-BD99-9C47D3AA341D/2026/fcweb/crests/256x256/l${rawId}.png`,
-      `https://eafc26.content.easports.com/fc/fltOnlineAssets/26E4D4D6-8DBB-4A9A-BD99-9C47D3AA341D/2026/fifaweb/crests/256x256/l${rawId}.png`,
-      `https://eafc25.content.easports.com/fc/fltOnlineAssets/25E4CDAE-799B-45BE-B257-667FDCDE8044/2025/fcweb/crests/256x256/l${rawId}.png`,
-      `https://eafc25.content.easports.com/fc/fltOnlineAssets/25E4CDAE-799B-45BE-B257-667FDCDE8044/2025/fifaweb/crests/256x256/l${rawId}.png`,
-      `https://eafc24.content.easports.com/fc/fltOnlineAssets/24B23FDE-7835-41C2-87A2-F453DFDB2E82/2024/fcweb/crests/256x256/l${rawId}.png`,
-      `https://eafc24.content.easports.com/fc/fltOnlineAssets/24B23FDE-7835-41C2-87A2-F453DFDB2E82/2024/fifaweb/crests/256x256/l${rawId}.png`,
-      `https://fifa21.content.easports.com/fifa/fltOnlineAssets/05772199-716f-417d-9fe0-988fa9899c4d/2021/fifaweb/crests/256x256/l${rawId}.png`,
-      `https://media.contentapi.ea.com/content/dam/ea/easfc/fc-24/ratings/common/full/team-badges/l${rawId}.png`,
-      `https://cdn.sofifa.net/meta/team/${rawId}/120.png`,
-      `https://images.fotmob.com/image_resources/logo/teamlogo/${rawId}.png`
+  if (rawId && !['0','undefined','null'].includes(rawId)) {
+    const bases = [
+      'https://eafc26.content.easports.com/fc/fltOnlineAssets/26E4D4D6-8DBB-4A9A-BD99-9C47D3AA341D/2026/fcweb/crests/256x256/l',
+      'https://eafc25.content.easports.com/fc/fltOnlineAssets/25E4CDAE-799B-45BE-B257-667FDCDE8044/2025/fcweb/crests/256x256/l',
+      'https://eafc24.content.easports.com/fc/fltOnlineAssets/24B23FDE-7835-41C2-87A2-F453DFDB2E82/2024/fcweb/crests/256x256/l',
+      'https://media.contentapi.ea.com/content/dam/ea/easfc/fc-24/ratings/common/full/team-badges/l'
     ];
-
-    for (const url of candidateUrls) {
+    for (const b of bases) {
       try {
-        const resp = await fetch(url, { headers: EA_HEADERS });
-        if (resp.ok) {
-          const contentType = resp.headers.get('content-type') || '';
-          if (contentType.includes('image')) {
-            const buffer = await resp.arrayBuffer();
-            if (buffer.byteLength > 100) {
-              res.setHeader('Content-Type', contentType);
-              res.setHeader('Cache-Control', 'public, max-age=86400');
-              return res.send(Buffer.from(buffer));
-            }
-          }
+        const r = await fetch(`${b}${rawId}.png`, { headers: EA_HEADERS });
+        if (r.ok && (r.headers.get('content-type') || '').includes('image')) {
+          const buf = await r.arrayBuffer();
+          if (buf.byteLength > 100) { res.setHeader('Content-Type', 'image/png'); res.setHeader('Cache-Control', 'public, max-age=86400'); return res.send(Buffer.from(buf)); }
         }
       } catch (_) {}
     }
   }
-
   res.setHeader('Content-Type', 'image/svg+xml');
-  res.setHeader('Cache-Control', 'public, max-age=3600');
-  return res.send(generateFallbackSvg(clubName));
+  res.send(generateFallbackSvg(name));
 });
 
 // 6. Global Squad Appearance Locker
 const SQUAD_APPEARANCES = {};
-
-app.get('/api/appearances', (req, res) => {
-  res.json(SQUAD_APPEARANCES);
-});
-
+app.get('/api/appearances', (req, res) => res.json(SQUAD_APPEARANCES));
 app.post('/api/appearances', (req, res) => {
   const { playerName, skin, hair } = req.body || {};
   if (playerName) {
-    const key = String(playerName).toLowerCase().trim();
-    SQUAD_APPEARANCES[key] = {
-      ...(SQUAD_APPEARANCES[key] || {}),
-      ...(skin ? { skin } : {}),
-      ...(hair ? { hair } : {})
-    };
+    const k = String(playerName).toLowerCase().trim();
+    if (!skin && !hair) delete SQUAD_APPEARANCES[k];
+    else SQUAD_APPEARANCES[k] = { ...(SQUAD_APPEARANCES[k] || {}), ...(skin ? { skin } : {}), ...(hair ? { hair } : {}) };
   }
   res.json({ ok: true, appearances: SQUAD_APPEARANCES });
 });
 
 // 7. Discord Webhook Integration
 app.post('/api/discord/send', async (req, res) => {
-  const {
-    webhookUrl,
-    clubName,
-    clubId,
-    division,
-    skillRating,
-    modeLabel,
-    record,
-    goalDiffText,
-    tiltStatus,
-    mvp,
-    passenger,
-    banter,
-    trackerUrl
-  } = req.body || {};
-
-  const targetWebhook = (webhookUrl || process.env.DISCORD_WEBHOOK_URL || '').trim();
-
-  if (!targetWebhook || !/^https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/i.test(targetWebhook)) {
+  const { webhookUrl, clubName, clubId, division, skillRating, modeLabel, record, goalDiffText, tiltStatus, mvp, passenger, banter, trackerUrl } = req.body || {};
+  const target = (webhookUrl || process.env.DISCORD_WEBHOOK_URL || '').trim();
+  if (!/^https:\/\/(ptb\.|canary\.)?discord(app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/i.test(target)) {
     return res.status(400).json({ error: 'Please provide a valid Discord Webhook URL.' });
   }
-
-  let embedColor = 0x10b981;
-  if (String(tiltStatus).includes('TILT')) embedColor = 0xf43f5e;
-  else if (String(tiltStatus).includes('MIXED')) embedColor = 0xf59e0b;
-
+  const color = String(tiltStatus).includes('TILT') ? 0xf43f5e : (String(tiltStatus).includes('MIXED') ? 0xf59e0b : 0x10b981);
   const fields = [
-    {
-      name: `📊 ${modeLabel || 'Session'} Record`,
-      value: `**${record || '--'}**\n${goalDiffText || ''}`,
-      inline: true
-    },
-    {
-      name: `🏆 Division & SR`,
-      value: `**${division || 'Div 5'}** (${skillRating || '--'} SR)\n${tiltStatus || ''}`,
-      inline: true
-    },
-    {
-      name: '\u200B',
-      value: '\u200B',
-      inline: false
-    },
-    {
-      name: `👑 ${modeLabel || 'Session'} MVP`,
-      value: mvp ? `**${mvp.name}**\n⭐ ${mvp.stats}` : 'N/A',
-      inline: true
-    },
-    {
-      name: `⚓ ${modeLabel || 'Session'} Passenger`,
-      value: passenger ? `**${passenger.name}**\n📉 ${passenger.stats}` : 'N/A',
-      inline: true
-    }
+    { name: `📊 ${modeLabel || 'Session'} Record`, value: `**${record || '--'}**\n${goalDiffText || ''}`, inline: true },
+    { name: `🏆 Division & SR`, value: `**${division || 'Div 5'}** (${skillRating || '--'} SR)\n${tiltStatus || ''}`, inline: true },
+    { name: '\u200B', value: '\u200B', inline: false },
+    { name: `👑 ${modeLabel || 'Session'} MVP`, value: mvp ? `**${mvp.name}**\n⭐ ${mvp.stats}` : 'N/A', inline: true },
+    { name: `⚓ ${modeLabel || 'Session'} Passenger`, value: passenger ? `**${passenger.name}**\n📉 ${passenger.stats}` : 'N/A', inline: true }
   ];
-
-  if (banter && Array.isArray(banter) && banter.length > 0) {
-    fields.push({
-      name: '🎭 Dressing Room Banter & Shame Board',
-      value: banter.map(b => `${b.title}: **${b.winner}** (${b.stat})`).join('\n'),
-      inline: false
-    });
-  }
-
-  const payload = {
-    username: 'FC ClubsTracker Bot',
-    embeds: [
-      {
-        title: `🛡️ ${clubName || 'Pro Clubs'} — ${modeLabel || 'Latest Session'} Recap`,
-        url: trackerUrl || 'https://pro-clubs-tracker-v0-1.onrender.com/',
-        description: `Live match telemetry, player ratings & dressing room awards via **[ClubsTracker](${trackerUrl || 'https://pro-clubs-tracker-v0-1.onrender.com/'})**.`,
-        color: embedColor,
-        fields,
-        footer: {
-          text: `Club ID: #${clubId || '--'} • Unofficial FC Pro Clubs Tracker`
-        },
-        timestamp: new Date().toISOString()
-      }
-    ]
-  };
+  if (Array.isArray(banter) && banter.length) fields.push({ name: '🎭 Dressing Room Banter & Shame Board', value: banter.map(b => `${b.title}: **${b.winner}** (${b.stat})`).join('\n'), inline: false });
 
   try {
-    const resp = await fetch(targetWebhook, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+    const r = await fetch(target, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: 'FC ClubsTracker Bot',
+        embeds: [{
+          title: `🛡️ ${clubName || 'Pro Clubs'} — ${modeLabel || 'Latest Session'} Recap`,
+          url: trackerUrl || 'https://pro-clubs-tracker-v0-1.onrender.com/',
+          description: `Live match telemetry, player ratings & dressing room awards via **[ClubsTracker](${trackerUrl || 'https://pro-clubs-tracker-v0-1.onrender.com/'})**.`,
+          color, fields, footer: { text: `Club ID: #${clubId || '--'} • Unofficial FC Pro Clubs Tracker` }, timestamp: new Date().toISOString()
+        }]
+      })
     });
-
-    if (!resp.ok) {
-      const errText = await resp.text();
-      return res.status(resp.status).json({ error: `Discord rejected webhook (${resp.status}): ${errText}` });
-    }
-
+    if (!r.ok) return res.status(r.status).json({ error: `Discord error (${r.status})` });
     res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message || 'Failed to reach Discord Webhook' });
-  }
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 8. Debug Route: Inspects raw division & seasonalStats payloads from EA
-app.get('/api/debug/divisions/:clubId', async (req, res) => {
-  const { clubId } = req.params;
-  const { platform = 'common-gen5' } = req.query;
-  const numericId = parseInt(clubId, 10);
-  try {
-    const [statsRes, seasonSdkRes, seasonDirectRes] = await Promise.allSettled([
-      proclubs.clubs.overallStats({ clubId: numericId, platform }),
-      proclubs.clubs.seasonalStats ? proclubs.clubs.seasonalStats({ clubId: numericId, platform }) : Promise.resolve(null),
-      fetch(`https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${numericId}&platform=${platform}`, { headers: EA_HEADERS }).then(r => r.json())
-    ]);
-    res.json({
-      overallStatsRaw: statsRes.status === 'fulfilled' ? statsRes.value : null,
-      seasonalStatsSdkRaw: seasonSdkRes.status === 'fulfilled' ? seasonSdkRes.value : null,
-      seasonalStatsDirectRaw: seasonDirectRes.status === 'fulfilled' ? seasonDirectRes.value : null
-    });
-  } catch (e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
+app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Pro Clubs backend running on port ${PORT}`));
