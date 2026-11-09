@@ -84,6 +84,7 @@
             <div id="clubIdentityBar" class="hidden flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2.5 pt-2 border-t border-gray-800/70 w-full">
               <div class="flex items-center gap-1.5 bg-gray-900/80 border border-gray-800 px-2 py-1 rounded text-[11px]"><img id="clubRegionFlag" src="" class="w-4 h-3 object-cover rounded-[2px]" alt="Region"><span id="clubRegionName" class="font-bold text-gray-200">--</span></div>
               <div class="flex items-center gap-1.5 bg-gray-900/80 border border-gray-800 px-2 py-1 rounded text-[11px]"><i class="fa-solid fa-landmark-dome text-emerald-400 text-[10px]"></i><span id="clubStadiumName" class="font-bold text-gray-200 truncate max-w-[140px] sm:max-w-none">--</span></div>
+              <div class="flex items-center gap-1.5 bg-purple-500/15 border border-purple-500/30 px-2 py-1 rounded text-[11px]" title="Club Reputation Level & Fanbase"><i class="fa-solid fa-star text-purple-400 text-[10px]"></i><span id="clubLevelBadgeText" class="font-black text-purple-300">Lvl --</span></div>
               <div id="clubKitsContainer" class="flex items-center gap-1.5 bg-gray-900/80 border border-gray-800 px-2 py-1 rounded text-[11px]"></div>
               <button id="btnCopyClubLink" onclick="copyShareableClubLink()" class="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 px-2.5 py-1 rounded text-[11px] font-bold transition cursor-pointer"><i class="fa-solid fa-link text-[10px]"></i><span id="copyLinkText">Copy Club Link</span></button>
             </div>
@@ -97,7 +98,7 @@
         </div>
       </div>
 
-      <div id="trophyBar" class="hidden grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3 pt-4 border-t border-gray-800/80">
+      <div id="trophyBar" class="hidden grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3 pt-4 border-t border-gray-800/80">
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center gap-2.5"><i class="fa-solid fa-trophy text-yellow-400 text-lg sm:text-xl"></i><div><div class="text-[10px] uppercase text-gray-400 font-semibold">Titles Won</div><div id="trophyTitles" class="text-sm font-black text-white">0</div></div></div>
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center gap-2.5"><i class="fa-solid fa-medal text-amber-400 text-lg sm:text-xl"></i><div><div class="text-[10px] uppercase text-gray-400 font-semibold">League Titles</div><div id="trophyLeagues" class="text-sm font-black text-white">0</div></div></div>
         <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center justify-around">
@@ -105,7 +106,8 @@
           <div class="h-6 w-[1px] bg-gray-800"></div>
           <div class="flex items-center gap-1.5"><i class="fa-solid fa-angles-down text-rose-400 text-base"></i><div><div class="text-[9px] uppercase text-gray-400 font-semibold">Relegs</div><div id="trophyRelegs" class="text-sm font-black text-rose-400">0</div></div></div>
         </div>
-        <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center justify-between"><div><div class="text-[10px] uppercase text-gray-400 font-semibold">Peak Div</div><div id="trophyPeakDivText" class="text-xs font-extrabold text-gray-300 mt-0.5">--</div></div><div id="trophyPeakDivShield"></div></div>
+        <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center gap-2.5"><i class="fa-solid fa-users-rays text-purple-400 text-lg sm:text-xl"></i><div class="min-w-0"><div class="text-[10px] uppercase text-gray-400 font-semibold">Fans & Club Rep</div><div id="trophyFansText" class="text-sm font-black text-white truncate">--</div><div id="trophyRepSubtext" class="text-[9px] font-bold text-purple-400 truncate">Lvl --</div></div></div>
+        <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center justify-between col-span-2 sm:col-span-1"><div><div class="text-[10px] uppercase text-gray-400 font-semibold">Peak Div</div><div id="trophyPeakDivText" class="text-xs font-extrabold text-gray-300 mt-0.5">--</div></div><div id="trophyPeakDivShield"></div></div>
       </div>
     </section>
 
@@ -179,7 +181,7 @@
     <div id="tabPane_players" class="hidden space-y-5">
       <section id="shameBoardSection" class="hidden card p-4 sm:p-6 space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-gray-800 pb-3">
-          <div><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-masks-theater text-rose-400"></i> Dressing Room Banter & Shame Board</h3><p id="shameBoardSubtext" class="text-xs text-gray-400 mt-0.5">Super-Subs, Clean Sheets, Skill Moves, Missed Passes, Barn Door & Bookings</p></div>
+          <div><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-masks-theater text-rose-400"></i> Dressing Room Banter & Shame Board</h3><p id="shameBoardSubtext" class="text-xs text-gray-400 mt-0.5">Meat Wall Blocks, Super-Subs, Clean Sheets, Skill Moves, Missed Passes, Barn Door & Bookings</p></div>
           <div class="flex items-center bg-gray-900 p-1 rounded-lg border border-gray-800">
             <button id="btnBanterLast10" onclick="switchBanterMode('last10')" class="px-3 py-1 rounded text-xs font-black bg-rose-500 text-white transition shadow"><i class="fa-solid fa-fire-flame-curved mr-1"></i>Last 10 Matches</button>
             <button id="btnBanterAllTime" onclick="switchBanterMode('allTime')" class="px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition"><i class="fa-solid fa-infinity mr-1"></i>All-Time Career</button>
