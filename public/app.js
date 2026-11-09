@@ -26,6 +26,26 @@ const FORMATION_TEMPLATES = {
   '5-3-2': { name: '5-3-2', atk: ['LS','RS'], cam: ['CAM'], mid: ['LCM','RCM'], def: ['LWB','LCB','CB','RCB','RWB'], gk: ['GK'] }
 };
 
+// Clean EA Ultimate Team Style Pro Silhouette Data URI (Default for uncustomized players)
+const PRO_SILHOUETTE_DATA_URI = `data:image/svg+xml;utf8,` + encodeURIComponent(`
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="silBody" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#64748b"/>
+      <stop offset="55%" stop-color="#334155"/>
+      <stop offset="100%" stop-color="#0f172a"/>
+    </linearGradient>
+    <linearGradient id="silRim" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+  </defs>
+  <path d="M 22 200 C 24 146 56 126 100 126 C 144 126 176 146 178 200 Z" fill="url(#silBody)" stroke="url(#silRim)" stroke-width="3"/>
+  <path d="M 74 129 L 100 156 L 126 129" fill="none" stroke="#10b981" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.65"/>
+  <rect x="87" y="102" width="26" height="28" rx="8" fill="url(#silBody)"/>
+  <path d="M 66 64 C 66 38 80 24 100 24 C 120 24 134 38 134 64 C 134 88 120 110 100 110 C 80 110 66 88 66 64 Z" fill="url(#silBody)" stroke="url(#silRim)" stroke-width="3"/>
+</svg>`);
+
 // 3-Tab Dashboard Switcher
 function switchDashboardTab(tabKey) {
   ACTIVE_TAB = tabKey;
@@ -81,12 +101,11 @@ async function sendRecapToDiscord() {
     return;
   }
 
-  // Save Webhook URL for this club & default
   if (GLOBAL_CLUB_ID) localStorage.setItem(`discordWebhook_${GLOBAL_CLUB_ID}`, webhookUrl);
   localStorage.setItem('discordWebhook_default', webhookUrl);
 
   const clubName = document.getElementById('clubName')?.innerText || 'Pro Clubs';
-  const division = GLOBAL_COMBINED_DATA?.division || 'Div 2';
+  const division = GLOBAL_COMBINED_DATA?.division || 'Div 5';
   const skillRating = document.getElementById('skillRating')?.innerText || '--';
   const modeLabel = CURRENT_RECAP_MODE === 'session' ? 'Latest Session' : 'Last 10 Matches';
   const record = document.getElementById('sessionRecordText')?.innerText || '--';
@@ -102,7 +121,6 @@ async function sendRecapToDiscord() {
     stats: document.getElementById('sessionLiabilityStats')?.innerText || '--'
   };
 
-  // Build Banter Summary from SHAME_LIST_CACHE
   const banter = [];
   if (SHAME_LIST_CACHE && SHAME_LIST_CACHE.length > 0) {
     const bySub = [...SHAME_LIST_CACHE].sort((a, b) => (b.superSubGA * 10 + b.subGames) - (a.superSubGA * 10 + a.subGames))[0];
@@ -204,8 +222,8 @@ function toggleThemeMode() {
 }
 
 function renderDivisionShieldHtml(divLabelOrNum, size = 'md') {
-  const str = String(divLabelOrNum ?? 'Div 2').trim().toLowerCase();
-  const num = (str.includes('elite') || str === '0') ? 0 : Math.max(1, Math.min(5, parseInt(str.replace(/[^0-9]/g, ''), 10) || 2));
+  const str = String(divLabelOrNum ?? 'Div 5').trim().toLowerCase();
+  const num = (str.includes('elite') || str === '0') ? 0 : Math.max(1, Math.min(5, parseInt(str.replace(/[^0-9]/g, ''), 10) || 5));
   const uid = `eaDiv_${num}_${Math.random().toString(36).substring(2, 7)}`;
   const dims = size === 'lg' ? 'w-11 h-13 sm:w-12 sm:h-14' : (size === 'sm' ? 'w-6 h-7 sm:w-7 sm:h-8' : 'w-9 h-10');
   const palettes = {
@@ -216,7 +234,7 @@ function renderDivisionShieldHtml(divLabelOrNum, size = 'md') {
     1: { bgTop: '#991b1b', bgBot: '#450a0a', facet: '#dc2626', gem: '#ef4444', wreath: true },
     0: { bgTop: '#5b21b6', bgBot: '#2e1065', facet: '#7c3aed', gem: '#a855f7', wreath: true }
   };
-  const pal = palettes[num] || palettes[2];
+  const pal = palettes[num] || palettes[5];
   const innerWreath = pal.wreath ? `<path d="M 34 78 C 22 68 20 46 28 32" fill="none" stroke="url(#${uid}_gold)" stroke-width="2.5" stroke-dasharray="4 2" stroke-linecap="round" opacity="${num<=1?'0.95':'0.45'}"/><path d="M 66 78 C 78 68 80 46 72 32" fill="none" stroke="url(#${uid}_gold)" stroke-width="2.5" stroke-dasharray="4 2" stroke-linecap="round" opacity="${num<=1?'0.95':'0.45'}"/>` : '';
   const eliteWings = num === 0 ? `<path d="M 16 74 C 2 62 2 38 12 22 C 6 40 10 58 20 70 Z" fill="url(#${uid}_gold)"/><path d="M 18 82 C 4 72 0 52 8 34 C 6 50 12 66 24 78 Z" fill="url(#${uid}_gold)"/><path d="M 84 74 C 98 62 98 38 88 22 C 94 40 90 58 80 70 Z" fill="url(#${uid}_gold)"/><path d="M 82 82 C 96 72 100 52 92 34 C 94 50 88 66 76 78 Z" fill="url(#${uid}_gold)"/>` : '';
   const centerSym = num === 0
@@ -337,25 +355,47 @@ function getAppearanceMap() { try { return JSON.parse(localStorage.getItem('proC
 function getPlayerAppearance(playerObj) {
   const rawName = typeof playerObj === 'string' ? playerObj : (playerObj?.name || playerObj?.proName || '');
   const key = String(rawName).toLowerCase().trim();
-  const saved = getAppearanceMap()[key] || {};
-  let hash = 0;
-  for (let i = 0; i < key.length; i++) hash = key.charCodeAt(i) + ((hash << 5) - hash);
-  return { skin: saved.skin || SKIN_HEX[Math.abs(hash) % SKIN_HEX.length], hair: saved.hair || HAIR_HEX[Math.abs(hash >> 3) % HAIR_HEX.length] };
+  const saved = getAppearanceMap()[key];
+
+  // Default to clean Pro Silhouette unless a custom look was explicitly saved
+  if (!saved || (!saved.skin && !saved.hair)) {
+    return { isCustom: false, skin: null, hair: null };
+  }
+  return {
+    isCustom: true,
+    skin: saved.skin || 'f2d3b1',
+    hair: saved.hair || '0e0e0e'
+  };
 }
 
 function updateProLook(type, hexValue) {
   if (!ACTIVE_MODAL_PLAYER) return;
   const key = String(ACTIVE_MODAL_PLAYER).toLowerCase().trim();
   const map = getAppearanceMap();
-  const updated = { ...getPlayerAppearance(ACTIVE_MODAL_PLAYER), [type]: hexValue };
-  map[key] = updated;
-  localStorage.setItem('proClubsAppearanceV3', JSON.stringify(map));
 
-  fetch(`${API_BASE}/appearances`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ playerName: ACTIVE_MODAL_PLAYER, skin: updated.skin, hair: updated.hair })
-  }).catch(() => {});
+  if (type === 'reset') {
+    delete map[key];
+    localStorage.setItem('proClubsAppearanceV3', JSON.stringify(map));
+    fetch(`${API_BASE}/appearances`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerName: ACTIVE_MODAL_PLAYER, skin: null, hair: null })
+    }).catch(() => {});
+  } else {
+    const current = getPlayerAppearance(ACTIVE_MODAL_PLAYER);
+    const updated = {
+      skin: type === 'skin' ? hexValue : (current.skin || 'f2d3b1'),
+      hair: type === 'hair' ? hexValue : (current.hair || '0e0e0e')
+    };
+    map[key] = updated;
+    localStorage.setItem('proClubsAppearanceV3', JSON.stringify(map));
+
+    fetch(`${API_BASE}/appearances`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerName: ACTIVE_MODAL_PLAYER, skin: updated.skin, hair: updated.hair })
+    }).catch(() => {});
+  }
 
   renderMembers(GLOBAL_MEMBERS);
   buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
@@ -366,6 +406,7 @@ function getFlagUrl(nationId) { return `https://flagcdn.com/w40/${EA_NATION_TO_I
 
 function getPlayerAvatarUrl(playerName) {
   const look = getPlayerAppearance(playerName);
+  if (!look.isCustom) return PRO_SILHOUETTE_DATA_URI;
   return `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(String(playerName || 'Pro').trim())}&skinColor=${look.skin}&hairColor=${look.hair}`;
 }
 
@@ -567,7 +608,7 @@ function renderClubReviewReport(clubData = {}, members = [], matches = [], shame
 
   const topScorer = [...members].sort((a, b) => Number(b.goals || 0) - Number(a.goals || 0))[0];
   const pillars = [
-    { title: '📊 Current Status', icon: 'fa-signal text-sky-400', border: 'border-sky-500/30', items: [`Competing in <b>${clubData.division||'Div 2'}</b> (${st.skillRating||1500} SR • ${clubData.globalRank?.label||'Top 10%'}).`, `All-time win rate: <b>${winPct}%</b> (${w}W-${d}D-${l}L), averaging <b>${gpg} GF/g</b>.`, `Last 10 momentum: <b>${rW}W-${10-rW-rL}D-${rL}L</b> (${rGF} GF / ${rGA} GA).`] },
+    { title: '📊 Current Status', icon: 'fa-signal text-sky-400', border: 'border-sky-500/30', items: [`Competing in <b>${clubData.division||'Div 5'}</b> (${st.skillRating||1500} SR • ${clubData.globalRank?.label||'Top 10%'}).`, `All-time win rate: <b>${winPct}%</b> (${w}W-${d}D-${l}L), averaging <b>${gpg} GF/g</b>.`, `Last 10 momentum: <b>${rW}W-${10-rW-rL}D-${rL}L</b> (${rGF} GF / ${rGA} GA).`] },
     { title: '💪 Key Strengths', icon: 'fa-dumbbell text-emerald-400', border: 'border-emerald-500/30', items: [Number(gpg)>=2.0?`<b>Attacking Threat:</b> Averaging ${gpg} goals/game.`:`<b>Balanced Scoring:</b> Shared goal contributions.`, `<b>Ball Retention:</b> ${avgPass}% squad pass accuracy.`, topScorer?`<b>Focal Point:</b> ${topScorer.name||topScorer.proName} leads with ${topScorer.goals} goals.`:''] },
     { title: '⚠️ Weaknesses', icon: 'fa-triangle-exclamation text-rose-400', border: 'border-rose-500/30', items: [Number(gapg)>=2.0?`<b>Defensive Leakage:</b> Conceding ${gapg} goals/game.`:`<b>Tight Margins:</b> Narrow 1-goal defeats.`, `<b>Turnovers:</b> ${missedP} missed passes in the last 10 games.`, `<b>Finishing:</b> ${missedS} unconverted shots in recent fixtures.`] },
     { title: '🎯 Areas to Address', icon: 'fa-bullseye text-amber-400', border: 'border-amber-500/30', items: [`<b>Anchor the Midfield:</b> Keep one CDM behind the ball during wide attacks.`, `<b>Cut Out Hospital Passes:</b> Play short triangles before forcing through-balls.`, `<b>Extra Pass in Box:</b> Look for high-percentage cutbacks.`] }
@@ -688,7 +729,6 @@ function computeMatchIntelligence(clubId, matchesPayload) {
   return shameArr;
 }
 
-// Toggles Dressing Room Banter between 'last10' and 'allTime' Career Stats
 function switchBanterMode(mode) {
   CURRENT_BANTER_MODE = mode;
   document.getElementById('btnBanterLast10').className = mode === 'last10'
@@ -876,7 +916,7 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
     document.getElementById('trophyLeagues').innerText = data.trophies.leaguesWon ?? 0;
     document.getElementById('trophyPromos').innerText = data.trophies.promotions ?? 0;
     document.getElementById('trophyRelegs').innerText = data.trophies.relegations ?? 0;
-    const pk = data.trophies.bestDivision || data.division || 'Div 2';
+    const pk = data.trophies.bestDivision || data.division || 'Div 5';
     document.getElementById('trophyPeakDivText').innerText = pk;
     document.getElementById('trophyPeakDivShield').innerHTML = renderDivisionShieldHtml(data.trophies.bestDivisionNum ?? pk, 'md');
   }
@@ -1002,7 +1042,7 @@ function renderRecentMatches(clubId, matches) {
     const thisId = cIds.find(id => String(id) === String(clubId)) || cIds[0], oppId = cIds.find(id => String(id) !== String(clubId)) || cIds[1];
     const myClub = clubs[thisId] || {}, oppClub = clubs[oppId] || {};
     const myG = Number(myClub.goals ?? myClub.score ?? 0), oppG = Number(oppClub.goals ?? oppClub.score ?? 0), oppName = oppClub.details?.name || oppClub.name || 'Opponent FC';
-    const oppDivShield = renderDivisionShieldHtml(oppClub.division || 'Div 2', 'sm');
+    const oppDivShield = renderDivisionShieldHtml(oppClub.division || 'Div 5', 'sm');
     const oppSR = oppClub.skillRating || oppClub.details?.skillRating || null;
     const oppSRCell = oppSR ? `<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">${oppSR}</span>` : '--';
     const oppCrestHtml = renderCrestHtml(oppName, oppClub.crestId || oppClub.TEAM || oppClub.details?.crestAssetId, 'w-6 h-6 sm:w-7 sm:h-7', oppId);
@@ -1197,7 +1237,12 @@ async function syncServerAppearances() {
     if (res.ok) {
       const serverMap = await res.json();
       const localMap = getAppearanceMap();
-      localStorage.setItem('proClubsAppearanceV3', JSON.stringify({ ...localMap, ...serverMap }));
+      const merged = { ...localMap };
+      Object.entries(serverMap || {}).forEach(([k, v]) => {
+        if (!v || (!v.skin && !v.hair)) delete merged[k];
+        else merged[k] = v;
+      });
+      localStorage.setItem('proClubsAppearanceV3', JSON.stringify(merged));
     }
   } catch (_) {}
 }
@@ -1205,7 +1250,10 @@ async function syncServerAppearances() {
 window.onload = async () => {
   applyStoredTheme();
   await syncServerAppearances();
-  document.getElementById('skinSwatches').innerHTML = SKIN_HEX.map(h => `<button onclick="updateProLook('skin','${h}')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#${h}"></button>`).join('');
-  document.getElementById('hairSwatches').innerHTML = HAIR_HEX.map(h => `<button onclick="updateProLook('hair','${h}')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#${h}"></button>`).join('');
+  document.getElementById('skinSwatches').innerHTML =
+    SKIN_HEX.map(h => `<button onclick="updateProLook('skin','${h}')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#${h}" title="Set Skin Tone"></button>`).join('') +
+    `<button onclick="updateProLook('reset', null)" class="ml-1 px-1.5 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-[9px] font-bold text-gray-300 border border-gray-600 transition" title="Reset to Default Silhouette">🔄 Silhouette</button>`;
+  document.getElementById('hairSwatches').innerHTML =
+    HAIR_HEX.map(h => `<button onclick="updateProLook('hair','${h}')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#${h}" title="Set Hair Colour"></button>`).join('');
   buildDynamicPitchTactic([], []);
 };
