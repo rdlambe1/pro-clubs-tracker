@@ -48,6 +48,116 @@ function switchDashboardTab(tabKey) {
   });
 }
 
+// Discord Webhook Modal & Dispatch Logic
+function openDiscordModal() {
+  const modal = document.getElementById('discordModal');
+  const input = document.getElementById('discordWebhookInput');
+  const status = document.getElementById('discordModalStatus');
+  if (status) status.classList.add('hidden');
+
+  const savedHook = localStorage.getItem(`discordWebhook_${GLOBAL_CLUB_ID || 'default'}`) || localStorage.getItem('discordWebhook_default') || '';
+  if (input) input.value = savedHook;
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+}
+
+function closeDiscordModal() {
+  const modal = document.getElementById('discordModal');
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+
+async function sendRecapToDiscord() {
+  const input = document.getElementById('discordWebhookInput');
+  const status = document.getElementById('discordModalStatus');
+  const btn = document.getElementById('btnSendDiscord');
+  const webhookUrl = (input?.value || '').trim();
+
+  if (!webhookUrl) {
+    status.className = 'text-xs px-3 py-2 rounded font-semibold bg-rose-950/80 border border-rose-800 text-rose-200';
+    status.innerText = '⚠️ Please paste your Discord Channel Webhook URL first.';
+    status.classList.remove('hidden');
+    return;
+  }
+
+  // Save Webhook URL for this club & default
+  if (GLOBAL_CLUB_ID) localStorage.setItem(`discordWebhook_${GLOBAL_CLUB_ID}`, webhookUrl);
+  localStorage.setItem('discordWebhook_default', webhookUrl);
+
+  const clubName = document.getElementById('clubName')?.innerText || 'Pro Clubs';
+  const division = GLOBAL_COMBINED_DATA?.division || 'Div 2';
+  const skillRating = document.getElementById('skillRating')?.innerText || '--';
+  const modeLabel = CURRENT_RECAP_MODE === 'session' ? 'Latest Session' : 'Last 10 Matches';
+  const record = document.getElementById('sessionRecordText')?.innerText || '--';
+  const goalDiffText = document.getElementById('sessionGoalDiffText')?.innerText || '';
+  const tiltStatus = document.getElementById('sessionTiltBadge')?.innerText || '';
+
+  const mvp = {
+    name: document.getElementById('sessionMvpName')?.innerText || '--',
+    stats: document.getElementById('sessionMvpStats')?.innerText || '--'
+  };
+  const passenger = {
+    name: document.getElementById('sessionLiabilityName')?.innerText || '--',
+    stats: document.getElementById('sessionLiabilityStats')?.innerText || '--'
+  };
+
+  // Build Banter Summary from SHAME_LIST_CACHE
+  const banter = [];
+  if (SHAME_LIST_CACHE && SHAME_LIST_CACHE.length > 0) {
+    const bySub = [...SHAME_LIST_CACHE].sort((a, b) => (b.superSubGA * 10 + b.subGames) - (a.superSubGA * 10 + a.subGames))[0];
+    const bySkill = [...SHAME_LIST_CACHE].sort((a, b) => b.skillMoves - a.skillMoves)[0];
+    const byPass = [...SHAME_LIST_CACHE].sort((a, b) => b.missedPasses - a.missedPasses)[0];
+    const byBarn = [...SHAME_LIST_CACHE].sort((a, b) => (b.shots - b.goals) - (a.shots - a.goals))[0];
+
+    if (bySub && bySub.superSubGA > 0) banter.push({ title: '🦸‍♂️ Super-Sub', winner: bySub.name, stat: `${bySub.superSubGA} Bench G+A` });
+    if (bySkill) banter.push({ title: '🌀 Fidget Spinner', winner: bySkill.name, stat: `${bySkill.skillMoves} Skill Moves` });
+    if (byPass) banter.push({ title: '🏥 Hospital Pass', winner: byPass.name, stat: `${byPass.missedPasses} Missed Passes` });
+    if (byBarn) banter.push({ title: '🚪 Barn Door', winner: byBarn.name, stat: `${byBarn.shots} Shots (${byBarn.goals}G)` });
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Sending...`;
+  status.classList.add('hidden');
+
+  try {
+    const res = await fetch(`${API_BASE}/discord/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        webhookUrl,
+        clubName,
+        clubId: GLOBAL_CLUB_ID,
+        division,
+        skillRating,
+        modeLabel,
+        record,
+        goalDiffText,
+        tiltStatus,
+        mvp,
+        passenger,
+        banter,
+        trackerUrl: window.location.origin
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Failed to post to Discord');
+
+    status.className = 'text-xs px-3 py-2 rounded font-semibold bg-emerald-950/80 border border-emerald-700 text-emerald-300';
+    status.innerText = '✅ Recap & MVP posted to your Discord server!';
+    status.classList.remove('hidden');
+    setTimeout(() => closeDiscordModal(), 1400);
+  } catch (err) {
+    status.className = 'text-xs px-3 py-2 rounded font-semibold bg-rose-950/80 border border-rose-800 text-rose-200';
+    status.innerText = `❌ ${err.message}`;
+    status.classList.remove('hidden');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Send Recap Now`;
+  }
+}
+
 const BALL_SVG = (cx, cy, r) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="currentColor" stroke-width="2.8"/><polygon points="${cx},${cy-r*0.45} ${cx+r*0.42},${cy-r*0.12} ${cx+r*0.26},${cy+r*0.38} ${cx-r*0.26},${cy+r*0.38} ${cx-r*0.42},${cy-r*0.12}" fill="currentColor"/>`;
 
 const OFFICIAL_EA_PLAYSTYLE_VECTORS = {
@@ -1018,8 +1128,6 @@ function buildDynamicPitchTactic(members = [], matches = []) {
   if (savedOverride !== 'auto' && FORMATION_TEMPLATES[savedOverride]) {
     tpl = FORMATION_TEMPLATES[savedOverride];
   } else {
-    // Universal Formation Inference from Match & Squad Roles:
-    // Checks active players in the match alongside club forward/midfield distribution
     const lastMatchPros = scored.filter(m => m._lmScore > 0);
     const activeSet = lastMatchPros.length > 0 ? lastMatchPros : scored;
     const matchFwds = activeSet.filter(m => m._activeNormPos === 'FWD' || ['ST','LS','RS','CF'].includes(m._exactRole));
