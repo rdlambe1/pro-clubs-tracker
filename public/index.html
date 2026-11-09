@@ -21,6 +21,12 @@
     body.light-mode .pitch-bg .text-white, body.light-mode .pitch-bg .text-gray-200, body.light-mode #futModal .text-white { color: #ffffff !important; }
     body.light-mode #futModal .bg-gray-900\/95 { background-color: #0f172a !important; color: #ffffff !important; }
 
+    /* Thick, Broadcast-Grade Circular Avatar Surround */
+    img.rounded-full {
+      border-width: 2.5px !important;
+      box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9), 0 4px 10px rgba(0, 0, 0, 0.65);
+    }
+
     .pitch-bg { background: #143823; background-image: repeating-linear-gradient(0deg, #164027, #164027 45px, #133621 45px, #133621 90px); border: 2px solid rgba(255,255,255,0.35); border-radius: 12px; position: relative; overflow: hidden; }
     .pitch-center-circle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 96px; height: 96px; border: 2px solid rgba(255,255,255,0.25); border-radius: 50%; pointer-events: none; }
     .pitch-center-line { position: absolute; top: 50%; left: 0; right: 0; border-top: 2px solid rgba(255,255,255,0.25); pointer-events: none; }
@@ -204,7 +210,7 @@
     <!-- TAB 1 PANE: TEAM -->
     <div id="tabPane_team" class="space-y-5">
 
-      <!-- Session / Last 10 Report (With Post to Discord Webhook Button) -->
+      <!-- Session / Last 10 Report -->
       <section id="sessionRecapSection" class="hidden card p-4 sm:p-5 border-l-4 border-l-amber-400 space-y-4">
         <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-gray-800 pb-3">
           <div class="flex flex-wrap items-center gap-2.5">
@@ -231,11 +237,11 @@
           </div>
           <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center justify-between">
             <div class="min-w-0 pr-2"><div id="recapMvpTitle" class="text-[10px] uppercase font-bold text-emerald-400">👑 Session MVP</div><div id="sessionMvpName" class="text-sm font-black text-white mt-0.5 truncate">--</div><div id="sessionMvpStats" class="text-[11px] text-gray-400">--</div></div>
-            <img id="sessionMvpAvatar" src="" class="w-10 h-10 rounded-full border border-emerald-400 bg-gray-900 flex-shrink-0" alt="MVP">
+            <img id="sessionMvpAvatar" src="" class="w-11 h-11 rounded-full border-2 border-emerald-400 bg-gray-900 flex-shrink-0 object-cover" alt="MVP">
           </div>
           <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center justify-between">
             <div class="min-w-0 pr-2"><div id="recapLiabilityTitle" class="text-[10px] uppercase font-bold text-rose-400">⚓ Session Passenger</div><div id="sessionLiabilityName" class="text-sm font-black text-white mt-0.5 truncate">--</div><div id="sessionLiabilityStats" class="text-[11px] text-gray-400">--</div></div>
-            <img id="sessionLiabilityAvatar" src="" class="w-10 h-10 rounded-full border border-rose-400 bg-gray-900 flex-shrink-0" alt="Passenger">
+            <img id="sessionLiabilityAvatar" src="" class="w-11 h-11 rounded-full border-2 border-rose-400 bg-gray-900 flex-shrink-0 object-cover" alt="Passenger">
           </div>
           <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3">
             <div class="text-[10px] uppercase font-bold text-sky-400 flex items-center gap-1"><i class="fa-solid fa-users-viewfinder"></i> Own Party Size Win %</div>
