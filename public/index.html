@@ -56,10 +56,10 @@
     <!-- Header & Search Controls -->
     <header class="flex flex-col md:flex-row items-center justify-between gap-3 border-b border-gray-800 pb-5">
       <div class="flex items-center justify-between w-full md:w-auto">
-        <div class="flex items-center gap-2.5">
+        <a href="/" class="flex items-center gap-2.5 hover:opacity-90 transition">
           <i class="fa-solid fa-shield-halved text-emerald-400 text-2xl sm:text-3xl"></i>
           <h1 class="text-xl sm:text-2xl font-black text-white tracking-wide">CLUBS<span class="text-emerald-400">TRACKER</span></h1>
-        </div>
+        </a>
         <button onclick="toggleThemeMode()" class="md:hidden bg-gray-800 border border-gray-700 text-yellow-400 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5">
           <i class="fa-solid fa-sun theme-icon"></i><span class="theme-text text-gray-200">Light</span>
         </button>
@@ -113,6 +113,10 @@
                 <span id="clubStadiumName" class="font-bold text-gray-200 truncate max-w-[140px] sm:max-w-none">--</span>
               </div>
               <div id="clubKitsContainer" class="flex items-center gap-1.5 bg-gray-900/80 border border-gray-800 px-2 py-1 rounded text-[11px]"></div>
+              <button id="btnCopyClubLink" onclick="copyShareableClubLink()" class="flex items-center gap-1.5 bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-400 px-2.5 py-1 rounded text-[11px] font-bold transition cursor-pointer" title="Copy direct link to this club page">
+                <i class="fa-solid fa-link text-[10px]"></i>
+                <span id="copyLinkText">Copy Club Link</span>
+              </button>
             </div>
 
             <div class="flex items-center gap-2 mt-3">
