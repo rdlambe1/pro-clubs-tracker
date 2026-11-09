@@ -99,7 +99,7 @@ function computeGlobalPercentile(sr, w, l, d, currDiv) {
   return { percentile: pct, label: `Top ${pct}% Worldwide` };
 }
 
-// Automated EA Sports FC Reputation Level (1-10), Tier Title ("Up and Coming", etc.) & Fan Count Engine
+// Automated EA Sports FC Reputation Level (1-10), Tier Title ("Up and Coming", etc.) & Fan Range Engine
 function computeClubRepAndFans(stat = {}, season = {}, info = {}, lbEntry = {}, currDiv = 5, peakDiv = 2) {
   const w = Number(stat.wins ?? stat.overallWins ?? lbEntry.wins ?? 0);
   const d = Number(stat.ties ?? stat.overallTies ?? lbEntry.ties ?? 0);
@@ -148,7 +148,21 @@ function computeClubRepAndFans(stat = {}, season = {}, info = {}, lbEntry = {}, 
     10: 'World Class'
   };
 
-  const formattedFans = fans >= 1000000 ? `${(fans / 1000000).toFixed(2)}M` : fans >= 1000 ? `${(fans / 1000).toFixed(1)}K` : String(fans);
+  // Format as an exact figure if EA provided rawFans, otherwise display a clean bracket range (e.g. "6M–7M")
+  let formattedFans;
+  if (rawFans > 10000) {
+    formattedFans = rawFans >= 1000000 ? `${(rawFans / 1000000).toFixed(2)}M` : `${(rawFans / 1000).toFixed(0)}K`;
+  } else if (fans >= 1000000) {
+    const lowM = Math.floor(fans / 1000000);
+    formattedFans = `${lowM}M–${lowM + 1}M`;
+  } else if (fans >= 100000) {
+    const lowK = Math.floor(fans / 100000) * 100;
+    formattedFans = `${lowK}K–${lowK + 100}K`;
+  } else {
+    const lowK = Math.max(10, Math.floor(fans / 25000) * 25);
+    formattedFans = `${lowK}K–${lowK + 25}K`;
+  }
+
   return { fans, formattedFans, level, tierTitle: tierTitles[level] || 'Up and Coming' };
 }
 
