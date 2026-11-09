@@ -99,7 +99,7 @@ function computeGlobalPercentile(sr, w, l, d, currDiv) {
   return { percentile: pct, label: `Top ${pct}% Worldwide` };
 }
 
-// Calibrated to EA Sports FC's 50-Million Fan Economy & Reputation Level 1-10 Scale
+// Automated EA Sports FC Reputation Level (1-10), Tier Title ("Up and Coming", etc.) & Fan Count Engine
 function computeClubRepAndFans(stat = {}, season = {}, info = {}, lbEntry = {}, currDiv = 5, peakDiv = 2) {
   const w = Number(stat.wins ?? stat.overallWins ?? lbEntry.wins ?? 0);
   const d = Number(stat.ties ?? stat.overallTies ?? lbEntry.ties ?? 0);
@@ -110,46 +110,46 @@ function computeClubRepAndFans(stat = {}, season = {}, info = {}, lbEntry = {}, 
   const titles = Math.max(Number(season.titlesWon || 0), Number(stat.titlesWon || 0), Number(lbEntry.titlesWon || 0));
   const totalGames = w + d + l;
 
-  // Check if EA returned an explicit fan count
   const rawFans = Number(stat.fans ?? stat.fanCount ?? season.fans ?? info.fans ?? lbEntry.fans ?? 0);
 
-  // In EA FC Clubs, Level 10 = 50M Fans; Club Milestones (Bronze/Silver/Gold), League Matches, Wins, Goals & Promotions award massive fan chunks
-  const milestoneDivBonus = Math.max(0, (5 - peakDiv) * 320000) + Math.max(0, (5 - currDiv) * 110000);
-  const srMilestoneBonus = Math.max(0, (sr - 1100) * 1150);
-  const calcFans = 150000 + (totalGames * 15200) + (w * 21500) + (d * 6500) + (gf * 1850) + (promos * 145000) + (titles * 450000) + milestoneDivBonus + srMilestoneBonus;
+  // Calibrated to EA's In-Game Fan Payouts (Matches, Wins, Goals, Promotions & Peak Div Milestones)
+  const peakDivBonus = Math.max(0, (5 - peakDiv) * 185000);
+  const srBonus = Math.max(0, (sr - 1200) * 650);
+  const calcFans = 100000 + (totalGames * 12800) + (w * 18500) + (d * 5500) + (gf * 1450) + (promos * 115000) + (titles * 350000) + peakDivBonus + srBonus;
   const fans = rawFans > 10000 ? rawFans : Math.round(calcFans);
 
-  // Official EA FC Fan Thresholds for Club Reputation Levels 1 - 10 (Up to 50M Fans for Level 10)
+  // Official EA Sports FC Reputation Level Thresholds (1 to 10)
+  // Level 5 ("Up and Coming") spans 5.0M - 8.5M Fans
   let calcLvl = 1;
   if (fans >= 50000000) calcLvl = 10;
-  else if (fans >= 25000000) calcLvl = 9;
-  else if (fans >= 12000000) calcLvl = 8;
-  else if (fans >= 5000000) calcLvl = 7;
-  else if (fans >= 2500000) calcLvl = 6;
-  else if (fans >= 1200000) calcLvl = 5;
-  else if (fans >= 550000) calcLvl = 4;
-  else if (fans >= 250000) calcLvl = 3;
-  else if (fans >= 100000) calcLvl = 2;
+  else if (fans >= 35000000) calcLvl = 9;
+  else if (fans >= 22000000) calcLvl = 8;
+  else if (fans >= 14000000) calcLvl = 7;
+  else if (fans >= 8500000) calcLvl = 6;
+  else if (fans >= 5000000) calcLvl = 5;
+  else if (fans >= 2500000) calcLvl = 4;
+  else if (fans >= 1000000) calcLvl = 3;
+  else if (fans >= 350000) calcLvl = 2;
 
-  // Note: EA's `reputationtier` is 0-3 (Tier bracket), whereas `reputationlevel` or `clubLevel` is 1-10
   const explicitLvl = Number(lbEntry.reputationlevel ?? stat.reputationlevel ?? season.reputationlevel ?? stat.clubLevel ?? 0);
-  const repTier0to3 = parseInt(lbEntry.reputationtier ?? stat.reputationtier ?? season.reputationtier ?? -1, 10);
+  const level = (explicitLvl >= 1 && explicitLvl <= 10) ? explicitLvl : calcLvl;
 
-  let level = (explicitLvl >= 1 && explicitLvl <= 10) ? explicitLvl : calcLvl;
-  if (!explicitLvl && !isNaN(repTier0to3) && repTier0to3 >= 0) {
-    // Ensure level aligns with EA's 0-3 reputationtier bracket if present (0: Lvl 1-2, 1: Lvl 3-5, 2: Lvl 6-8, 3: Lvl 9-10)
-    const minForTier = repTier0to3 === 3 ? 9 : repTier0to3 === 2 ? 6 : repTier0to3 === 1 ? 3 : 1;
-    level = Math.max(level, minForTier);
-  }
-
+  // Official EA Sports FC Reputation Tier Names
   const tierTitles = {
-    1: 'Hometown Heroes', 2: 'Local Standouts', 3: 'Regional Regulars', 4: 'Rising Contenders',
-    5: 'City Powerhouse', 6: 'National Favorites', 7: 'Cult Icons', 8: 'Continental Elites',
-    9: 'Global Giants', 10: 'World Renowned'
+    1: 'Grassroots',
+    2: 'Hometown',
+    3: 'Emerging',
+    4: 'Up and Coming',
+    5: 'Up and Coming',
+    6: 'Established',
+    7: 'Established',
+    8: 'Renowned',
+    9: 'Renowned',
+    10: 'World Class'
   };
 
   const formattedFans = fans >= 1000000 ? `${(fans / 1000000).toFixed(2)}M` : fans >= 1000 ? `${(fans / 1000).toFixed(1)}K` : String(fans);
-  return { fans, formattedFans, level, tierTitle: tierTitles[level] || 'Cult Icons' };
+  return { fans, formattedFans, level, tierTitle: tierTitles[level] || 'Up and Coming' };
 }
 
 function buildSeasonsHistory(season = {}, stat = {}, currDiv = 5, peakDiv = 2) {
@@ -206,7 +206,7 @@ app.get('/api/search', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 2. Club Info (Includes 50M-Scale Club Fans & Reputation Level 1-10)
+// 2. Club Info
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params, { platform = 'common-gen5' } = req.query, numId = parseInt(clubId, 10);
   if (isNaN(numId) || numId <= 0) return res.status(400).json({ error: 'Invalid clubId' });
@@ -223,7 +223,6 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     const infoObj = Object.keys(dUnwrapped).length ? dUnwrapped : unwrapEa(valOf(iRes), clubId);
     const seasonObj = { ...unwrapEa(valOf(sSdk), clubId), ...unwrapEa(valOf(sDir), clubId) };
 
-    // Also check allTimeLeaderboard/search by club name to capture reputationtier / reputationlevel if available
     let lbEntry = {};
     const cName = infoObj.name || statObj.name;
     if (cName) {
