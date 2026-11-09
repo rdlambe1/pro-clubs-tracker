@@ -145,7 +145,7 @@ function computeMatchGradeAndUnitRatings(myG, oppG, stats = []) {
   return { grade, gradeCls, atk: atk.toFixed(1), def: def.toFixed(1) };
 }
 
-// Extracts Skill Moves, Dribbles, and Shot/Cross Blocks ("Meat Wall") from EA Match Event Aggregates
+// Extracts Skill Moves, Dribbles, Shot/Cross Blocks ("Meat Wall"), Yellow Cards & Red Cards
 function parsePlayerMatchEvents(p = {}) {
   const ev = {};
   for (let i = 0; i < 4; i++) {
@@ -158,14 +158,26 @@ function parsePlayerMatchEvents(p = {}) {
   let skills = beats + flair + Math.max(0, takeOns - beats);
   if (skills === 0 && dribbles > 0) skills = Math.max(1, Math.round(dribbles * 0.35));
 
-  // EA Defensive Block & Clearance Event IDs (12, 13, 14, 51, 56) + fallback inference from tackles/clean-sheet grit
   const rawBlocks = (ev[12] || 0) + (ev[13] || 0) + (ev[14] || 0) + (ev[51] || 0) + (ev[56] || 0);
   const tackles = Number(p.tacklesmade || p.tackles || 0);
   const posStr = String(p.pos || '').toLowerCase();
   const isDef = ['defender','cb','lb','rb','lcb','rcb','cdm'].includes(posStr);
   const blocks = rawBlocks > 0 ? rawBlocks : (isDef ? Math.max(1, Math.round(tackles * 0.65)) : Math.round(tackles * 0.4));
 
-  return { skillMoves: skills, dribblesCompleted: dribbles, blocks };
+  const redCards = Number(p.redcards ?? p.redCards ?? ev[19] ?? 0);
+  const explicitYellows = Number(p.yellowcards ?? p.yellowCards ?? ev[18] ?? 0);
+  const foulsCommitted = (ev[16] || 0) + (ev[17] || 0);
+  const yellowCards = explicitYellows > 0 ? explicitYellows : (redCards > 0 ? 1 : (foulsCommitted >= 3 ? 1 : 0));
+
+  return { skillMoves: skills, dribblesCompleted: dribbles, blocks, yellowCards, redCards };
+}
+
+function renderCardBadgesHtml(yellows = 0, reds = 0) {
+  if (!yellows && !reds) return `<span class="text-gray-600 font-mono text-xs">-</span>`;
+  return `<div class="inline-flex items-center gap-1 justify-center">
+    ${yellows > 0 ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-yellow-500/15 border border-yellow-500/40 text-yellow-300 font-mono font-black text-[10px]" title="${yellows} Yellow Card(s)"><span class="w-2 h-2.5 bg-yellow-400 rounded-[1px] inline-block"></span>${yellows}</span>` : ''}
+    ${reds > 0 ? `<span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-rose-500/20 border border-rose-500/40 text-rose-300 font-mono font-black text-[10px]" title="${reds} Red Card(s)"><span class="w-2 h-2.5 bg-rose-500 rounded-[1px] inline-block"></span>${reds}</span>` : ''}
+  </div>`;
 }
 
 async function shareElementAsPng(elementId, filenamePrefix = 'ClubsTracker') {
@@ -408,18 +420,19 @@ function computeMatchIntelligence(clubId, matchesPayload) {
     lobbyPlayers.forEach(p => {
       const pName = p.playername || p.name || 'Pro', r = parseFloat(p.rating || 0), g = Number(p.goals || 0), a = Number(p.assists || 0);
       const t = Number(p.tacklesmade || p.tackles || 0), tAtt = Number(p.tackleattempts || Math.max(t, t * 2)), shots = Number(p.shots || 0);
-      const pMade = Number(p.passesmade || 0), pAtt = Number(p.passattempts || pMade), missedP = Math.max(0, pAtt - pMade), reds = Number(p.redcards || 0);
-      const isSub = maxSecs > 600 && Number(p.secondsPlayed || maxSecs) <= maxSecs * 0.78 && reds === 0, ev = parsePlayerMatchEvents(p);
+      const pMade = Number(p.passesmade || 0), pAtt = Number(p.passattempts || pMade), missedP = Math.max(0, pAtt - pMade);
+      const ev = parsePlayerMatchEvents(p), reds = ev.redCards, yellows = ev.yellowCards;
+      const isSub = maxSecs > 600 && Number(p.secondsPlayed || maxSecs) <= maxSecs * 0.78 && reds === 0;
 
       if (idx < 5 && r > 0) { if (!ratingBuckets[pName]) ratingBuckets[pName] = []; ratingBuckets[pName].push(r); }
-      if (!RECENT_10_STATS_MAP[pName]) RECENT_10_STATS_MAP[pName] = { games:0, goals:0, assists:0, shots:0, tackles:0, totalRating:0, skillMoves:0, blocks:0, superSubGA:0, subGames:0, recentCleanSheets:0 };
+      if (!RECENT_10_STATS_MAP[pName]) RECENT_10_STATS_MAP[pName] = { games:0, goals:0, assists:0, shots:0, tackles:0, totalRating:0, skillMoves:0, blocks:0, yellows:0, reds:0, superSubGA:0, subGames:0, recentCleanSheets:0 };
       const r10 = RECENT_10_STATS_MAP[pName];
-      r10.games++; r10.goals += g; r10.assists += a; r10.shots += shots; r10.tackles += t; r10.totalRating += r; r10.skillMoves += ev.skillMoves; r10.blocks += ev.blocks;
+      r10.games++; r10.goals += g; r10.assists += a; r10.shots += shots; r10.tackles += t; r10.totalRating += r; r10.skillMoves += ev.skillMoves; r10.blocks += ev.blocks; r10.yellows += yellows; r10.reds += reds;
       if (isSub) r10.subGames++; if (isSub && (g + a > 0)) r10.superSubGA += (g + a); if (oppG === 0) r10.recentCleanSheets++;
 
-      if (!shameMap[pName]) shameMap[pName] = { name: pName, games:0, missedPasses:0, skillMoves:0, dribblesCompleted:0, blocks:0, shots:0, goals:0, reds:0, tackles:0, tackleAtt:0, superSubGA:0, subGames:0, cleanSheets:0 };
+      if (!shameMap[pName]) shameMap[pName] = { name: pName, games:0, missedPasses:0, skillMoves:0, dribblesCompleted:0, blocks:0, shots:0, goals:0, yellows:0, reds:0, tackles:0, tackleAtt:0, superSubGA:0, subGames:0, cleanSheets:0 };
       const sm = shameMap[pName];
-      sm.games++; sm.missedPasses += missedP; sm.skillMoves += ev.skillMoves; sm.dribblesCompleted += ev.dribblesCompleted; sm.blocks += ev.blocks; sm.shots += shots; sm.goals += g; sm.reds += reds; sm.tackles += t; sm.tackleAtt += tAtt;
+      sm.games++; sm.missedPasses += missedP; sm.skillMoves += ev.skillMoves; sm.dribblesCompleted += ev.dribblesCompleted; sm.blocks += ev.blocks; sm.shots += shots; sm.goals += g; sm.yellows += yellows; sm.reds += reds; sm.tackles += t; sm.tackleAtt += tAtt;
       if (isSub) sm.subGames++; if (isSub && (g + a > 0)) sm.superSubGA += (g + a); if (oppG === 0) sm.cleanSheets++;
       if (g + a > 0) activeContributors.push({ name: pName, ga: g + a });
     });
@@ -526,7 +539,7 @@ function renderShameBoard(shameList = []) {
       [...shameList].sort((a, b) => b.skillMoves - a.skillMoves)[0],
       [...shameList].sort((a, b) => b.missedPasses - a.missedPasses)[0],
       [...shameList].sort((a, b) => (b.shots - b.goals) - (a.shots - a.goals))[0],
-      [...shameList].sort((a, b) => (b.reds * 15 + (b.tackleAtt - b.tackles)) - (a.reds * 15 + (a.tackleAtt - a.tackles)))[0]
+      [...shameList].sort((a, b) => (b.reds * 15 + b.yellows * 5 + (b.tackleAtt - b.tackles)) - (a.reds * 15 + a.yellows * 5 + (a.tackleAtt - a.tackles)))[0]
     ];
     cards = [
       { title: '🥩 The Meat Wall (Most Blocks)', w: byMeat.name, st: `${byMeat.blocks} Shot & Cross Blocks`, sub: `Human sandbag across ${byMeat.games} recent matches`, b: 'border-orange-500/40', c: 'text-orange-400' },
@@ -535,7 +548,7 @@ function renderShameBoard(shameList = []) {
       { title: '🌀 Fidget Spinner', w: bySkill.name, st: `${bySkill.skillMoves} Skill Moves`, sub: `${bySkill.dribblesCompleted} dribbles completed (Last 10)`, b: 'border-fuchsia-500/40', c: 'text-fuchsia-400' },
       { title: '🏥 Hospital Pass Award', w: byPass.name, st: `${byPass.missedPasses} Missed Passes`, sub: `Across ${byPass.games} recent appearances`, b: 'border-amber-500/40', c: 'text-amber-400' },
       { title: '🚪 The Barn Door Award', w: byBarn.name, st: `${byBarn.shots} Shots (${byBarn.goals}G)`, sub: `${byBarn.shots>0?Math.round((byBarn.goals/byBarn.shots)*100):0}% shot conversion in last 10`, b: 'border-rose-500/40', c: 'text-rose-400' },
-      { title: '🟥 Sunday League Butcher', w: byRed.name, st: byRed.reds > 0 ? `${byRed.reds} Red Cards` : `${byRed.tackles} Tackles Won`, sub: 'Midfield enforcer in last 10', b: 'border-red-500/40', c: 'text-red-400' }
+      { title: '🟥 Sunday League Butcher', w: byRed.name, st: (byRed.reds > 0 || byRed.yellows > 0) ? `${byRed.yellows}🟨 ${byRed.reds}🟥 Cards` : `${byRed.tackles} Tackles Won`, sub: 'Midfield enforcer in last 10', b: 'border-red-500/40', c: 'text-red-400' }
     ];
   }
   document.getElementById('shameBoardGrid').innerHTML = cards.map(c => `<div class="bg-gray-900/60 border ${c.b} rounded-xl p-3.5 flex items-center justify-between"><div class="min-w-0 pr-2"><div class="text-[10px] font-black uppercase text-gray-400 truncate">${c.title}</div><div class="text-sm font-extrabold text-white mt-0.5 truncate">${c.w}</div><div class="text-xs font-bold ${c.c} mt-0.5">${c.st}</div><div class="text-[10px] text-gray-500 mt-0.5 truncate">${c.sub}</div></div><img src="${getPlayerAvatarUrl(c.w)}" class="w-11 h-11 rounded-full border border-gray-700 bg-gray-900 flex-shrink-0"></div>`).join('');
@@ -622,7 +635,7 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
   document.getElementById('clubRegionName').innerText = reg.name;
   document.getElementById('clubStadiumName').innerText = data.stadiumName || 'Pro Clubs Arena';
 
-  const rep = data.clubRep || { formattedFans: '50.0K', level: 5, tierTitle: 'Hometown Heroes' };
+  const rep = data.clubRep || { formattedFans: '5M–6M', level: 5, tierTitle: 'Up and Coming' };
   const lvlBadge = document.getElementById('clubLevelBadgeText');
   if (lvlBadge) lvlBadge.innerText = `Lvl ${rep.level} • ${rep.formattedFans} Fans`;
 
@@ -747,7 +760,7 @@ function closeFutModal() { const m = document.getElementById('futModal'); m.clas
 function renderRecentMatches(clubId, matches) {
   const tbody = document.getElementById('recentMatchesTable'), formContainer = document.getElementById('formBadges');
   const matchArr = Array.isArray(matches) ? matches : (matches?.matches || []);
-  if (!matchArr.length) { tbody.innerHTML = '<tr><td colspan="9" class="py-6 text-center text-gray-500">No recent matches found.</td></tr>'; return; }
+  if (!matchArr.length) { tbody.innerHTML = '<tr><td colspan="10" class="py-6 text-center text-gray-500">No recent matches found.</td></tr>'; return; }
 
   const formList = [];
   tbody.innerHTML = matchArr.slice(0, 10).map((m, idx) => {
@@ -768,11 +781,13 @@ function renderRecentMatches(clubId, matches) {
     const dateText = (dHours >= 0 && dHours < 24) ? `${Math.max(1, dHours)}h ago` : (ts > 0 ? new Date(ts * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Recent');
     const mg = computeMatchGradeAndUnitRatings(myG, oppG, playerStats);
 
-    let bestMvp = null, hiScore = -Infinity;
+    let bestMvp = null, hiScore = -Infinity, matchYellows = 0, matchReds = 0;
     playerStats.forEach(p => {
       const made = Number(p.passesmade || 0), att = Number(p.passattempts || 0);
       p._passPct = att > 0 ? Math.round((made / att) * 100) : Number(p.passsuccessrate || 0);
       p._made = made; p._att = att; p._ev = parsePlayerMatchEvents(p);
+      matchYellows += p._ev.yellowCards;
+      matchReds += p._ev.redCards;
       p._inf = parseFloat(p.rating || 0) * 12 + Number(p.goals || 0) * 5 + Number(p.assists || 0) * 4 + Number(p.tacklesmade || 0) * 2 + p._passPct * 0.05;
       if (p._inf > hiScore) { hiScore = p._inf; bestMvp = p.playername || p.name; }
     });
@@ -781,14 +796,14 @@ function renderRecentMatches(clubId, matches) {
     let crownGiven = false;
     const rowsHtml = playerStats.map(p => {
       const pName = p.playername || p.name || 'Pro', goals = Number(p.goals || 0), assists = Number(p.assists || 0), shots = Number(p.shots || 0);
-      const subbed = maxSecs > 600 && Number(p.secondsPlayed || maxSecs) <= maxSecs * 0.78 && Number(p.redcards || 0) === 0;
+      const subbed = maxSecs > 600 && Number(p.secondsPlayed || maxSecs) <= maxSecs * 0.78 && p._ev.redCards === 0;
       const subBadge = (subbed && (goals + assists > 0)) ? `<span class="ml-1 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/50 text-[9px] font-black">🦸‍♂️ SUPER-SUB</span>` : (subbed ? `<span class="ml-1 text-[9px] text-gray-400">🔄 Sub</span>` : '');
       let mvpBadge = '--';
       if (!crownGiven && pName === bestMvp && hiScore > 0) { mvpBadge = `<span class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-[10px] font-black">👑 MVP</span>`; crownGiven = true; }
-      return `<tr class="border-b border-gray-800/60"><td class="py-2 px-2 font-semibold text-white"><div class="flex items-center gap-1.5"><img src="${getPlayerAvatarUrl(pName)}" class="w-5 h-5 rounded-full bg-gray-900"><span>${pName}</span>${subBadge}</div></td><td class="py-2 px-2 text-center font-black text-yellow-400">${parseFloat(p.rating||0).toFixed(1)}</td><td class="py-2 px-2 text-center font-bold text-emerald-400">${goals}</td><td class="py-2 px-2 text-center font-bold text-sky-400">${assists}</td><td class="py-2 px-2 text-center font-mono">${shots} <span class="text-[10px] text-emerald-400">(${shots>0?`${Math.round((goals/shots)*100)}%`:'--'})</span></td><td class="py-2 px-2 text-center font-mono text-cyan-400">${p._att>0?`${p._made}/${p._att} (${p._passPct}%)`:`${p._passPct}%`}</td><td class="py-2 px-2 text-center font-mono text-amber-400">${Math.max(0,p._att-p._made)}</td><td class="py-2 px-2 text-center font-mono text-fuchsia-400">${p._ev.skillMoves}</td><td class="py-2 px-2 text-center text-sky-400">${p.tacklesmade||0}</td><td class="py-2 px-2 text-right">${mvpBadge}</td></tr>`;
+      return `<tr class="border-b border-gray-800/60"><td class="py-2 px-2 font-semibold text-white"><div class="flex items-center gap-1.5"><img src="${getPlayerAvatarUrl(pName)}" class="w-5 h-5 rounded-full bg-gray-900"><span>${pName}</span>${subBadge}</div></td><td class="py-2 px-2 text-center font-black text-yellow-400">${parseFloat(p.rating||0).toFixed(1)}</td><td class="py-2 px-2 text-center font-bold text-emerald-400">${goals}</td><td class="py-2 px-2 text-center font-bold text-sky-400">${assists}</td><td class="py-2 px-2 text-center font-mono">${shots} <span class="text-[10px] text-emerald-400">(${shots>0?`${Math.round((goals/shots)*100)}%`:'--'})</span></td><td class="py-2 px-2 text-center font-mono text-cyan-400">${p._att>0?`${p._made}/${p._att} (${p._passPct}%)`:`${p._passPct}%`}</td><td class="py-2 px-2 text-center font-mono text-amber-400">${Math.max(0,p._att-p._made)}</td><td class="py-2 px-2 text-center font-mono text-fuchsia-400">${p._ev.skillMoves}</td><td class="py-2 px-2 text-center text-sky-400">${p.tacklesmade||0}</td><td class="py-2 px-2 text-center">${renderCardBadgesHtml(p._ev.yellowCards, p._ev.redCards)}</td><td class="py-2 px-2 text-right">${mvpBadge}</td></tr>`;
     }).join('');
 
-    return `<tr onclick="document.getElementById('boxScore_${idx}').classList.toggle('hidden')" class="hover:bg-gray-800/40 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2"><span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-800 text-gray-300 border border-gray-700">${m._inferredCategory||'League'}</span></td><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-1.5">${renderCrestHtml(oppName, oppClub.crestId||oppClub.TEAM||oppClub.details?.crestAssetId, 'w-6 h-6 sm:w-7 sm:h-7', oppId)}<span>${oppName}</span>${oppCnt>0?`<span class="text-[10px] text-gray-400 font-mono">(${oppCnt}p)</span>`:''}${rqBadge}<i class="fa-solid fa-chevron-down text-[9px] text-gray-500"></i></div></td><td class="py-2.5 px-2 text-center" title="${chaos.label}">${chaos.emoji}</td><td class="py-2.5 px-2 text-center">${renderDivisionShieldHtml(oppClub.division||'Div 5','sm')}</td><td class="py-2.5 px-2 text-center">${oppSR?`<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">${oppSR}</span>`:'--'}</td><td class="py-2.5 px-2 text-center font-bold text-white">${myG} - ${oppG}</td><td class="py-2.5 px-2 text-center"><div class="inline-flex items-center gap-1.5"><span class="w-6 h-5 rounded flex items-center justify-center text-[11px] font-black border ${mg.gradeCls}">${mg.grade}</span><span class="text-[10px] font-mono text-emerald-400">A:${mg.atk}</span><span class="text-[10px] font-mono text-sky-400">D:${mg.def}</span></div></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-bold border ${resCls}">${resLbl}</span></td><td class="py-2.5 px-2 text-right text-gray-400 text-xs">${dateText}</td></tr><tr id="boxScore_${idx}" class="hidden bg-gray-900/60 border-b border-gray-800"><td colspan="9" class="p-3"><div class="overflow-x-auto touch-scroll rounded border border-gray-800 bg-gray-950/80"><table class="w-full text-left text-xs whitespace-nowrap"><thead class="bg-gray-900 text-gray-400 uppercase text-[10px]"><tr><th class="py-1.5 px-2">Player</th><th class="py-1.5 px-2 text-center">Rat</th><th class="py-1.5 px-2 text-center">G</th><th class="py-1.5 px-2 text-center">A</th><th class="py-1.5 px-2 text-center">Shots (Conv%)</th><th class="py-1.5 px-2 text-center">Passes</th><th class="py-1.5 px-2 text-center">Missed</th><th class="py-1.5 px-2 text-center">Skills</th><th class="py-1.5 px-2 text-center">Tkl</th><th class="py-1.5 px-2 text-right">Award</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></td></tr>`;
+    return `<tr onclick="document.getElementById('boxScore_${idx}').classList.toggle('hidden')" class="hover:bg-gray-800/40 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2"><span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-800 text-gray-300 border border-gray-700">${m._inferredCategory||'League'}</span></td><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-1.5">${renderCrestHtml(oppName, oppClub.crestId||oppClub.TEAM||oppClub.details?.crestAssetId, 'w-6 h-6 sm:w-7 sm:h-7', oppId)}<span>${oppName}</span>${oppCnt>0?`<span class="text-[10px] text-gray-400 font-mono">(${oppCnt}p)</span>`:''}${rqBadge}<i class="fa-solid fa-chevron-down text-[9px] text-gray-500"></i></div></td><td class="py-2.5 px-2 text-center" title="${chaos.label}">${chaos.emoji}</td><td class="py-2.5 px-2 text-center">${renderDivisionShieldHtml(oppClub.division||'Div 5','sm')}</td><td class="py-2.5 px-2 text-center">${oppSR?`<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">${oppSR}</span>`:'--'}</td><td class="py-2.5 px-2 text-center font-bold text-white">${myG} - ${oppG}</td><td class="py-2.5 px-2 text-center"><div class="inline-flex items-center gap-1.5"><span class="w-6 h-5 rounded flex items-center justify-center text-[11px] font-black border ${mg.gradeCls}">${mg.grade}</span><span class="text-[10px] font-mono text-emerald-400">A:${mg.atk}</span><span class="text-[10px] font-mono text-sky-400">D:${mg.def}</span></div></td><td class="py-2.5 px-2 text-center">${renderCardBadgesHtml(matchYellows, matchReds)}</td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-bold border ${resCls}">${resLbl}</span></td><td class="py-2.5 px-2 text-right text-gray-400 text-xs">${dateText}</td></tr><tr id="boxScore_${idx}" class="hidden bg-gray-900/60 border-b border-gray-800"><td colspan="10" class="p-3"><div class="overflow-x-auto touch-scroll rounded border border-gray-800 bg-gray-950/80"><table class="w-full text-left text-xs whitespace-nowrap"><thead class="bg-gray-900 text-gray-400 uppercase text-[10px]"><tr><th class="py-1.5 px-2">Player</th><th class="py-1.5 px-2 text-center">Rat</th><th class="py-1.5 px-2 text-center">G</th><th class="py-1.5 px-2 text-center">A</th><th class="py-1.5 px-2 text-center">Shots (Conv%)</th><th class="py-1.5 px-2 text-center">Passes</th><th class="py-1.5 px-2 text-center">Missed</th><th class="py-1.5 px-2 text-center">Skills</th><th class="py-1.5 px-2 text-center">Tkl</th><th class="py-1.5 px-2 text-center">Cards</th><th class="py-1.5 px-2 text-right">Award</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></td></tr>`;
   }).join('');
   formContainer.innerHTML = formList.join('');
 }
