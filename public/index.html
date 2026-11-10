@@ -280,7 +280,7 @@
     </div>
   </div>
 
-  <!-- FC27 UT Card Modal -->
+  <!-- FC27 UT Card Modal (Clean Share Bar — Customization Removed) -->
   <div id="futModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center z-50 p-2 overflow-y-auto" onclick="closeFutModal()">
     <div class="ut-modal-scaler flex flex-col items-center gap-2.5 my-auto" onclick="event.stopPropagation()">
       <div id="futCardExportTarget" class="fc27-card-wrapper">
@@ -317,14 +317,13 @@
           <div class="flex items-center justify-center gap-5 pb-1 pt-0.5"><img id="futFlag" src="" crossorigin="anonymous" class="w-7 h-4.5 object-cover rounded-[2px] shadow-sm border border-current/30" alt="Nation"><div class="flex flex-col items-center opacity-90"><i class="fa-solid fa-shield-halved text-lg leading-none"></i><span class="text-[6px] font-black tracking-widest uppercase mt-0.5">CLUBS</span></div><img id="futClubCrest" src="" crossorigin="anonymous" class="w-7 h-7 object-contain drop-shadow-sm" alt="Club Crest"></div>
         </div>
       </div>
-      <div class="bg-gray-900/95 border border-gray-700 rounded-xl px-4 py-3 w-[345px] shadow-2xl space-y-2">
-        <div class="flex items-center justify-between border-b border-gray-800 pb-1.5"><span class="text-[11px] font-black uppercase tracking-wider text-emerald-400 flex items-center gap-1.5"><i class="fa-solid fa-palette"></i> Customize Skin & Hair</span><button onclick="shareElementAsPng('futCardExportTarget', ACTIVE_MODAL_PLAYER || 'FUT-Card')" class="bg-yellow-500 hover:bg-yellow-400 text-black font-black px-2.5 py-1 rounded text-[11px] transition flex items-center gap-1 shadow"><i class="fa-solid fa-share-nodes"></i> Share PNG</button></div>
-        <div class="flex items-center justify-between"><span class="text-[10px] uppercase font-bold text-gray-400">Skin:</span><div id="skinSwatches" class="flex items-center gap-2"></div></div>
-        <div class="flex items-center justify-between"><span class="text-[10px] uppercase font-bold text-gray-400">Hair:</span><div id="hairSwatches" class="flex items-center gap-2"></div></div>
-        <div class="text-[9px] text-gray-500 text-center pt-1 border-t border-gray-800/80">Unofficial Fan Card • Not affiliated with EA Sports</div>
+      <div class="bg-gray-900/95 border border-gray-700 rounded-xl px-4 py-2.5 w-[345px] shadow-2xl flex items-center justify-between">
+        <span class="text-[10px] text-gray-400 font-medium">Unofficial Fan Card • Not affiliated with EA</span>
+        <button onclick="shareElementAsPng('futCardExportTarget', ACTIVE_MODAL_PLAYER || 'FUT-Card')" class="bg-yellow-500 hover:bg-yellow-400 text-black font-black px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 shadow"><i class="fa-solid fa-share-nodes"></i> Share PNG</button>
       </div>
     </div>
   </div>
+
   <script src="/assets.js"></script>
   <script src="/engine.js"></script>
   <script src="/app.js"></script>
