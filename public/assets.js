@@ -1,10 +1,37 @@
 const SKIN_HEX = ['f2d3b1', 'ecad80', 'd08b5b', '9e5622', '763900'];
 const HAIR_HEX = ['0e0e0e', '562306', '6a4e35', 'e5d05c', 'cb6820', 'afafaf'];
 
+// Complete Official EA Sports FC Nation ID -> FlagCDN ISO-3166 Code Map (210+ Nations)
 const EA_NATION_TO_ISO = {
-  '14':'gb-eng','25':'ie','42':'gb-sct','50':'gb-wls','35':'gb-nir','18':'fr','21':'de','45':'es',
-  '27':'it','34':'nl','38':'pt','7':'be','54':'br','52':'ar','95':'us','70':'ca','195':'au',
-  '133':'ng','13':'dk','46':'se','36':'no','37':'pl','10':'hr','47':'ch','4':'at'
+  // Europe (1 - 51, 205 - 219)
+  '1':'al','2':'ad','3':'am','4':'at','5':'az','6':'by','7':'be','8':'ba','9':'bg','10':'hr',
+  '11':'cy','12':'cz','13':'dk','14':'gb-eng','15':'ee','16':'fo','17':'fi','18':'fr','19':'mk','20':'ge',
+  '21':'de','22':'gr','23':'hu','24':'is','25':'ie','26':'il','27':'it','28':'lv','29':'li','30':'lt',
+  '31':'lu','32':'mt','33':'md','34':'nl','35':'gb-nir','36':'no','37':'pl','38':'pt','39':'ro','40':'ru',
+  '41':'sm','42':'gb-sct','43':'sk','44':'si','45':'es','46':'se','47':'ch','48':'tr','49':'ua','50':'gb-wls',
+  '51':'rs','205':'gi','206':'me','219':'xk',
+  // South America (52 - 61)
+  '52':'ar','53':'bo','54':'br','55':'cl','56':'co','57':'ec','58':'py','59':'pe','60':'uy','61':'ve',
+  // North, Central America & Caribbean (62 - 96) — Includes 83: Mexico ('mx')
+  '62':'ai','63':'ag','64':'aw','65':'bs','66':'bb','67':'bz','68':'bm','69':'vg','70':'ca','71':'ky',
+  '72':'cr','73':'cu','74':'dm','75':'do','76':'sv','77':'gd','78':'gt','79':'gy','80':'ht','81':'hn',
+  '82':'jm','83':'mx','84':'ms','85':'cw','86':'ni','87':'pa','88':'pr','89':'kn','90':'lc','91':'vc',
+  '92':'sr','93':'tt','94':'tc','95':'us','96':'vi',
+  // Africa (97 - 148, 207 - 208)
+  '97':'dz','98':'ao','99':'bj','100':'bw','101':'bf','102':'bi','103':'cm','104':'cv','105':'cf','106':'td',
+  '107':'cg','108':'ci','109':'dj','110':'cd','111':'eg','112':'gq','113':'er','114':'et','115':'ga','116':'gm',
+  '117':'gh','118':'gn','119':'gw','120':'ke','121':'ls','122':'lr','123':'ly','124':'mg','125':'mw','126':'ml',
+  '127':'mr','128':'mu','129':'ma','130':'mz','131':'na','132':'ne','133':'ng','134':'rw','135':'st','136':'sn',
+  '137':'sc','138':'sl','139':'so','140':'za','141':'sd','142':'sz','143':'tz','144':'tg','145':'tn','146':'ug',
+  '147':'zm','148':'zw','207':'KM','208':'ss',
+  // Asia & Middle East (149 - 193)
+  '149':'af','150':'bh','151':'bd','152':'bt','153':'bn','154':'kh','155':'cn','156':'tw','157':'gu','158':'hk',
+  '159':'in','160':'id','161':'ir','162':'iq','163':'jp','164':'jo','165':'kz','166':'kp','167':'kr','168':'kw',
+  '169':'kg','170':'la','171':'lb','172':'mo','173':'my','174':'mv','175':'mn','176':'mm','177':'np','178':'om',
+  '179':'pk','180':'ps','181':'ph','182':'qa','183':'sa','184':'sg','185':'lk','186':'sy','187':'tj','188':'th',
+  '189':'tm','190':'ae','191':'uz','192':'vn','193':'ye',
+  // Oceania (194 - 204)
+  '194':'as','195':'au','196':'ck','197':'fj','198':'nz','199':'pg','200':'ws','201':'sb','202':'pf','203':'to','204':'vu'
 };
 
 const EA_PRO_POS_MAP = {
@@ -25,7 +52,7 @@ const FORMATION_TEMPLATES = {
 };
 
 const PRO_SILHOUETTE_DATA_URI = `data:image/svg+xml;utf8,` + encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" shape-rendering="geometricPrecision"><defs><radialGradient id="bgGlow" cx="50%" cy="38%" r="58%"><stop offset="0%" stop-color="#1e293b"/><stop offset="65%" stop-color="#0f172a"/><stop offset="100%" stop-color="#070a12"/></radialGradient><radialGradient id="emeraldHalo" cx="50%" cy="32%" r="42%"><stop offset="0%" stop-color="#10b981" stop-opacity="0.22"/><stop offset="100%" stop-color="#10b981" stop-opacity="0"/></radialGradient><linearGradient id="headGrad" x1="20%" y1="0%" x2="80%" y2="100%"><stop offset="0%" stop-color="#94a3b8"/><stop offset="45%" stop-color="#475569"/><stop offset="100%" stop-color="#1e293b"/></linearGradient><linearGradient id="jerseyGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#334155"/><stop offset="50%" stop-color="#1e293b"/><stop offset="100%" stop-color="#090d16"/></linearGradient><linearGradient id="rimLight" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#e2e8f0" stop-opacity="0.9"/><stop offset="50%" stop-color="#64748b" stop-opacity="0.4"/><stop offset="100%" stop-color="#10b981" stop-opacity="0.7"/></linearGradient></defs><rect width="256" height="256" fill="url(#bgGlow)"/><circle cx="128" cy="96" r="96" fill="url(#emeraldHalo)"/><path d="M 96 130 L 84 166 L 172 166 L 160 130 Z" fill="#1e293b"/><path d="M 102 130 L 96 164 L 128 176 L 160 164 L 154 130 Z" fill="url(#headGrad)" opacity="0.85"/><path d="M 12 256 C 16 192 50 166 94 156 L 128 188 L 162 156 C 206 166 240 192 244 256 Z" fill="url(#jerseyGrad)" stroke="url(#rimLight)" stroke-width="2.5" stroke-linejoin="round"/><path d="M 42 184 C 62 170 78 164 96 159" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.85"/><path d="M 214 184 C 194 170 178 164 160 159" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.85"/><path d="M 52 198 C 68 188 80 184 94 180" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" opacity="0.5"/><path d="M 204 198 C 188 188 176 184 162 180" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" opacity="0.5"/><path d="M 90 156 L 128 194 L 166 156 L 156 153 L 128 181 L 100 153 Z" fill="#0f172a" stroke="#10b981" stroke-width="1.8" stroke-linejoin="round"/><path d="M 128 32 C 100 32 84 48 84 74 L 84 86 C 79 86 76 91 77 98 C 78 105 81 109 85 109 C 88 124 98 138 112 145 C 118 148 123 149 128 149 C 133 149 138 148 144 145 C 158 138 168 124 171 109 C 175 109 178 105 179 98 C 180 91 177 86 172 86 L 172 74 C 172 48 156 32 128 32 Z" fill="url(#headGrad)" stroke="url(#rimLight)" stroke-width="2.5" stroke-linejoin="round"/><path d="M 94 64 C 94 48 108 38 128 38" fill="none" stroke="#f8fafc" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/></svg>`
+  `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" shape-rendering="geometricPrecision"><defs><radialGradient id="bgGlow" cx="50%" cy="38%" r="58%"><stop offset="0%" stop-color="#1e293b"/><stop offset="65%" stop-color="#0f172a"/><stop offset="100%" stop-color="#070a12"/></radialGradient><radialGradient id="emeraldHalo" cx="50%" cy="32%" r="42%"><stop offset="0%" stop-color="#10b981" stop-opacity="0.22"/><stop offset="100%" stop-color="#10b981" stop-opacity="0"/></radialGradient><linearGradient id="headGrad" x1="20%" y1="0%" x2="80%" y2="100%"><stop offset="0%" stop-color="#94a3b8"/><stop offset="45%" stop-color="#475569"/><stop offset="100%" stop-color="#1e293b"/></linearGradient><linearGradient id="jerseyGrad" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#334155"/><stop offset="50%" stop-color="#1e293b"/><stop offset="100%" stop-color="#090d16"/></linearGradient><linearGradient id="rimLight" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#e2e8f0" stop-opacity="0.9"/><stop offset="50%" stop-color="#64748b" stop-opacity="0.4"/><stop offset="100%" stop-color="#10b981" stop-opacity="0.7"/></linearGradient></defs><rect width="256" height="256" fill="url(#bgGlow)"/><circle cx="128" cy="96" r="96" fill="url(#emeraldHalo)"/><path d="M 96 130 L 84 166 L 172 166 L 160 130 Z" fill="#1e293b"/><path d="M 102 130 L 96 164 L 128 176 L 160 164 L 154 130 Z" fill="url(#headGrad)" opacity="0.85"/><path d="M 12 256 C 16 192 50 166 94 156 L 128 188 L 162 156 C 206 166 240 192 244 256 Z" fill="url(#jerseyGrad)" stroke="url(#rmLight)" stroke-width="2.5" stroke-linejoin="round"/><path d="M 42 184 C 62 170 78 164 96 159" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.85"/><path d="M 214 184 C 194 170 178 164 160 159" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.85"/><path d="M 52 198 C 68 188 80 184 94 180" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" opacity="0.5"/><path d="M 204 198 C 188 188 176 184 162 180" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" opacity="0.5"/><path d="M 90 156 L 128 194 L 166 156 L 156 153 L 128 181 L 100 153 Z" fill="#0f172a" stroke="#10b981" stroke-width="1.8" stroke-linejoin="round"/><path d="M 128 32 C 100 32 84 48 84 74 L 84 86 C 79 86 76 91 77 98 C 78 105 81 109 85 109 C 88 124 98 138 112 145 C 118 148 123 149 128 149 C 133 149 138 148 144 145 C 158 138 168 124 171 109 C 175 109 178 105 179 98 C 180 91 177 86 172 86 L 172 74 C 172 48 156 32 128 32 Z" fill="url(#headGrad)" stroke="url(#rimLight)" stroke-width="2.5" stroke-linejoin="round"/><path d="M 94 64 C 94 48 108 38 128 38" fill="none" stroke="#f8fafc" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/></svg>`
 );
 
 const BALL_SVG = (cx, cy, r) => `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="currentColor" stroke-width="2.8"/><polygon points="${cx},${cy-r*0.45} ${cx+r*0.42},${cy-r*0.12} ${cx+r*0.26},${cy+r*0.38} ${cx-r*0.26},${cy+r*0.38} ${cx-r*0.42},${cy-r*0.12}" fill="currentColor"/>`;
@@ -61,7 +88,6 @@ const OFFICIAL_EA_PLAYSTYLE_VECTORS = {
   trivela: `${BALL_SVG(34,34,9.5)}<path d="M 66 70 C 78 46 66 28 48 32" fill="none" stroke="currentColor" stroke-width="4.2" stroke-linecap="round"/><polygon points="50,25 40,33 52,39" fill="currentColor"/>`
 };
 
-// Pure SVG Division Shield (No redundant side text labels; hover tooltip shows full division name)
 function renderDivisionShieldHtml(divLabelOrNum, size = 'md') {
   const str = String(divLabelOrNum ?? 'Div 5').trim().toLowerCase();
   const num = (str.includes('elite') || str === '0') ? 0 : Math.max(1, Math.min(5, parseInt(str.replace(/[^0-9]/g, ''), 10) || 5));
