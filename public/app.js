@@ -123,24 +123,6 @@ async function sendRecapToDiscord() {
   } finally { btn.disabled = false; btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Send Recap Now`; }
 }
 
-function updateProLook(type, hexValue) {
-  if (!ACTIVE_MODAL_PLAYER) return;
-  const key = String(ACTIVE_MODAL_PLAYER).toLowerCase().trim(), map = getAppearanceMap();
-  if (type === 'reset') {
-    delete map[key];
-    fetch(`${API_BASE}/appearances`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ playerName: ACTIVE_MODAL_PLAYER, skin: null, hair: null }) }).catch(() => {});
-  } else {
-    const cur = getPlayerAppearance(ACTIVE_MODAL_PLAYER);
-    map[key] = { skin: type === 'skin' ? hexValue : (cur.skin || 'f2d3b1'), hair: type === 'hair' ? hexValue : (cur.hair || '0e0e0e') };
-    fetch(`${API_BASE}/appearances`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ playerName: ACTIVE_MODAL_PLAYER, ...map[key] }) }).catch(() => {});
-  }
-  localStorage.setItem('proClubsAppearanceV3', JSON.stringify(map));
-  computeMatchIntelligence(GLOBAL_CLUB_ID, GLOBAL_MATCHES);
-  renderMembers(GLOBAL_MEMBERS); renderCareerMilestones(GLOBAL_MEMBERS);
-  buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES); renderRecentMatches(GLOBAL_CLUB_ID, GLOBAL_MATCHES);
-  openFutModal(ACTIVE_MODAL_PLAYER);
-}
-
 async function handleSearch(overrideQuery = null, autoSelectExactSlug = false) {
   const searchEl = document.getElementById('searchInput');
   const rawInput = typeof overrideQuery === 'string' ? overrideQuery : (searchEl?.value || '');
@@ -544,7 +526,8 @@ function openFutModal(playerName) {
   document.getElementById('futArchetypeBadge').innerHTML = `<i class="fa-solid fa-crown text-[8px]"></i> ${buildInfo.archetype}`;
   document.getElementById('futLeftPlaystylesStack').innerHTML = [renderPlaystyleDiamondHtml(buildInfo.psPlus, true), ...buildInfo.activePlaystyles.map(ps => renderPlaystyleDiamondHtml(ps, false))].join('');
   document.getElementById('futOvr').innerText = ovr; document.getElementById('futPos').innerText = pos;
-  document.getElementById('futAvatar').src = getPlayerAvatarUrl(name); document.getElementById('futName').innerText = name;
+  document.getElementById('futAvatar').src = getPlayerAvatarUrl(name, true);
+  document.getElementById('futName').innerText = name;
   ['Pac','Sho','Pas','Dri','Def','Phy'].forEach((k, i) => document.getElementById(`fut${k}`).innerText = metrics.attributes[i].raw);
 
   const fUrl = resolvePlayerFlagUrl(p), fEl = document.getElementById('futFlag');
@@ -693,12 +676,11 @@ function buildDynamicPitchTactic(members = [], matches = []) {
     const name = p._displayName, ovr = Number(p.proOverall || 85), tier = getCardTierTheme(ovr);
     const rat = (CURRENT_PITCH_MODE === 'lastMatch' && p._lmRat !== null ? p._lmRat : parseFloat(p.ratingAve || 7.0)).toFixed(1);
     const pill = CURRENT_PITCH_MODE === 'lastMatch' && p._lmRat !== null ? `${p._lmGA} G+A` : p._archetype;
-    const look = getPlayerAppearance(name), shirt = getShirtLabel(name);
-    const customPlate = look.isCustom ? `<span class="absolute bottom-[13%] left-1/2 -translate-x-1/2 px-1 rounded bg-gray-950/85 text-[6px] font-black text-white uppercase tracking-tighter leading-tight max-w-[82%] truncate pointer-events-none">${shirt}</span>` : '';
+    const shirt = getShirtLabel(name);
     const flagUrl = resolvePlayerFlagUrl(p);
     const flagNode = flagUrl ? `<img src="${flagUrl}" class="absolute -top-0.5 -right-1 w-3.5 h-2.5 sm:w-4 sm:h-3 object-cover rounded-[2px] border border-gray-950 shadow-md z-10" alt="Nation">` : '';
 
-    return `<div onclick="openFutModal('${name.replace(/'/g,"\\'")}')" class="flex flex-col items-center hover:scale-105 transition cursor-pointer group w-[74px] sm:w-24"><div class="relative"><img src="${getPlayerAvatarUrl(name)}" class="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-full avatar-circle border-2 border-emerald-400 bg-gray-900 object-cover shadow-xl">${customPlate}<span class="absolute -top-1 -left-1.5 bg-gray-950 ${tier.badgeClass} border font-black text-[8px] sm:text-[9px] px-1 rounded z-10">${ovr}</span>${flagNode}<span class="absolute -bottom-1 -left-1.5 bg-yellow-500 text-black font-black text-[8px] sm:text-[9px] px-1 rounded-sm z-10">${rat}</span></div><span class="text-[10px] sm:text-xs font-extrabold text-white mt-1 drop-shadow max-w-[70px] sm:max-w-[96px] truncate" title="${p._proNickname || shirt}">${name}</span><div class="flex items-center gap-0.5 mt-0.5"><span class="text-[8px] sm:text-[9px] bg-black/60 text-emerald-300 px-1 rounded uppercase font-black">${slot || p._exactRole}</span><span class="hidden sm:inline text-[9px] bg-black/60 text-gray-200 px-1 rounded font-semibold truncate max-w-[60px]">${pill}</span></div></div>`;
+    return `<div onclick="openFutModal('${name.replace(/'/g,"\\'")}')" class="flex flex-col items-center hover:scale-105 transition cursor-pointer group w-[74px] sm:w-24"><div class="relative"><img src="${getPlayerAvatarUrl(name)}" class="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-full avatar-circle border-2 border-emerald-400 bg-gray-900 object-cover shadow-xl"><span class="absolute -top-1 -left-1.5 bg-gray-950 ${tier.badgeClass} border font-black text-[8px] sm:text-[9px] px-1 rounded z-10">${ovr}</span>${flagNode}<span class="absolute -bottom-1 -left-1.5 bg-yellow-500 text-black font-black text-[8px] sm:text-[9px] px-1 rounded-sm z-10">${rat}</span></div><span class="text-[10px] sm:text-xs font-extrabold text-white mt-1 drop-shadow max-w-[70px] sm:max-w-[96px] truncate" title="${p._proNickname || shirt}">${name}</span><div class="flex items-center gap-0.5 mt-0.5"><span class="text-[8px] sm:text-[9px] bg-black/60 text-emerald-300 px-1 rounded uppercase font-black">${slot || p._exactRole}</span><span class="hidden sm:inline text-[9px] bg-black/60 text-gray-200 px-1 rounded font-semibold truncate max-w-[60px]">${pill}</span></div></div>`;
   };
 
   tpl.atk.forEach(s => rows[0].innerHTML += nodeHtml(claim('FWD', s, true), s));
@@ -715,17 +697,6 @@ function buildDynamicPitchTactic(members = [], matches = []) {
   document.getElementById('pitchMetricZone').innerText = 'Midfield Engine';
 }
 
-async function syncServerAppearances() {
-  try {
-    const res = await fetch(`${API_BASE}/appearances`);
-    if (res.ok) {
-      const serverMap = await res.json(), merged = { ...getAppearanceMap() };
-      Object.entries(serverMap || {}).forEach(([k, v]) => { if (!v || (!v.skin && !v.hair)) delete merged[k]; else merged[k] = v; });
-      localStorage.setItem('proClubsAppearanceV3', JSON.stringify(merged));
-    }
-  } catch (_) {}
-}
-
 function checkInitialUrlRoute() {
   const params = new URLSearchParams(window.location.search), platSelect = document.getElementById('platformSelect');
   if (params.get('platform') && platSelect) platSelect.value = params.get('platform');
@@ -737,9 +708,8 @@ function checkInitialUrlRoute() {
 
 window.addEventListener('popstate', (e) => e.state?.clubId ? loadClub(e.state.clubId, e.state.platform || 'common-gen5', false) : checkInitialUrlRoute());
 
-window.onload = async () => {
-  applyStoredTheme(); await syncServerAppearances();
-  document.getElementById('skinSwatches').innerHTML = SKIN_HEX.map(h => `<button onclick="updateProLook('skin','${h}')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#${h}"></button>`).join('') + `<button onclick="updateProLook('reset', null)" class="ml-1 px-1.5 py-0.5 rounded bg-gray-800 hover:bg-gray-700 text-[9px] font-bold text-gray-300 border border-gray-600 transition">🔄 Silhouette</button>`;
-  document.getElementById('hairSwatches').innerHTML = HAIR_HEX.map(h => `<button onclick="updateProLook('hair','${h}')" class="w-5 h-5 rounded-full border border-white/40 hover:scale-110 transition" style="background:#${h}"></button>`).join('');
-  buildDynamicPitchTactic([], []); checkInitialUrlRoute();
+window.onload = () => {
+  applyStoredTheme();
+  buildDynamicPitchTactic([], []);
+  checkInitialUrlRoute();
 };
