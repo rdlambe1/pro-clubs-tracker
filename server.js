@@ -126,14 +126,76 @@ function eaIntToHex(val, fb = '#10b981') {
   return (isNaN(n) || n < 0) ? fb : `#${(n & 0xFFFFFF).toString(16).padStart(6, '0')}`;
 }
 
-function resolveClubRegion(id) {
-  const map = {
-    '4344147': { name: 'British Isles', flag: 'ie' }, '4540759': { name: 'British Isles', flag: 'gb-eng' },
-    '5719125': { name: 'Western Europe', flag: 'eu' }, '5194837': { name: 'Northern Europe', flag: 'eu' },
-    '5391443': { name: 'Southern Europe', flag: 'eu' }, '4606293': { name: 'Eastern Europe', flag: 'eu' },
-    '5063765': { name: 'NA East', flag: 'us' }, '5063767': { name: 'NA West', flag: 'us' }, '5391425': { name: 'South America', flag: 'br' }
+// Decodes EA's 3-byte ASCII-packed regionId integer (e.g. 5457237 = 0x534555 = "SEU" -> Southern Europe)
+function decodeEaRegionAscii(id) {
+  let num = parseInt(id, 10);
+  if (isNaN(num) || num <= 0) return '';
+  let code = '';
+  while (num > 0) {
+    const ch = num % 256;
+    if (ch >= 32 && ch <= 126) code = String.fromCharCode(ch) + code;
+    num = Math.floor(num / 256);
+  }
+  return code.trim().toUpperCase();
+}
+
+function resolveClubRegion(infoObj = {}, statObj = {}, lbClubInfo = {}) {
+  const rawId = infoObj.regionId ?? lbClubInfo.regionId ?? statObj.regionId ?? null;
+  const sdkLabel = String(infoObj.regionLabel ?? infoObj.derivedLabels?.regionLabel ?? lbClubInfo.regionLabel ?? '').trim();
+  const ascii = decodeEaRegionAscii(rawId);
+
+  const codeMap = {
+    'BRI': { name: 'British Isles', flag: 'eu' },
+    'BI':  { name: 'British Isles', flag: 'eu' },
+    'WEU': { name: 'Western Europe', flag: 'eu' },
+    'CEU': { name: 'Central Europe', flag: 'eu' },
+    'NEU': { name: 'Northern Europe', flag: 'eu' },
+    'SEU': { name: 'Southern Europe', flag: 'eu' },
+    'EEU': { name: 'Eastern Europe', flag: 'eu' },
+    'EUS': { name: 'NA East', flag: 'us' },
+    'ENA': { name: 'NA East', flag: 'us' },
+    'NAE': { name: 'NA East', flag: 'us' },
+    'WUS': { name: 'NA West', flag: 'us' },
+    'WNA': { name: 'NA West', flag: 'us' },
+    'NAW': { name: 'NA West', flag: 'us' },
+    'CUS': { name: 'NA Central', flag: 'us' },
+    'CAM': { name: 'Central America', flag: 'mx' },
+    'SAM': { name: 'South America', flag: 'br' },
+    'SA':  { name: 'South America', flag: 'br' },
+    'MEA': { name: 'Middle East', flag: 'sa' },
+    'ME':  { name: 'Middle East', flag: 'sa' },
+    'SAF': { name: 'Southern Africa', flag: 'za' },
+    'NAF': { name: 'Northern Africa', flag: 'ma' },
+    'EAS': { name: 'East Asia', flag: 'jp' },
+    'SAS': { name: 'South Asia', flag: 'in' },
+    'SEA': { name: 'Southeast Asia', flag: 'sg' },
+    'ASIA':{ name: 'Asia', flag: 'jp' },
+    'ANZ': { name: 'Australia & NZ', flag: 'au' },
+    'OCE': { name: 'Oceania', flag: 'au' }
   };
-  return map[String(id || '').trim()] || { name: 'British Isles / EU', flag: 'ie' };
+
+  if (ascii && codeMap[ascii]) return codeMap[ascii];
+
+  if (sdkLabel) {
+    const low = sdkLabel.toLowerCase();
+    if (low.includes('british')) return { name: sdkLabel, flag: 'eu' };
+    if (low.includes('europe')) return { name: sdkLabel, flag: 'eu' };
+    if (low.includes('east') && (low.includes('us') || low.includes('north america') || low.includes('america'))) return { name: sdkLabel, flag: 'us' };
+    if (low.includes('west') && (low.includes('us') || low.includes('north america') || low.includes('america'))) return { name: sdkLabel, flag: 'us' };
+    if (low.includes('central america') || low.includes('mexico')) return { name: sdkLabel, flag: 'mx' };
+    if (low.includes('south america')) return { name: sdkLabel, flag: 'br' };
+    if (low.includes('middle east')) return { name: sdkLabel, flag: 'sa' };
+    if (low.includes('africa')) return { name: sdkLabel, flag: 'za' };
+    if (low.includes('australia') || low.includes('new zealand') || low.includes('oceania')) return { name: sdkLabel, flag: 'au' };
+    if (low.includes('asia')) return { name: sdkLabel, flag: 'jp' };
+    return { name: sdkLabel, flag: null };
+  }
+
+  if (ascii && /^[A-Z]{2,4}$/.test(ascii)) {
+    return { name: `Region: ${ascii}`, flag: ascii.endsWith('EU') ? 'eu' : (ascii.endsWith('US') ? 'us' : null) };
+  }
+
+  return { name: 'Global Matchmaking', flag: null };
 }
 
 function computeGlobalPercentile(sr, w, l, d, currDiv) {
@@ -319,8 +381,11 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     const dirStat = unwrapEa(valOf(rStats), clubId);
     const statObj = Object.keys(dirStat).length ? { ...sdkStat, ...dirStat } : sdkStat;
 
-    const dUnwrapped = unwrapEa(valOf(rInfo), clubId);
-    const infoObj = Object.keys(dUnwrapped).length ? dUnwrapped : unwrapEa(valOf(iRes), clubId);
+    const sdkInfo = unwrapEa(valOf(iRes), clubId);
+    const dirInfo = unwrapEa(valOf(rInfo), clubId);
+    // Merge both so SDK's regionLabel AND direct EA's raw customKit/regionId are both preserved!
+    const infoObj = { ...sdkInfo, ...dirInfo };
+    if (sdkInfo.regionLabel && !infoObj.regionLabel) infoObj.regionLabel = sdkInfo.regionLabel;
 
     const cName = infoObj.name || statObj.name;
     if (!cName && !Object.keys(statObj).length) {
@@ -338,8 +403,9 @@ app.get('/api/club/:clubId/info', async (req, res) => {
       if (Array.isArray(atArr)) allTimeLb = atArr.find(x => String(extractClubId(x)) === String(numId)) || {};
     }
 
+    const lbClubInfo = currSeasonLb.clubInfo || allTimeLb.clubInfo || {};
     const { currDivNum, divisionLabel, peakDivNum, peakDivisionLabel } = resolveClubDivisions(currSeasonLb, allTimeLb, statObj, infoObj);
-    const ck = infoObj.customKit || statObj.customKit || {};
+    const ck = infoObj.customKit || lbClubInfo.customKit || statObj.customKit || {};
     const kits = {
       home: [eaIntToHex(ck.kitColor1, '#10b981'), eaIntToHex(ck.kitColor2, '#ffffff'), eaIntToHex(ck.kitColor3, '#064e3b')],
       away: [eaIntToHex(ck.kitAColor1, '#1e293b'), eaIntToHex(ck.kitAColor2, '#38bdf8'), eaIntToHex(ck.kitAColor3, '#0f172a')],
@@ -354,8 +420,9 @@ app.get('/api/club/:clubId/info', async (req, res) => {
 
     res.json({
       info: infoObj, overall: statObj, division: divisionLabel, divisionNum: currDivNum,
-      crestId: resolveCrestId(infoObj, statObj), stadiumName: ck.stadName || infoObj.stadName || infoObj.stadiumName || 'Pro Clubs Arena',
-      regionInfo: resolveClubRegion(infoObj.regionId || statObj.regionId), kits,
+      crestId: resolveCrestId(infoObj, statObj, { details: lbClubInfo }),
+      stadiumName: ck.stadName || infoObj.stadName || infoObj.stadiumName || 'Pro Clubs Arena',
+      regionInfo: resolveClubRegion(infoObj, statObj, lbClubInfo), kits,
       globalRank: computeGlobalPercentile(sr, wins, losses, ties, currDivNum),
       clubRep,
       trophies: {
@@ -371,7 +438,7 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 3. Squad Members (Fetches BOTH SDK & Direct Career Stats so proName & proNationality ALWAYS populate)
+// 3. Squad Members
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const platform = req.query.platform === 'nx' ? 'nx' : 'common-gen5';
@@ -410,7 +477,6 @@ app.get('/api/club/:clubId/members', async (req, res) => {
       });
     };
 
-    // Order from highest priority stats (club stats) down to career enrichment
     absorb(sdkList);
     absorb(dirList);
     absorb(sdkCarList);
@@ -419,14 +485,12 @@ app.get('/api/club/:clubId/members', async (req, res) => {
     const finalMembers = [];
     mergedByKey.forEach((entry, key) => {
       const sources = entry._sources || [entry];
-      // Club-specific stats come from sdkList / dirList first
       const clubSrc = sdkList.find(x => getKey(x) === key) || dirList.find(x => getKey(x) === key) || sources[0];
       const carSrc = dirCarList.find(x => getKey(x) === key) || sdkCarList.find(x => getKey(x) === key) || {};
 
       const m = { ...carSrc, ...clubSrc };
       m.name = clubSrc.name || clubSrc.username || clubSrc.playerName || carSrc.name || key;
 
-      // Explicitly pull proName, proNationality, proOverall, proPos, proHeight from whichever source has them
       ['proStyle', 'proHeight', 'proWeight', 'proOverall', 'proNationality', 'proPos', 'proName', 'nationality'].forEach(field => {
         for (const src of [dirList.find(x => getKey(x) === key), dirCarList.find(x => getKey(x) === key), sdkCarList.find(x => getKey(x) === key), sdkList.find(x => getKey(x) === key)]) {
           if (src && src[field] !== undefined && src[field] !== null && String(src[field]).trim() !== '' && String(src[field]) !== '0') {
