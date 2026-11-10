@@ -5,7 +5,6 @@ let TOP_FIDGET_SPINNER_NAME = null, TOP_MEAT_WALL_NAME = null, CURRENT_CLUB_CRES
 let CURRENT_PITCH_MODE = 'lastMatch', CURRENT_RECAP_MODE = 'session', CURRENT_BANTER_MODE = 'last10', ACTIVE_TAB = 'team';
 
 const slugifyClubName = (name) => String(name || '').toLowerCase().trim().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-const getAppearanceMap = () => { try { return JSON.parse(localStorage.getItem('proClubsAppearanceV3') || '{}'); } catch (_) { return {}; } };
 const escXml = (s) => String(s || '').replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
 
 const COUNTRY_NAME_TO_ISO = {
@@ -44,7 +43,6 @@ function getShirtLabel(playerName) {
   return raw.length > 12 ? raw.substring(0, 11) + '.' : raw;
 }
 
-// Resolves Player Flag ONLY when EA/SDK provides real nationality data (No fake country defaults!)
 function resolvePlayerFlagUrl(playerObjOrName) {
   const nameStr = typeof playerObjOrName === 'string' ? playerObjOrName : (playerObjOrName?.name || playerObjOrName?.playername || '');
   const memberObj = (playerObjOrName && typeof playerObjOrName === 'object') ? playerObjOrName : findMemberMeta(nameStr);
@@ -79,38 +77,25 @@ function resolvePlayerFlagUrl(playerObjOrName) {
   return null;
 }
 
-function getPlayerAppearance(playerObj) {
-  const key = String(typeof playerObj === 'string' ? playerObj : (playerObj?.name || playerObj?.proName || '')).toLowerCase().trim();
-  const saved = getAppearanceMap()[key];
-  return (!saved || (!saved.skin && !saved.hair)) ? { isCustom: false, skin: null, hair: null } : { isCustom: true, skin: saved.skin || 'f2d3b1', hair: saved.hair || '0e0e0e' };
-}
-
-function getPlayerAvatarUrl(playerName) {
-  const look = getPlayerAppearance(playerName);
+// Builds clean Mystery Pro Silhouette with Jersey Nameplate (transparentBg=true blends seamlessly onto UT Card foil!)
+function getPlayerAvatarUrl(playerName, transparentBg = false) {
   const shirt = escXml(getShirtLabel(playerName));
   const fSize = shirt.length <= 5 ? 30 : shirt.length <= 8 ? 24 : shirt.length <= 10 ? 20 : 17;
+  const bgLayers = transparentBg ? '' : `<rect width="256" height="256" fill="url(#bgG)"/><circle cx="128" cy="96" r="96" fill="url(#emH)"/>`;
 
-  if (!look.isCustom) {
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" shape-rendering="geometricPrecision"><defs><radialGradient id="bgG" cx="50%" cy="38%" r="58%"><stop offset="0%" stop-color="#1e293b"/><stop offset="65%" stop-color="#0f172a"/><stop offset="100%" stop-color="#070a12"/></radialGradient><radialGradient id="emH" cx="50%" cy="32%" r="42%"><stop offset="0%" stop-color="#10b981" stop-opacity="0.22"/><stop offset="100%" stop-color="#10b981" stop-opacity="0"/></radialGradient><linearGradient id="hdG" x1="20%" y1="0%" x2="80%" y2="100%"><stop offset="0%" stop-color="#94a3b8"/><stop offset="45%" stop-color="#475569"/><stop offset="100%" stop-color="#1e293b"/></linearGradient><linearGradient id="jsG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#334155"/><stop offset="50%" stop-color="#1e293b"/><stop offset="100%" stop-color="#090d16"/></linearGradient><linearGradient id="rmL" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#e2e8f0" stop-opacity="0.9"/><stop offset="50%" stop-color="#64748b" stop-opacity="0.4"/><stop offset="100%" stop-color="#10b981" stop-opacity="0.7"/></linearGradient></defs><rect width="256" height="256" fill="url(#bgG)"/><circle cx="128" cy="96" r="96" fill="url(#emH)"/><path d="M 96 130 L 84 166 L 172 166 L 160 130 Z" fill="#1e293b"/><path d="M 102 130 L 96 164 L 128 176 L 160 164 L 154 130 Z" fill="url(#hdG)" opacity="0.85"/><path d="M 12 256 C 16 192 50 166 94 156 L 128 188 L 162 156 C 206 166 240 192 244 256 Z" fill="url(#jsG)" stroke="url(#rmL)" stroke-width="2.5" stroke-linejoin="round"/><path d="M 42 184 C 62 170 78 164 96 159" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.85"/><path d="M 214 184 C 194 170 178 164 160 159" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.85"/><path d="M 90 156 L 128 194 L 166 156 L 156 153 L 128 181 L 100 153 Z" fill="#0f172a" stroke="#10b981" stroke-width="1.8" stroke-linejoin="round"/><path d="M 128 32 C 100 32 84 48 84 74 L 84 86 C 79 86 76 91 77 98 C 78 105 81 109 85 109 C 88 124 98 138 112 145 C 118 148 123 149 128 149 C 133 149 138 148 144 145 C 158 138 168 124 171 109 C 175 109 178 105 179 98 C 180 91 177 86 172 86 L 172 74 C 172 48 156 32 128 32 Z" fill="url(#hdG)" stroke="url(#rmL)" stroke-width="2.5" stroke-linejoin="round"/><path d="M 94 64 C 94 48 108 38 128 38" fill="none" stroke="#f8fafc" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/><rect x="44" y="201" width="168" height="34" rx="6" fill="#070a12" fill-opacity="0.58"/><text x="128" y="226" font-family="'Oswald','Arial Narrow',sans-serif" font-size="${fSize}" font-weight="900" letter-spacing="1.4" fill="#f8fafc" stroke="#070a12" stroke-width="2.5" paint-order="stroke" text-anchor="middle">${shirt}</text></svg>`;
-    return `data:image/svg+xml;utf8,` + encodeURIComponent(svg);
-  }
-  return `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(String(playerName || 'Pro').trim())}&skinColor=${look.skin}&hairColor=${look.hair}`;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" shape-rendering="geometricPrecision"><defs><radialGradient id="bgG" cx="50%" cy="38%" r="58%"><stop offset="0%" stop-color="#1e293b"/><stop offset="65%" stop-color="#0f172a"/><stop offset="100%" stop-color="#070a12"/></radialGradient><radialGradient id="emH" cx="50%" cy="32%" r="42%"><stop offset="0%" stop-color="#10b981" stop-opacity="0.22"/><stop offset="100%" stop-color="#10b981" stop-opacity="0"/></radialGradient><linearGradient id="hdG" x1="20%" y1="0%" x2="80%" y2="100%"><stop offset="0%" stop-color="#94a3b8"/><stop offset="45%" stop-color="#475569"/><stop offset="100%" stop-color="#1e293b"/></linearGradient><linearGradient id="jsG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#334155"/><stop offset="50%" stop-color="#1e293b"/><stop offset="100%" stop-color="#090d16"/></linearGradient><linearGradient id="rmL" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#e2e8f0" stop-opacity="0.9"/><stop offset="50%" stop-color="#64748b" stop-opacity="0.4"/><stop offset="100%" stop-color="#10b981" stop-opacity="0.7"/></linearGradient></defs>${bgLayers}<path d="M 96 130 L 84 166 L 172 166 L 160 130 Z" fill="#1e293b"/><path d="M 102 130 L 96 164 L 128 176 L 160 164 L 154 130 Z" fill="url(#hdG)" opacity="0.85"/><path d="M 12 256 C 16 192 50 166 94 156 L 128 188 L 162 156 C 206 166 240 192 244 256 Z" fill="url(#jsG)" stroke="url(#rmL)" stroke-width="2.5" stroke-linejoin="round"/><path d="M 42 184 C 62 170 78 164 96 159" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.85"/><path d="M 214 184 C 194 170 178 164 160 159" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.85"/><path d="M 90 156 L 128 194 L 166 156 L 156 153 L 128 181 L 100 153 Z" fill="#0f172a" stroke="#10b981" stroke-width="1.8" stroke-linejoin="round"/><path d="M 128 32 C 100 32 84 48 84 74 L 84 86 C 79 86 76 91 77 98 C 78 105 81 109 85 109 C 88 124 98 138 112 145 C 118 148 123 149 128 149 C 133 149 138 148 144 145 C 158 138 168 124 171 109 C 175 109 178 105 179 98 C 180 91 177 86 172 86 L 172 74 C 172 48 156 32 128 32 Z" fill="url(#hdG)" stroke="url(#rmL)" stroke-width="2.5" stroke-linejoin="round"/><path d="M 94 64 C 94 48 108 38 128 38" fill="none" stroke="#f8fafc" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/><rect x="44" y="201" width="168" height="34" rx="6" fill="#070a12" fill-opacity="0.68"/><text x="128" y="226" font-family="'Oswald','Arial Narrow',sans-serif" font-size="${fSize}" font-weight="900" letter-spacing="1.4" fill="#f8fafc" stroke="#070a12" stroke-width="2.5" paint-order="stroke" text-anchor="middle">${shirt}</text></svg>`;
+  return `data:image/svg+xml;utf8,` + encodeURIComponent(svg);
 }
 
 function renderAvatarWithFlagHtml(playerName, sizeCls = 'w-8 h-8', borderCls = 'border-emerald-500/40', flagCls = 'w-3.5 h-2.5') {
   const flagUrl = resolvePlayerFlagUrl(playerName);
   const shirt = getShirtLabel(playerName);
-  const look = getPlayerAppearance(playerName);
-  const customChestPlate = look.isCustom
-    ? `<span class="absolute bottom-[12%] left-1/2 -translate-x-1/2 px-1 rounded bg-gray-950/85 text-[6px] font-black text-white uppercase tracking-tighter leading-tight max-w-[85%] truncate pointer-events-none border border-white/15">${shirt}</span>`
-    : '';
   const flagImg = flagUrl
     ? `<img src="${flagUrl}" class="absolute -top-0.5 -right-0.5 ${flagCls} object-cover rounded-[2px] border border-gray-950 shadow-md z-10 pointer-events-none" alt="Flag">`
     : '';
 
   return `<div class="relative inline-flex flex-shrink-0" title="${playerName} (${shirt})">
     <img src="${getPlayerAvatarUrl(playerName)}" class="${sizeCls} rounded-full avatar-circle border ${borderCls} bg-gray-900 object-cover" alt="${playerName}">
-    ${customChestPlate}
     ${flagImg}
   </div>`;
 }
@@ -144,8 +129,6 @@ function computeMatchGradeAndUnitRatings(myG, oppG, stats = []) {
   return { grade, gradeCls, atk: atk.toFixed(1), def: def.toFixed(1) };
 }
 
-// Verified FC 27 match_event_aggregate IDs:
-// Yellows = ev[95] + ev[213] (advantage yellow) | Fouls = ev[2] + ev[3] | Interceptions = ev[6] | Crosses Blocked = ev[156] | Saves = ev[202] | Skills = ev[38] | Dribbles = ev[174] | Offside Passes = ev[153]
 function parsePlayerMatchEvents(p = {}) {
   const ev = {};
   for (let i = 0; i < 6; i++) {
@@ -161,22 +144,18 @@ function parsePlayerMatchEvents(p = {}) {
   const posStr = String(p.pos || '').toLowerCase();
   const isDef = ['defender','cb','lb','rb','lcb','rcb','lwb','rwb','cdm'].includes(posStr);
 
-  // Blocks (ev[156] blocked crosses + shot block IDs) & Verified Interceptions (ev[6] + ev[158] dispossessed)
   const rawBlocks = (ev[156] || 0) + (ev[12] || 0) + (ev[51] || 0) + (ev[56] || 0);
   const blocks = rawBlocks > 0 ? rawBlocks : (isDef ? Math.max(1, Math.round(tackles * 0.5)) : Math.round(tackles * 0.3));
   const interceptions = Number(p.interceptions ?? 0) + (ev[6] || 0) + (ev[158] || 0);
 
-  // GK Saves (ev[202]) & Goals Conceded
   const saves = Math.max(Number(p.saves ?? 0), ev[202] || 0);
   const goalsConceded = Number(p.goalsconceded ?? p.goalsConceded ?? 0);
 
-  // Offsides & Woodwork
   const shots = Number(p.shots || 0), goals = Number(p.goals || 0), rating = parseFloat(p.rating || 7.0);
   const offsides = Number(p.offsides ?? ev[153] ?? 0);
   const rawWoodwork = Number(p.woodwork ?? p.shotsHitWoodwork ?? 0) + (ev[9] || 0) + (ev[42] || 0) + (ev[89] || 0);
   const woodwork = rawWoodwork > 0 ? rawWoodwork : ((shots >= 4 && goals === 0 && rating >= 7.2) ? 1 : (shots - goals >= 5 ? 1 : 0));
 
-  // Verified FC 27 Yellow Cards (ev[95] standard yellow + ev[213] post-advantage yellow) & Red Cards
   const redCards = Number(p.redcards ?? p.redCards ?? p.red_cards ?? 0);
   const directYellow = Number(p.yellowcards ?? p.yellowCards ?? p.yellow_cards ?? 0);
   const verifiedEventYellows = (ev[95] || 0) + (ev[213] || 0);
