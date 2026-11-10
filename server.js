@@ -371,51 +371,89 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 3. Squad Members (Merges SDK + Direct EA Members + Direct EA Career Stats so proNationality & proName are NEVER lost)
+// 3. Squad Members (Fetches BOTH SDK & Direct Career Stats so proName & proNationality ALWAYS populate)
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const platform = req.query.platform === 'nx' ? 'nx' : 'common-gen5';
   const numId = parseInt(clubId, 10);
-  const toList = (p) => Array.isArray(p) ? p : (Array.isArray(p?.members) ? p.members : Object.values(p?.members || p || {}));
+  const toList = (p) => {
+    if (!p) return [];
+    if (Array.isArray(p)) return p;
+    if (Array.isArray(p.members)) return p.members;
+    if (typeof p.members === 'object' && p.members) return Object.values(p.members);
+    return Object.values(p).filter(v => v && typeof v === 'object');
+  };
+  const getKey = (o) => String(o?.name || o?.username || o?.playerName || o?.gamertag || '').toLowerCase().trim();
 
   try {
-    const [cRes, dMemRes, carRes] = await Promise.allSettled([
+    const [sdkMemRes, sdkCarRes, dirMemRes, dirCarRes] = await Promise.allSettled([
       proclubs.members.stats({ clubId: numId, platform }),
+      typeof proclubs.members.careerStats === 'function'
+        ? proclubs.members.careerStats({ clubId: numId, platform })
+        : (typeof proclubs.members.career === 'function' ? proclubs.members.career({ clubId: numId, platform }) : Promise.resolve(null)),
       eaFetch(`https://proclubs.ea.com/api/fc/members/stats?clubId=${numId}&platform=${platform}`),
       eaFetch(`https://proclubs.ea.com/api/fc/members/career/stats?clubId=${numId}&platform=${platform}`)
     ]);
 
-    const sdkList = toList(valOf(cRes));
-    const dirList = toList(valOf(dMemRes));
-    const carList = toList(valOf(carRes));
+    const sdkList = toList(valOf(sdkMemRes));
+    const sdkCarList = toList(valOf(sdkCarRes));
+    const dirList = toList(valOf(dirMemRes));
+    const dirCarList = toList(valOf(dirCarRes));
 
-    const dirMap = new Map(), carMap = new Map();
-    dirList.forEach(dm => dm?.name && dirMap.set(String(dm.name).toLowerCase().trim(), dm));
-    carList.forEach(cm => cm?.name && carMap.set(String(cm.name).toLowerCase().trim(), cm));
-
-    const baseList = sdkList.length ? sdkList : dirList;
-    baseList.forEach(m => {
-      if (!m || typeof m !== 'object') return;
-      const key = String(m.name || m.proName || '').toLowerCase().trim();
-      const dm = dirMap.get(key) || {};
-      const co = carMap.get(key) || {};
-
-      // Preserve raw EA fields that proclubs-sdk renames or omits
-      ['proStyle','proHeight','proWeight','proOverall','proNationality','proPos','proName'].forEach(k => {
-        const val = dm[k] ?? co[k] ?? m[k];
-        if (val !== undefined && val !== null && String(val) !== '') m[k] = val;
+    const mergedByKey = new Map();
+    const absorb = (arr) => {
+      arr.forEach(item => {
+        const k = getKey(item);
+        if (!k) return;
+        const existing = mergedByKey.get(k) || {};
+        mergedByKey.set(k, { ...item, ...existing, _sources: [...(existing._sources || []), item] });
       });
-      if (!m.proNationality && m.nationality?.id) m.proNationality = String(m.nationality.id);
+    };
 
-      m.totalCleanSheets = Number(m.cleanSheetsDef ?? dm.cleanSheetsDef ?? co.cleanSheetsDef ?? 0) + Number(m.cleanSheetsGK ?? dm.cleanSheetsGK ?? co.cleanSheetsGK ?? 0);
-      m.shotConvRate = Number(m.shotSuccessRate ?? dm.shotSuccessRate ?? co.shotSuccessRate ?? 0);
-      const cG = Number(m.gamesPlayed ?? dm.gamesPlayed ?? m.games ?? 0);
-      const totG = Math.max(cG, Number(co.gamesPlayed ?? co.games ?? cG));
+    // Order from highest priority stats (club stats) down to career enrichment
+    absorb(sdkList);
+    absorb(dirList);
+    absorb(sdkCarList);
+    absorb(dirCarList);
+
+    const finalMembers = [];
+    mergedByKey.forEach((entry, key) => {
+      const sources = entry._sources || [entry];
+      // Club-specific stats come from sdkList / dirList first
+      const clubSrc = sdkList.find(x => getKey(x) === key) || dirList.find(x => getKey(x) === key) || sources[0];
+      const carSrc = dirCarList.find(x => getKey(x) === key) || sdkCarList.find(x => getKey(x) === key) || {};
+
+      const m = { ...carSrc, ...clubSrc };
+      m.name = clubSrc.name || clubSrc.username || clubSrc.playerName || carSrc.name || key;
+
+      // Explicitly pull proName, proNationality, proOverall, proPos, proHeight from whichever source has them
+      ['proStyle', 'proHeight', 'proWeight', 'proOverall', 'proNationality', 'proPos', 'proName', 'nationality'].forEach(field => {
+        for (const src of [dirList.find(x => getKey(x) === key), dirCarList.find(x => getKey(x) === key), sdkCarList.find(x => getKey(x) === key), sdkList.find(x => getKey(x) === key)]) {
+          if (src && src[field] !== undefined && src[field] !== null && String(src[field]).trim() !== '' && String(src[field]) !== '0') {
+            m[field] = src[field];
+            break;
+          }
+        }
+      });
+
+      if (!m.proNationality && m.nationality) {
+        if (typeof m.nationality === 'object' && m.nationality.id) m.proNationality = String(m.nationality.id);
+        else if (typeof m.nationality === 'number' || /^\d+$/.test(String(m.nationality))) m.proNationality = String(m.nationality);
+      }
+
+      m.totalCleanSheets = Number(m.cleanSheetsDef ?? carSrc.cleanSheetsDef ?? 0) + Number(m.cleanSheetsGK ?? carSrc.cleanSheetsGK ?? 0);
+      m.shotConvRate = Number(m.shotSuccessRate ?? carSrc.shotSuccessRate ?? 0);
+      const cG = Number(clubSrc.gamesPlayed ?? clubSrc.games ?? m.gamesPlayed ?? 0);
+      const totG = Math.max(cG, Number(carSrc.gamesPlayed ?? carSrc.games ?? cG));
+      m.gamesPlayed = cG;
       m.careerTotalGames = totG;
       m.otherClubGames = Math.max(0, totG - cG);
       m.loyaltyPct = totG > 0 ? Math.round((cG / totG) * 100) : 100;
+      delete m._sources;
+      finalMembers.push(m);
     });
-    res.json(baseList);
+
+    res.json(finalMembers);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
