@@ -49,80 +49,78 @@ function resolveCrestId(info = {}, stat = {}, matchClub = {}) {
   return hit ? String(hit).trim() : null;
 }
 
-// Converts EA raw division value into display tier: 0 = Elite, 1 = Div 1, 2 = Div 2, 3 = Div 3, 4 = Div 4, 5 = Div 5
-function normalizeEaDivisionValue(raw, isInvertedSixScale = false) {
+// EA FC Division IDs run 1..6 where: 1 = Elite (0), 2 = Div 1 (1), 3 = Div 2 (2), 4 = Div 3 (3), 5 = Div 4 (4), 6 = Div 5 (5)
+function mapEaDivIdToTier(raw, sr = 1400) {
   if (raw === undefined || raw === null || raw === '') return null;
   const s = String(raw).trim().toLowerCase();
   if (s === 'elite') return 0;
   const n = parseInt(s.replace(/[^0-9-]/g, ''), 10);
-  if (isNaN(n) || n < 0 || n > 10) return null;
-  // In EA's internal 1..6 seasonal tier IDs: 1=Div5, 2=Div4, 3=Div3, 4=Div2, 5=Div1, 6=Elite
-  if (isInvertedSixScale && n >= 1 && n <= 6) return 6 - n;
-  if (n === 6) return 0;
-  return Math.min(5, Math.max(0, n));
+  if (isNaN(n) || n <= 0 || n > 10) return null;
+
+  // If EA sends 6, it is unequivocally Division 5 (since only 6 tiers exist: Elite + Div 1..5)
+  if (n === 6) return 5;
+  // In EA FC 25/26/27, 1..6 maps via (n - 1) -> 0..5. Guard Elite (n=1 -> 0) if SR is below Elite threshold (<1950)
+  if (n >= 1 && n <= 5) {
+    if (n === 1 && sr < 1950) return 1; // Div 1 rather than Elite if SR < 1950
+    // Check whether EA used 1=Elite..6=Div5 (n-1) vs direct 1..5
+    return n - 1;
+  }
+  return 5;
 }
 
-const fmtDiv = (n) => (n === null || n === undefined || isNaN(n)) ? 'Div 5' : (n <= 0 ? 'Elite' : `Div ${Math.min(5, Math.max(1, n))}`);
+const fmtDiv = (n) => (n === null || n === undefined || isNaN(n)) ? 'Div 4' : (n <= 0 ? 'Elite' : `Div ${Math.min(5, Math.max(1, n))}`);
 
-// Accurately resolves Active Current Division vs All-Time Peak Division
+// Resolves Current Division vs All-Time Peak Division without ever falsely assigning Elite Division
 function resolveClubDivisions(season = {}, stat = {}, info = {}, lb = {}) {
-  const sr = Number(stat.skillRating ?? stat.rating ?? lb.skillRating ?? info.skillRating ?? 1300);
+  const sr = Number(stat.skillRating ?? stat.rating ?? lb.skillRating ?? info.skillRating ?? 1400);
   const totalPromos = Math.max(Number(season.promotions || 0), Number(stat.promotions || 0), Number(lb.promotions || 0));
-  const totalRelegs = Math.max(Number(season.relegations || 0), Number(stat.relegations || 0), Number(lb.relegations || 0));
-  const totalWins = Number(stat.wins ?? stat.overallWins ?? lb.wins ?? 0);
-  const totalGames = totalWins + Number(stat.losses ?? stat.overallLosses ?? 0) + Number(stat.ties ?? stat.overallTies ?? 0);
 
-  // Detect if EA payload is using the 1..6 upward scale (where 1=Div5, 2=Div4 ... 6=Elite)
-  const rawSeasonCurr = season.currentDivision ?? season.activeDivision ?? season.division ?? lb.currentDivision ?? null;
+  const rawCurr = season.currentDivision ?? season.activeDivision ?? season.division ?? lb.currentDivision ?? null;
   const rawSeasonBest = season.bestDivision ?? null;
   const rawOverallBest = stat.bestDivision ?? lb.bestDivision ?? null;
 
-  const usesUpwardScale = (
-    Number(rawSeasonCurr) === 6 || Number(rawSeasonBest) === 6 || Number(rawOverallBest) === 6 ||
-    (rawSeasonCurr !== null && rawSeasonBest !== null && Number(rawSeasonBest) > Number(rawSeasonCurr) && totalPromos > 0)
-  );
+  // Determine if EA's payload uses the 6-tier offset (1=Elite, 2=Div1, 3=Div2, 4=Div3, 5=Div4, 6=Div5)
+  const anySix = [rawCurr, rawSeasonBest, rawOverallBest].some(v => Number(v) === 6);
 
-  let curr = normalizeEaDivisionValue(rawSeasonCurr, usesUpwardScale);
+  const parseTier = (val) => {
+    if (val === undefined || val === null || val === '') return null;
+    const n = parseInt(String(val), 10);
+    if (isNaN(n) || n <= 0) return null;
+    if (anySix || n === 6) return Math.min(5, Math.max(0, n - 1));
+    // Standard 1..5 fallback (never return 0/Elite unless explicit 'elite' or n=1 with 2050+ SR)
+    return Math.min(5, Math.max(1, n));
+  };
 
-  // Fallback when EA's seasonalStats endpoint is empty/Cloudflare-blocked on Render:
-  // Infer active division from current FC27 season window + Skill Rating + promotion trajectory
+  let curr = parseTier(rawCurr);
+
+  // If Cloudflare blocked seasonalStats (curr === null), infer cleanly from Skill Rating & Promotions (Never false Elite!)
   if (curr === null) {
-    const fc27Launch = new Date('2026-09-24T00:00:00Z').getTime();
-    const daysSinceLaunch = Math.max(1, (Date.now() - fc27Launch) / 86400000);
-    const daysIntoCurrentSeason = daysSinceLaunch % 42;
-    const seasonProgressRatio = Math.min(1, Math.max(0.18, daysIntoCurrentSeason / 42));
-
-    // Estimate promotions earned in the current active season cycle + SR floor
-    const estCurrentSeasonPromos = totalGames > 0 ? Math.round(totalPromos * seasonProgressRatio) : 0;
-    const divBySeasonPromos = Math.max(0, Math.min(5, 5 - estCurrentSeasonPromos));
-
-    // Skill Rating division benchmark in FC27 Clubs (clubs actively winning in a new season climb out of Div 5 quickly)
-    let divBySr = 5;
-    if (sr >= 2050 && daysIntoCurrentSeason >= 10) divBySr = 0;
-    else if (sr >= 1880 && daysIntoCurrentSeason >= 7) divBySr = 1;
-    else if (sr >= 1720) divBySr = 2;
-    else if (sr >= 1560) divBySr = 3;
-    else if (sr >= 1360 || (totalPromos >= 1 && sr >= 1280)) divBySr = 4;
-
-    // Blend current-season promo pace with SR tier so promoted clubs never get stuck on Div 5
-    curr = Math.min(divBySeasonPromos, divBySr);
-    // Cap active division so it cannot exceed what's mathematically reachable early in a season reset
-    const maxClimbThisSeason = daysIntoCurrentSeason < 4 ? 4 : (daysIntoCurrentSeason < 10 ? 2 : 0);
-    curr = Math.max(curr, maxClimbThisSeason);
+    if (sr >= 2100 && totalPromos >= 5) curr = 0;      // Elite
+    else if (sr >= 1900 && totalPromos >= 4) curr = 1; // Div 1
+    else if (sr >= 1740 && totalPromos >= 3) curr = 2; // Div 2
+    else if (sr >= 1580 && totalPromos >= 2) curr = 3; // Div 3
+    else if (sr >= 1300 || totalPromos >= 1) curr = 4; // Div 4
+    else curr = 5;                                     // Div 5
   }
 
-  // Peak Division: Best tier reached across all seasons (lower number = better division: 0=Elite ... 5=Div5)
-  const allowElite = (curr === 0 || sr >= 1950);
-  const minPossibleDivByPromos = Math.max(0, 5 - totalPromos);
+  // Hard guardrail: A club with SR < 1950 cannot be in Elite Division (0)
+  if (curr === 0 && sr < 1950) curr = sr >= 1750 ? 2 : (sr >= 1580 ? 3 : 4);
 
-  const rawBestCands = [
+  // Peak Division (lower = better: 0=Elite, 1=Div1, 2=Div2, 3=Div3, 4=Div4, 5=Div5)
+  const minReachableByPromos = Math.max(0, 5 - totalPromos);
+  const peakCandidates = [
     curr,
-    normalizeEaDivisionValue(rawSeasonBest, usesUpwardScale),
-    normalizeEaDivisionValue(rawOverallBest, false)
-  ].filter(n => n !== null && n >= 0 && n <= 5 && (n !== 0 || allowElite))
-   .map(n => Math.max(n, minPossibleDivByPromos));
+    parseTier(rawSeasonBest),
+    // In overallStats, EA often sends bestDivision as direct 1..5 (e.g. "2" = Div 2)
+    rawOverallBest !== null && rawOverallBest !== undefined ? Math.min(5, Math.max(1, parseInt(rawOverallBest, 10) || 5)) : null
+  ].filter(n => n !== null && n >= 0 && n <= 5)
+   .map(n => {
+     let clamped = Math.max(n, minReachableByPromos);
+     if (clamped === 0 && sr < 1950) clamped = 1;
+     return clamped;
+   });
 
-  const peak = rawBestCands.length ? Math.min(...rawBestCands) : curr;
+  const peak = peakCandidates.length ? Math.min(...peakCandidates) : curr;
 
   return { currDivNum: curr, divisionLabel: fmtDiv(curr), peakDivNum: peak, peakDivisionLabel: fmtDiv(peak) };
 }
@@ -460,7 +458,7 @@ app.post('/api/discord/send', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 8. Diagnostic Division Inspector
+// 8. Diagnostic Division & Match Lineup Inspector
 app.get('/api/debug/divisions/:clubId', async (req, res) => {
   const { clubId } = req.params, { platform = 'common-gen5' } = req.query, numId = parseInt(clubId, 10);
   const [sRes, sSdk, sDir] = await Promise.allSettled([
