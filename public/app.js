@@ -152,7 +152,6 @@ function computeMatchGradeAndUnitRatings(myG, oppG, stats = []) {
   return { grade, gradeCls, atk: atk.toFixed(1), def: def.toFixed(1) };
 }
 
-// Extracts Skill Moves, Dribbles, Blocks ("Meat Wall"), Woodwork Hits, Yellow Cards & Red Cards
 function parsePlayerMatchEvents(p = {}) {
   const ev = {};
   for (let i = 0; i < 6; i++) {
@@ -313,7 +312,6 @@ function normalizePosition(rawPos) {
   return ['goalkeeper','gk'].includes(p) ? 'GK' : 'MID';
 }
 
-// Hardened Search Handler (Safely handles button clicks, Enter keypresses & URL route slugs)
 async function handleSearch(overrideQuery = null, autoSelectExactSlug = false) {
   const searchEl = document.getElementById('searchInput');
   const rawInput = typeof overrideQuery === 'string' ? overrideQuery : (searchEl?.value || '');
@@ -353,25 +351,64 @@ function switchRecapMode(mode) {
   updateRecapMetricsDisplay(GLOBAL_CLUB_ID, mode === 'session' ? SESSION_MATCHES_CACHE : GLOBAL_MATCHES.slice(0, 10), mode);
 }
 
+// Dynamically updates Record, Per-Game MVP/Passenger, 2/3/4/5+ Own Party Win % & Opponent Lobby Size Row
 function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const sec = document.getElementById('sessionRecapSection');
   if (!fixtures.length) return sec.classList.add('hidden');
   sec.classList.remove('hidden');
 
-  let sW = 0, sD = 0, sL = 0, sGF = 0, sGA = 0; const pMap = {};
+  let sW = 0, sD = 0, sL = 0, sGF = 0, sGA = 0;
+  const pMap = {};
+  const ownBuckets = {
+    2: { label: '2 Pros', w: 0, total: 0 },
+    3: { label: '3 Pros', w: 0, total: 0 },
+    4: { label: '4 Pros', w: 0, total: 0 },
+    5: { label: '5+ Pros', w: 0, total: 0 }
+  };
+  const oppBuckets = {
+    2: { label: 'vs. 2-Man', w: 0, d: 0, l: 0, total: 0 },
+    3: { label: 'vs. 3-Man', w: 0, d: 0, l: 0, total: 0 },
+    4: { label: 'vs. 4-Man', w: 0, d: 0, l: 0, total: 0 },
+    5: { label: 'vs. 5+ Man', w: 0, d: 0, l: 0, total: 0 }
+  };
+
   fixtures.forEach(m => {
     const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
     const myId = cIds.find(id => String(id) === String(clubId)) || cIds[0], oppId = cIds.find(id => String(id) !== String(clubId)) || cIds[1];
     const mG = Number(clubs[myId]?.goals ?? clubs[myId]?.score ?? 0), oG = Number(clubs[oppId]?.goals ?? clubs[oppId]?.score ?? 0);
-    sGF += mG; sGA += oG; if (mG > oG) sW++; else if (mG < oG) sL++; else sD++;
-    Object.values(m.players?.[myId] || {}).forEach(p => {
+    const isWin = mG > oG, isLoss = mG < oG;
+    sGF += mG; sGA += oG;
+    if (isWin) sW++; else if (isLoss) sL++; else sD++;
+
+    const myPlayers = Object.values(m.players?.[myId] || {});
+    const oppCnt = Object.keys(m.players?.[oppId] || {}).length;
+
+    if (myPlayers.length > 0) {
+      const obk = myPlayers.length <= 2 ? 2 : myPlayers.length === 3 ? 3 : myPlayers.length === 4 ? 4 : 5;
+      ownBuckets[obk].total++;
+      if (isWin) ownBuckets[obk].w++;
+    }
+
+    if (oppCnt > 0) {
+      const bk = oppCnt <= 2 ? 2 : oppCnt === 3 ? 3 : oppCnt === 4 ? 4 : 5;
+      oppBuckets[bk].total++;
+      if (isWin) oppBuckets[bk].w++; else if (isLoss) oppBuckets[bk].l++; else oppBuckets[bk].d++;
+    }
+
+    myPlayers.forEach(p => {
       const n = p.playername || p.name || 'Pro';
-      if (!pMap[n]) pMap[n] = { name: n, games: 0, goals: 0, assists: 0, ratingSum: 0 };
-      pMap[n].games++; pMap[n].goals += Number(p.goals || 0); pMap[n].assists += Number(p.assists || 0); pMap[n].ratingSum += parseFloat(p.rating || 7.0);
+      if (!pMap[n]) pMap[n] = { name: n, games: 0, goals: 0, assists: 0, tackles: 0, cleanSheets: 0, ratingSum: 0 };
+      pMap[n].games++;
+      pMap[n].goals += Number(p.goals || 0);
+      pMap[n].assists += Number(p.assists || 0);
+      pMap[n].tackles += Number(p.tacklesmade || p.tackles || 0);
+      if (oG === 0) pMap[n].cleanSheets++;
+      pMap[n].ratingSum += parseFloat(p.rating || 7.0);
     });
   });
 
   const gd = sGF - sGA, pfx = mode === 'session' ? 'Session' : 'Last 10';
+  const windowName = mode === 'session' ? 'Latest Session' : `Last ${fixtures.length} Matches`;
   document.getElementById('recapRecordTitle').innerText = `${pfx} Record`;
   document.getElementById('recapMvpTitle').innerText = `👑 ${pfx} MVP`;
   document.getElementById('recapLiabilityTitle').innerText = `⚓ ${pfx} Passenger`;
@@ -383,12 +420,48 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   tb.className = sL > sW && sL >= 2 ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40' : sW > sL ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40';
   tb.innerText = sL > sW && sL >= 2 ? '🚨 HIGH TILT' : sW > sL ? '🔥 VIBES IMMACULATE' : '⚖️ MIXED BAG';
 
-  const arr = Object.values(pMap).map(sp => ({ ...sp, avgRat: sp.ratingSum / sp.games, imp: (sp.ratingSum / sp.games) * 10 + sp.goals * 4 + sp.assists * 3 })).sort((a, b) => b.imp - a.imp);
+  // Fair Per-Game & Position-Balanced Impact Formula (Credits G, A, Tackles & Clean Sheets per appearance)
+  const arr = Object.values(pMap).map(sp => {
+    const avgRat = sp.ratingSum / sp.games;
+    const perGameBonus = (sp.goals * 4 + sp.assists * 3 + sp.tackles * 0.8 + sp.cleanSheets * 2.5) / sp.games;
+    return { ...sp, avgRat, imp: avgRat * 10 + perGameBonus };
+  }).sort((a, b) => b.imp - a.imp);
+
   if (arr.length) {
     const mvp = arr[0], liab = arr[arr.length - 1];
-    document.getElementById('sessionMvpName').innerText = mvp.name; document.getElementById('sessionMvpStats').innerText = `${mvp.avgRat.toFixed(1)} AVG • ${mvp.goals}G ${mvp.assists}A`; document.getElementById('sessionMvpAvatar').src = getPlayerAvatarUrl(mvp.name);
-    document.getElementById('sessionLiabilityName').innerText = liab.name; document.getElementById('sessionLiabilityStats').innerText = `${liab.avgRat.toFixed(1)} AVG • ${liab.goals}G ${liab.assists}A`; document.getElementById('sessionLiabilityAvatar').src = getPlayerAvatarUrl(liab.name);
+    const fmtLine = (u) => (u.goals + u.assists > 0) ? `${u.avgRat.toFixed(1)} AVG • ${u.goals}G ${u.assists}A (${u.games}G)` : `${u.avgRat.toFixed(1)} AVG • ${u.tackles} Tkl (${u.games}G)`;
+    document.getElementById('sessionMvpName').innerText = mvp.name;
+    document.getElementById('sessionMvpStats').innerText = fmtLine(mvp);
+    document.getElementById('sessionMvpAvatar').src = getPlayerAvatarUrl(mvp.name);
+    document.getElementById('sessionLiabilityName').innerText = liab.name;
+    document.getElementById('sessionLiabilityStats').innerText = fmtLine(liab);
+    document.getElementById('sessionLiabilityAvatar').src = getPlayerAvatarUrl(liab.name);
   }
+
+  // Render 2, 3, 4, 5+ Own Party Size Win % Grid
+  const ownModeEl = document.getElementById('ownPartyModeBadge');
+  if (ownModeEl) ownModeEl.innerText = pfx;
+  const ownGridEl = document.getElementById('ownPartySizeGrid');
+  if (ownGridEl) {
+    ownGridEl.innerHTML = [2, 3, 4, 5].map(k => {
+      const b = ownBuckets[k], wp = b.total > 0 ? Math.round((b.w / b.total) * 100) : null;
+      const col = wp === null ? 'text-gray-500' : (wp >= 50 ? 'text-emerald-400' : 'text-rose-400');
+      return `<div class="flex items-center justify-between text-[11px] bg-gray-950/50 border border-gray-800/80 rounded px-1.5 py-0.5"><span class="text-gray-300 font-bold">${b.label}:</span><span class="font-mono font-black ${col}">${wp !== null ? `${wp}% (${b.w}/${b.total})` : '--'}</span></div>`;
+    }).join('');
+  }
+
+  const activePartyBuckets = [2, 3, 4, 5].map(k => ownBuckets[k]).filter(b => b.total > 0).sort((a, b) => (b.w / b.total) - (a.w / a.total));
+  document.getElementById('squadFactorVerdict').innerText = activePartyBuckets.length
+    ? `Best synergy: ${activePartyBuckets[0].label} (${Math.round((activePartyBuckets[0].w / activePartyBuckets[0].total) * 100)}% Win)`
+    : 'Balanced squad chemistry';
+
+  // Render Bottom Row: Performance vs. Opponent Lobby Sizes (Synced to Session vs Last 10 Toggle)
+  const oppTitleEl = document.getElementById('vsOpponentHeaderTitle');
+  if (oppTitleEl) oppTitleEl.innerHTML = `<i class="fa-solid fa-people-arrows text-emerald-400"></i> Performance vs. Opponent Lobby Sizes (${windowName})`;
+  document.getElementById('vsOpponentSizeGrid').innerHTML = [2, 3, 4, 5].map(k => {
+    const b = oppBuckets[k], wp = b.total > 0 ? Math.round((b.w / b.total) * 100) : null;
+    return `<div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 space-y-1"><div class="flex items-center justify-between"><span class="text-[10px] font-black uppercase text-gray-300">${b.label}</span><span class="text-xs font-black ${wp!==null&&wp>=50?'text-emerald-400':'text-gray-300'}">${wp!==null?`${wp}% Win`:'0 GP'}</span></div><div class="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden"><div class="h-full ${wp!==null&&wp>=50?'bg-emerald-500':'bg-rose-500'} rounded-full" style="width:${wp!==null?Math.max(8,wp):0}%"></div></div><div class="text-[10px] font-mono text-gray-400">Record: <b class="text-white">${b.w}W-${b.d}D-${b.l}L</b></div></div>`;
+  }).join('');
 }
 
 function renderClubReviewReport(clubData = {}, members = [], matches = [], shameList = []) {
@@ -425,8 +498,7 @@ function renderClubReviewReport(clubData = {}, members = [], matches = [], shame
 function computeMatchIntelligence(clubId, matchesPayload) {
   RECENT_FORM_MAP = {}; RECENT_10_STATS_MAP = {}; TOP_FIDGET_SPINNER_NAME = null; TOP_MEAT_WALL_NAME = null;
   const ratingBuckets = {}, duoContributions = {}, opponentCounts = {}, shameMap = {}, sessionMatches = [];
-  let highestSrOpp = null, smallGames = 0, smallWins = 0, largeGames = 0, largeWins = 0, prevTs = null;
-  const oppBuckets = { 2: { label: 'vs. 2-Man', w:0, d:0, l:0, total:0 }, 3: { label: 'vs. 3-Man', w:0, d:0, l:0, total:0 }, 4: { label: 'vs. 4-Man', w:0, d:0, l:0, total:0 }, 5: { label: 'vs. 5+ Man', w:0, d:0, l:0, total:0 } };
+  let highestSrOpp = null, prevTs = null;
   const matchArr = Array.isArray(matchesPayload) ? matchesPayload : (matchesPayload?.matches || []);
 
   matchArr.slice(0, 10).forEach((m, idx) => {
@@ -441,12 +513,7 @@ function computeMatchIntelligence(clubId, matchesPayload) {
     opponentCounts[oppName].played++; if (isWin) opponentCounts[oppName].wins++; else if (isLoss) opponentCounts[oppName].losses++; else opponentCounts[oppName].draws++;
     if (!highestSrOpp || oppSR > highestSrOpp.sr) highestSrOpp = opponentCounts[oppName];
 
-    const oppCnt = Object.keys(m.players?.[oppId] || {}).length;
-    if (oppCnt > 0) { const bk = oppCnt <= 2 ? 2 : oppCnt === 3 ? 3 : oppCnt === 4 ? 4 : 5; oppBuckets[bk].total++; if (isWin) oppBuckets[bk].w++; else if (isLoss) oppBuckets[bk].l++; else oppBuckets[bk].d++; }
-
     const lobbyPlayers = Object.values(m.players?.[thisId] || {});
-    if (lobbyPlayers.length > 0 && lobbyPlayers.length <= 3) { smallGames++; if (isWin) smallWins++; } else if (lobbyPlayers.length >= 4) { largeGames++; if (isWin) largeWins++; }
-
     const activeContributors = [], maxSecs = lobbyPlayers.reduce((mx, lp) => Math.max(mx, Number(lp.secondsPlayed || 0)), 0);
     lobbyPlayers.forEach(p => {
       const pName = p.playername || p.name || 'Pro', r = parseFloat(p.rating || 0), g = Number(p.goals || 0), a = Number(p.assists || 0);
@@ -486,17 +553,8 @@ function computeMatchIntelligence(clubId, matchesPayload) {
   if (topBlocker?.blocks > 0) TOP_MEAT_WALL_NAME = topBlocker.name;
 
   updateRecapMetricsDisplay(clubId, CURRENT_RECAP_MODE === 'session' ? sessionMatches : matchArr.slice(0, 10), CURRENT_RECAP_MODE);
-  const sPct = smallGames > 0 ? Math.round((smallWins / smallGames) * 100) : null, lPct = largeGames > 0 ? Math.round((largeWins / largeGames) * 100) : null;
-  document.getElementById('squadFactorSmall').innerText = sPct !== null ? `2–3 Pros: ${sPct}% Win (${smallWins}/${smallGames})` : '2–3 Pros: No GP';
-  document.getElementById('squadFactorLarge').innerText = lPct !== null ? `4+ Pros: ${lPct}% Win (${largeWins}/${largeGames})` : '4+ Pros: No GP';
-  document.getElementById('squadFactorVerdict').innerText = (sPct !== null && lPct !== null) ? (sPct > lPct ? 'Small squad synergy!' : 'Full squad dominance!') : 'Balanced chemistry';
-
-  document.getElementById('vsOpponentSizeGrid').innerHTML = [2, 3, 4, 5].map(k => {
-    const b = oppBuckets[k], wp = b.total > 0 ? Math.round((b.w / b.total) * 100) : null;
-    return `<div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 space-y-1"><div class="flex items-center justify-between"><span class="text-[10px] font-black uppercase text-gray-300">${b.label}</span><span class="text-xs font-black ${wp!==null&&wp>=50?'text-emerald-400':'text-gray-300'}">${wp!==null?`${wp}% Win`:'0 GP'}</span></div><div class="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden"><div class="h-full ${wp!==null&&wp>=50?'bg-emerald-500':'bg-rose-500'} rounded-full" style="width:${wp!==null?Math.max(8,wp):0}%"></div></div><div class="text-[10px] font-mono text-gray-400">Record: <b class="text-white">${b.w}W-${b.d}D-${b.l}L</b></div></div>`;
-  }).join('');
-
   renderShameBoard(SHAME_LIST_CACHE);
+
   if (matchArr.length) {
     document.getElementById('intelSection').classList.remove('hidden');
     const topDuo = Object.values(duoContributions).sort((a, b) => b.combinedGA - a.combinedGA)[0];
@@ -523,7 +581,6 @@ function switchBanterMode(mode) {
   renderShameBoard(SHAME_LIST_CACHE);
 }
 
-// Renders 9 Symmetrical 3x3 Banter & Shame Board Cards
 function renderShameBoard(shameList = []) {
   const sec = document.getElementById('shameBoardSection');
   if (!shameList.length && !GLOBAL_MEMBERS.length) return sec.classList.add('hidden');
