@@ -12,14 +12,26 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const proclubs = new ProClubsClient({ cache: false });
 const EA_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
   'Accept': 'application/json, text/plain, */*',
   'Accept-Language': 'en-US,en;q=0.9',
   'Referer': 'https://www.ea.com/',
   'Origin': 'https://www.ea.com'
 };
 
-const eaFetch = (url) => fetch(url, { headers: EA_HEADERS }).then(r => r.ok ? r.json() : null).catch(() => null);
+async function eaFetch(url, timeoutMs = 8000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, { headers: EA_HEADERS, signal: ctrl.signal });
+    return r.ok ? await r.json() : null;
+  } catch (_) {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 const valOf = (res) => (res?.status === 'fulfilled' && res.value ? res.value : {});
 
 function unwrapEa(payload, clubId) {
@@ -34,7 +46,7 @@ function unwrapEa(payload, clubId) {
 }
 
 function extractClubId(o, key = null) {
-  const c = o?.clubId || o?.id || o?.clubInfo?.clubId || (key && /^\d+$/.test(key) ? key : null);
+  const c = o?.clubId || o?.id || o?.clubInfo?.clubId || (key && /^\d+$/.test(String(key)) ? key : null);
   return c && Number(c) > 0 ? String(c) : null;
 }
 
@@ -49,78 +61,52 @@ function resolveCrestId(info = {}, stat = {}, matchClub = {}) {
   return hit ? String(hit).trim() : null;
 }
 
-// EA FC Division IDs run 1..6 where: 1 = Elite (0), 2 = Div 1 (1), 3 = Div 2 (2), 4 = Div 3 (3), 5 = Div 4 (4), 6 = Div 5 (5)
-function mapEaDivIdToTier(raw, sr = 1400) {
+// EA FC 27 uses 1..6 for divisions in Leaderboard & OverallStats:
+// 1 = Elite, 2 = Div 1, 3 = Div 2, 4 = Div 3, 5 = Div 4, 6 = Div 5
+// Converts EA 1..6 into our UI's 0..5 display tier (0 = Elite, 1 = Div 1 ... 5 = Div 5)
+function mapEaOneToSixDivision(raw) {
   if (raw === undefined || raw === null || raw === '') return null;
   const s = String(raw).trim().toLowerCase();
   if (s === 'elite') return 0;
   const n = parseInt(s.replace(/[^0-9-]/g, ''), 10);
-  if (isNaN(n) || n <= 0 || n > 10) return null;
-
-  // If EA sends 6, it is unequivocally Division 5 (since only 6 tiers exist: Elite + Div 1..5)
-  if (n === 6) return 5;
-  // In EA FC 25/26/27, 1..6 maps via (n - 1) -> 0..5. Guard Elite (n=1 -> 0) if SR is below Elite threshold (<1950)
-  if (n >= 1 && n <= 5) {
-    if (n === 1 && sr < 1950) return 1; // Div 1 rather than Elite if SR < 1950
-    // Check whether EA used 1=Elite..6=Div5 (n-1) vs direct 1..5
-    return n - 1;
-  }
-  return 5;
+  if (isNaN(n) || n < 1 || n > 6) return null;
+  return n - 1; // 1 -> 0 (Elite), 2 -> 1 (Div 1), 3 -> 2 (Div 2), 4 -> 3 (Div 3), 5 -> 4 (Div 4), 6 -> 5 (Div 5)
 }
 
-const fmtDiv = (n) => (n === null || n === undefined || isNaN(n)) ? 'Div 4' : (n <= 0 ? 'Elite' : `Div ${Math.min(5, Math.max(1, n))}`);
+const fmtDiv = (n) => (n === null || n === undefined || isNaN(n)) ? 'Div 5' : (n <= 0 ? 'Elite' : `Div ${Math.min(5, Math.max(1, n))}`);
 
-// Resolves Current Division vs All-Time Peak Division without ever falsely assigning Elite Division
-function resolveClubDivisions(season = {}, stat = {}, info = {}, lb = {}) {
-  const sr = Number(stat.skillRating ?? stat.rating ?? lb.skillRating ?? info.skillRating ?? 1400);
-  const totalPromos = Math.max(Number(season.promotions || 0), Number(stat.promotions || 0), Number(lb.promotions || 0));
+// Resolves exact live Current Division and All-Time Peak Division from FC 27 Leaderboard + OverallStats
+function resolveClubDivisions(currSeasonLb = {}, allTimeLb = {}, stat = {}, info = {}) {
+  const sr = Number(stat.skillRating ?? stat.rating ?? allTimeLb.skillRating ?? currSeasonLb.skillRating ?? 1350);
+  const promos = Math.max(Number(currSeasonLb.promotions || 0), Number(stat.promotions || 0), Number(allTimeLb.promotions || 0));
 
-  const rawCurr = season.currentDivision ?? season.activeDivision ?? season.division ?? lb.currentDivision ?? null;
-  const rawSeasonBest = season.bestDivision ?? null;
-  const rawOverallBest = stat.bestDivision ?? lb.bestDivision ?? null;
+  // 1. Live Current Division from currentSeasonLeaderboard/search or allTimeLeaderboard/search (EA 1..6 scale)
+  const rawCurr = currSeasonLb.currentDivision ?? allTimeLb.currentDivision ?? stat.currentDivision ?? null;
+  let curr = mapEaOneToSixDivision(rawCurr);
 
-  // Determine if EA's payload uses the 6-tier offset (1=Elite, 2=Div1, 3=Div2, 4=Div3, 5=Div4, 6=Div5)
-  const anySix = [rawCurr, rawSeasonBest, rawOverallBest].some(v => Number(v) === 6);
-
-  const parseTier = (val) => {
-    if (val === undefined || val === null || val === '') return null;
-    const n = parseInt(String(val), 10);
-    if (isNaN(n) || n <= 0) return null;
-    if (anySix || n === 6) return Math.min(5, Math.max(0, n - 1));
-    // Standard 1..5 fallback (never return 0/Elite unless explicit 'elite' or n=1 with 2050+ SR)
-    return Math.min(5, Math.max(1, n));
-  };
-
-  let curr = parseTier(rawCurr);
-
-  // If Cloudflare blocked seasonalStats (curr === null), infer cleanly from Skill Rating & Promotions (Never false Elite!)
+  // Fallback only if both leaderboard searches were unreachable
   if (curr === null) {
-    if (sr >= 2100 && totalPromos >= 5) curr = 0;      // Elite
-    else if (sr >= 1900 && totalPromos >= 4) curr = 1; // Div 1
-    else if (sr >= 1740 && totalPromos >= 3) curr = 2; // Div 2
-    else if (sr >= 1580 && totalPromos >= 2) curr = 3; // Div 3
-    else if (sr >= 1300 || totalPromos >= 1) curr = 4; // Div 4
-    else curr = 5;                                     // Div 5
+    if (sr >= 2050) curr = 0;
+    else if (sr >= 1880) curr = 1;
+    else if (sr >= 1700) curr = 2;
+    else if (sr >= 1520) curr = 3;
+    else if (sr >= 1320 || promos >= 1) curr = 4;
+    else curr = 5;
   }
 
-  // Hard guardrail: A club with SR < 1950 cannot be in Elite Division (0)
-  if (curr === 0 && sr < 1950) curr = sr >= 1750 ? 2 : (sr >= 1580 ? 3 : 4);
+  // 2. Peak Division (bestDivision in EA 1..6 scale: 1=Elite, 2=Div1, 3=Div2, 4=Div3, 5=Div4, 6=Div5)
+  const allowElite = (curr === 0 || sr >= 1950);
+  const minByPromo = Math.max(0, 5 - promos);
 
-  // Peak Division (lower = better: 0=Elite, 1=Div1, 2=Div2, 3=Div3, 4=Div4, 5=Div5)
-  const minReachableByPromos = Math.max(0, 5 - totalPromos);
-  const peakCandidates = [
+  const bestCands = [
     curr,
-    parseTier(rawSeasonBest),
-    // In overallStats, EA often sends bestDivision as direct 1..5 (e.g. "2" = Div 2)
-    rawOverallBest !== null && rawOverallBest !== undefined ? Math.min(5, Math.max(1, parseInt(rawOverallBest, 10) || 5)) : null
-  ].filter(n => n !== null && n >= 0 && n <= 5)
-   .map(n => {
-     let clamped = Math.max(n, minReachableByPromos);
-     if (clamped === 0 && sr < 1950) clamped = 1;
-     return clamped;
-   });
+    mapEaOneToSixDivision(currSeasonLb.bestDivision),
+    mapEaOneToSixDivision(allTimeLb.bestDivision),
+    mapEaOneToSixDivision(stat.bestDivision)
+  ].filter(n => n !== null && n >= 0 && n <= 5 && (n !== 0 || allowElite))
+   .map(n => Math.max(n, minByPromo));
 
-  const peak = peakCandidates.length ? Math.min(...peakCandidates) : curr;
+  const peak = bestCands.length ? Math.min(...bestCands) : curr;
 
   return { currDivNum: curr, divisionLabel: fmtDiv(curr), peakDivNum: peak, peakDivisionLabel: fmtDiv(peak) };
 }
@@ -148,17 +134,17 @@ function computeGlobalPercentile(sr, w, l, d, currDiv) {
   return { percentile: pct, label: `Top ${pct}% Worldwide` };
 }
 
-function computeClubRepAndFans(stat = {}, season = {}, info = {}, lbEntry = {}, currDiv = 4, peakDiv = 2) {
-  const w = Number(stat.wins ?? stat.overallWins ?? lbEntry.wins ?? 0);
-  const d = Number(stat.ties ?? stat.overallTies ?? lbEntry.ties ?? 0);
-  const l = Number(stat.losses ?? stat.overallLosses ?? lbEntry.losses ?? 0);
-  const gf = Number(stat.goals ?? stat.overallGoals ?? lbEntry.goals ?? 0);
-  const sr = Number(stat.skillRating ?? stat.rating ?? lbEntry.skillRating ?? 1500);
-  const promos = Math.max(Number(season.promotions || 0), Number(stat.promotions || 0), Number(lbEntry.promotions || 0));
-  const titles = Math.max(Number(season.titlesWon || 0), Number(stat.titlesWon || 0), Number(lbEntry.titlesWon || 0));
+function computeClubRepAndFans(stat = {}, currSeasonLb = {}, info = {}, allTimeLb = {}, currDiv = 4, peakDiv = 2) {
+  const w = Number(stat.wins ?? stat.overallWins ?? allTimeLb.wins ?? 0);
+  const d = Number(stat.ties ?? stat.overallTies ?? allTimeLb.ties ?? 0);
+  const l = Number(stat.losses ?? stat.overallLosses ?? allTimeLb.losses ?? 0);
+  const gf = Number(stat.goals ?? stat.overallGoals ?? allTimeLb.goals ?? 0);
+  const sr = Number(stat.skillRating ?? stat.rating ?? allTimeLb.skillRating ?? 1500);
+  const promos = Math.max(Number(currSeasonLb.promotions || 0), Number(stat.promotions || 0), Number(allTimeLb.promotions || 0));
+  const titles = Math.max(Number(currSeasonLb.titlesWon || 0), Number(stat.titlesWon || 0), Number(allTimeLb.titlesWon || 0));
   const totalGames = w + d + l;
 
-  const rawFans = Number(stat.fans ?? stat.fanCount ?? season.fans ?? info.fans ?? lbEntry.fans ?? 0);
+  const rawFans = Number(stat.fans ?? stat.fanCount ?? allTimeLb.fans ?? info.fans ?? 0);
   const peakDivBonus = Math.max(0, (5 - peakDiv) * 185000);
   const srBonus = Math.max(0, (sr - 1200) * 650);
   const calcFans = 100000 + (totalGames * 12800) + (w * 18500) + (d * 5500) + (gf * 1450) + (promos * 115000) + (titles * 350000) + peakDivBonus + srBonus;
@@ -175,7 +161,7 @@ function computeClubRepAndFans(stat = {}, season = {}, info = {}, lbEntry = {}, 
   else if (fans >= 1000000) calcLvl = 3;
   else if (fans >= 350000) calcLvl = 2;
 
-  const explicitLvl = Number(lbEntry.reputationlevel ?? stat.reputationlevel ?? season.reputationlevel ?? stat.clubLevel ?? 0);
+  const explicitLvl = Number(allTimeLb.reputationlevel ?? stat.reputationlevel ?? stat.clubLevel ?? 0);
   const level = (explicitLvl >= 1 && explicitLvl <= 10) ? explicitLvl : calcLvl;
 
   const tierTitles = {
@@ -200,17 +186,39 @@ function computeClubRepAndFans(stat = {}, season = {}, info = {}, lbEntry = {}, 
   return { fans, formattedFans, level, tierTitle: tierTitles[level] || 'Up and Coming' };
 }
 
-function buildSeasonsHistory(season = {}, stat = {}, currDiv = 4, peakDiv = 2) {
-  const promos = Math.max(Number(season.promotions || 0), Number(stat.promotions || 0));
-  const relegs = Math.max(Number(season.relegations || 0), Number(stat.relegations || 0));
-  const titles = Math.max(Number(season.titlesWon || 0), Number(stat.titlesWon || 0));
-  const tW = Number(stat.wins ?? stat.overallWins ?? season.wins ?? 0), tD = Number(stat.ties ?? stat.overallTies ?? season.ties ?? 0), tL = Number(stat.losses ?? stat.overallLosses ?? season.losses ?? 0);
-  const tGF = Number(stat.goals ?? stat.overallGoals ?? season.goals ?? 0), tGA = Number(stat.goalsAgainst ?? stat.overallGoalsAgainst ?? season.goalsAgainst ?? 0);
+function buildSeasonsHistory(currSeasonLb = {}, stat = {}, currDiv = 4, peakDiv = 2) {
+  const promos = Math.max(Number(currSeasonLb.promotions || 0), Number(stat.promotions || 0));
+  const relegs = Math.max(Number(currSeasonLb.relegations || 0), Number(stat.relegations || 0));
+  const titles = Math.max(Number(currSeasonLb.titlesWon || 0), Number(stat.titlesWon || 0));
+  const tW = Number(stat.wins ?? stat.overallWins ?? 0), tD = Number(stat.ties ?? stat.overallTies ?? 0), tL = Number(stat.losses ?? stat.overallLosses ?? 0);
+  const tGF = Number(stat.goals ?? stat.overallGoals ?? 0), tGA = Number(stat.goalsAgainst ?? stat.overallGoalsAgainst ?? 0);
   const days = Math.max(1, (Date.now() - new Date('2026-09-24T00:00:00Z').getTime()) / 86400000);
   const count = (tW + tD + tL) < 10 ? 1 : Math.max(1, Math.min(10, Math.ceil(days / 42)));
 
+  // If currentSeasonLeaderboard has exact current-season stats, use them directly for the active season!
+  const csW = currSeasonLb.wins !== undefined ? Number(currSeasonLb.wins) : null;
+  const csD = currSeasonLb.ties !== undefined ? Number(currSeasonLb.ties) : null;
+  const csL = currSeasonLb.losses !== undefined ? Number(currSeasonLb.losses) : null;
+  const csGF = currSeasonLb.goals !== undefined ? Number(currSeasonLb.goals) : null;
+  const csGA = currSeasonLb.goalsAgainst !== undefined ? Number(currSeasonLb.goalsAgainst) : null;
+  const hasExactCurrSeason = csW !== null && (csW + csD + csL) <= (tW + tD + tL);
+
   if (count <= 1) {
     return { totalSeasonsCount: 1, list: [{ seasonNumber: 1, label: 'Season 1 (Current)', divisionNum: currDiv, division: fmtDiv(currDiv), wins: tW, draws: tD, losses: tL, goalsFor: tGF, goalsAgainst: tGA, points: tW * 3 + tD, outcome: `IN PROGRESS (${promos}⬆️ ${relegs}⬇️)`, badgeType: 'active', isCurrent: true }] };
+  }
+
+  if (hasExactCurrSeason && count === 2) {
+    const s1W = Math.max(0, tW - csW), s1D = Math.max(0, tD - csD), s1L = Math.max(0, tL - csL);
+    const s1GF = Math.max(0, tGF - (csGF ?? 0)), s1GA = Math.max(0, tGA - (csGA ?? 0));
+    const csPromos = Number(currSeasonLb.promotions ?? 0), csRelegs = Number(currSeasonLb.relegations ?? 0);
+    const s1Promos = Math.max(0, promos - csPromos), s1Relegs = Math.max(0, relegs - csRelegs);
+    return {
+      totalSeasonsCount: 2,
+      list: [
+        { seasonNumber: 2, label: 'Season 2 (Current)', divisionNum: currDiv, division: fmtDiv(currDiv), wins: csW, draws: csD, losses: csL, goalsFor: csGF ?? 0, goalsAgainst: csGA ?? 0, points: csW * 3 + csD, outcome: `IN PROGRESS (${csPromos}⬆️ ${csRelegs}⬇️)`, badgeType: 'active', isCurrent: true },
+        { seasonNumber: 1, label: 'Season 1', divisionNum: peakDiv, division: fmtDiv(peakDiv), wins: s1W, draws: s1D, losses: s1L, goalsFor: s1GF, goalsAgainst: s1GA, points: s1W * 3 + s1D, outcome: titles > 0 ? `TITLE WINNER (${s1Promos}⬆️ ${s1Relegs}⬇️)` : `COMPLETED (${s1Promos}⬆️ ${s1Relegs}⬇️)`, badgeType: titles > 0 ? 'title' : 'promo', isCurrent: false }
+      ]
+    };
   }
 
   const comp = count - 1, curDays = Math.max(3, days - comp * 42);
@@ -242,55 +250,95 @@ function generateFallbackSvg(name) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 115"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${b1}"/><stop offset="100%" stop-color="${b2}"/></linearGradient></defs><path d="M50 5 C80 5 95 15 95 35 C95 75 50 110 50 110 C50 110 5 75 5 35 C5 15 20 5 50 5 Z" fill="url(#g)" stroke="${st}" stroke-width="4"/><text x="50" y="66" font-family="sans-serif" font-size="29" font-weight="900" fill="#fff" text-anchor="middle">${init}</text></svg>`;
 }
 
-// 1. Search Clubs
+// 1. Resilient Multi-Path Club Search (SDK + EA Direct Fallback)
 app.get('/api/search', async (req, res) => {
-  const { clubName, platform = 'common-gen5' } = req.query;
-  if (!clubName) return res.status(400).json({ error: 'Club name required' });
+  const rawQuery = String(req.query.clubName || '').trim();
+  // FC 27 deprecated common-gen4 (returns HTTP 400); auto-upgrade to common-gen5 if needed
+  const platform = req.query.platform === 'nx' ? 'nx' : 'common-gen5';
+  if (!rawQuery) return res.status(400).json({ error: 'Club name required' });
+
   try {
-    const raw = await proclubs.clubs.search({ name: clubName.trim(), platform });
-    const entries = Array.isArray(raw) ? raw.map(v => [null, v]) : Object.entries(raw || {});
-    const results = entries.map(([k, v]) => ({ id: extractClubId(v, k), name: v?.name || v?.clubName || v?.clubInfo?.name || clubName })).filter(r => r.id);
-    return results.length ? res.json(results) : res.status(404).json({ error: `No clubs found matching "${clubName}".` });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+    const [sdkRes, directAllTime, directSeason] = await Promise.allSettled([
+      proclubs.clubs.search({ name: rawQuery, platform }),
+      eaFetch(`https://proclubs.ea.com/api/fc/allTimeLeaderboard/search?platform=${platform}&clubName=${encodeURIComponent(rawQuery)}`),
+      eaFetch(`https://proclubs.ea.com/api/fc/currentSeasonLeaderboard/search?platform=${platform}&clubName=${encodeURIComponent(rawQuery)}`)
+    ]);
+
+    const seen = new Map();
+    const ingest = (payload) => {
+      if (!payload) return;
+      const entries = Array.isArray(payload) ? payload.map(v => [null, v]) : Object.entries(payload);
+      entries.forEach(([k, v]) => {
+        const id = extractClubId(v, k);
+        const name = v?.clubName || v?.name || v?.clubInfo?.name || rawQuery;
+        if (id && !seen.has(id)) seen.set(id, { id, name });
+      });
+    };
+
+    if (sdkRes.status === 'fulfilled') ingest(sdkRes.value);
+    if (directSeason.status === 'fulfilled') ingest(directSeason.value);
+    if (directAllTime.status === 'fulfilled') ingest(directAllTime.value);
+
+    const results = Array.from(seen.values());
+    return results.length
+      ? res.json(results)
+      : res.status(404).json({ error: `No clubs found matching "${rawQuery}".` });
+  } catch (e) {
+    res.status(500).json({ error: e.message || 'Search failed' });
+  }
 });
 
-// 2. Club Info
+// 2. Club Info (Uses Official FC 27 currentSeasonLeaderboard/search for Exact Live Division)
 app.get('/api/club/:clubId/info', async (req, res) => {
-  const { clubId } = req.params, { platform = 'common-gen5' } = req.query, numId = parseInt(clubId, 10);
+  const { clubId } = req.params;
+  const platform = req.query.platform === 'nx' ? 'nx' : 'common-gen5';
+  const numId = parseInt(clubId, 10);
   if (isNaN(numId) || numId <= 0) return res.status(400).json({ error: 'Invalid clubId' });
+
   try {
-    const [iRes, sRes, rInfo, sSdk, sDir] = await Promise.allSettled([
+    const [iRes, sRes, rInfo, rStats] = await Promise.allSettled([
       proclubs.clubs.get({ clubId: numId, platform }),
       proclubs.clubs.overallStats({ clubId: numId, platform }),
       eaFetch(`https://proclubs.ea.com/api/fc/clubs/info?clubIds=${numId}&platform=${platform}`),
-      proclubs.clubs.seasonalStats ? proclubs.clubs.seasonalStats({ clubId: numId, platform }) : Promise.resolve(null),
-      eaFetch(`https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${numId}&platform=${platform}`)
+      eaFetch(`https://proclubs.ea.com/api/fc/clubs/overallStats?clubIds=${numId}&platform=${platform}`)
     ]);
-    const statObj = unwrapEa(valOf(sRes), clubId);
+
+    const sdkStat = unwrapEa(valOf(sRes), clubId);
+    const dirStat = unwrapEa(valOf(rStats), clubId);
+    const statObj = Object.keys(dirStat).length ? { ...sdkStat, ...dirStat } : sdkStat;
+
     const dUnwrapped = unwrapEa(valOf(rInfo), clubId);
     const infoObj = Object.keys(dUnwrapped).length ? dUnwrapped : unwrapEa(valOf(iRes), clubId);
-    const seasonObj = { ...unwrapEa(valOf(sSdk), clubId), ...unwrapEa(valOf(sDir), clubId) };
 
-    let lbEntry = {};
     const cName = infoObj.name || statObj.name;
-    if (cName) {
-      const lbData = await eaFetch(`https://proclubs.ea.com/api/fc/allTimeLeaderboard/search?platform=${platform}&clubName=${encodeURIComponent(cName)}`);
-      if (Array.isArray(lbData)) {
-        lbEntry = lbData.find(x => String(x.clubId || x.clubInfo?.clubId) === String(numId)) || {};
-      }
+    if (!cName && !Object.keys(statObj).length) {
+      return res.status(404).json({ error: `Club #${numId} not found.` });
     }
 
-    const { currDivNum, divisionLabel, peakDivNum, peakDivisionLabel } = resolveClubDivisions(seasonObj, statObj, infoObj, lbEntry);
+    let currSeasonLb = {}, allTimeLb = {};
+    if (cName) {
+      const [csRes, atRes] = await Promise.allSettled([
+        eaFetch(`https://proclubs.ea.com/api/fc/currentSeasonLeaderboard/search?platform=${platform}&clubName=${encodeURIComponent(cName)}`),
+        eaFetch(`https://proclubs.ea.com/api/fc/allTimeLeaderboard/search?platform=${platform}&clubName=${encodeURIComponent(cName)}`)
+      ]);
+      const csArr = valOf(csRes), atArr = valOf(atRes);
+      if (Array.isArray(csArr)) currSeasonLb = csArr.find(x => String(extractClubId(x)) === String(numId)) || {};
+      if (Array.isArray(atArr)) allTimeLb = atArr.find(x => String(extractClubId(x)) === String(numId)) || {};
+    }
+
+    const { currDivNum, divisionLabel, peakDivNum, peakDivisionLabel } = resolveClubDivisions(currSeasonLb, allTimeLb, statObj, infoObj);
     const ck = infoObj.customKit || statObj.customKit || {};
     const kits = {
       home: [eaIntToHex(ck.kitColor1, '#10b981'), eaIntToHex(ck.kitColor2, '#ffffff'), eaIntToHex(ck.kitColor3, '#064e3b')],
       away: [eaIntToHex(ck.kitAColor1, '#1e293b'), eaIntToHex(ck.kitAColor2, '#38bdf8'), eaIntToHex(ck.kitAColor3, '#0f172a')],
       third: [eaIntToHex(ck.kitThrdColor1 || ck.dCustomKit || ck.kitColor3, '#f59e0b'), eaIntToHex(ck.kitThrdColor2 || ck.kitColor1, '#111827'), eaIntToHex(ck.kitThrdColor3 || ck.kitAColor2, '#ffffff')]
     };
-    const sr = Number(statObj.skillRating ?? statObj.rating ?? infoObj.skillRating ?? 1500);
-    const wins = Number(statObj.wins ?? statObj.overallWins ?? 0), losses = Number(statObj.losses ?? statObj.overallLosses ?? 0), ties = Number(statObj.ties ?? statObj.overallTies ?? 0);
-    const seasonsData = buildSeasonsHistory(seasonObj, statObj, currDivNum, peakDivNum);
-    const clubRep = computeClubRepAndFans(statObj, seasonObj, infoObj, lbEntry, currDivNum, peakDivNum);
+    const sr = Number(statObj.skillRating ?? statObj.rating ?? allTimeLb.skillRating ?? 1500);
+    const wins = Number(statObj.wins ?? statObj.overallWins ?? allTimeLb.wins ?? 0);
+    const losses = Number(statObj.losses ?? statObj.overallLosses ?? allTimeLb.losses ?? 0);
+    const ties = Number(statObj.ties ?? statObj.overallTies ?? allTimeLb.ties ?? 0);
+    const seasonsData = buildSeasonsHistory(currSeasonLb, statObj, currDivNum, peakDivNum);
+    const clubRep = computeClubRepAndFans(statObj, currSeasonLb, infoObj, allTimeLb, currDivNum, peakDivNum);
 
     res.json({
       info: infoObj, overall: statObj, division: divisionLabel, divisionNum: currDivNum,
@@ -299,11 +347,11 @@ app.get('/api/club/:clubId/info', async (req, res) => {
       globalRank: computeGlobalPercentile(sr, wins, losses, ties, currDivNum),
       clubRep,
       trophies: {
-        titlesWon: Math.max(Number(seasonObj.titlesWon || 0), Number(statObj.titlesWon || 0)),
-        leaguesWon: Math.max(Number(seasonObj.leaguesWon || 0), Number(statObj.leaguesWon || 0)),
-        promotions: Math.max(Number(seasonObj.promotions || 0), Number(statObj.promotions || 0)),
-        relegations: Math.max(Number(seasonObj.relegations || 0), Number(statObj.relegations || 0)),
-        holds: Math.max(Number(seasonObj.holds || 0), Number(statObj.holds || 0)),
+        titlesWon: Math.max(Number(allTimeLb.titlesWon || 0), Number(statObj.titlesWon || 0)),
+        leaguesWon: Math.max(Number(allTimeLb.leaguesWon || 0), Number(statObj.leaguesWon || 0)),
+        promotions: Math.max(Number(allTimeLb.promotions || 0), Number(statObj.promotions || 0)),
+        relegations: Math.max(Number(allTimeLb.relegations || 0), Number(statObj.relegations || 0)),
+        holds: Math.max(Number(allTimeLb.holds || 0), Number(statObj.holds || 0)),
         totalSeasons: seasonsData.totalSeasonsCount, bestDivision: peakDivisionLabel, bestDivisionNum: peakDivNum
       },
       seasonsHistory: seasonsData.list
@@ -313,13 +361,17 @@ app.get('/api/club/:clubId/info', async (req, res) => {
 
 // 3. Squad Members
 app.get('/api/club/:clubId/members', async (req, res) => {
-  const { clubId } = req.params, { platform = 'common-gen5' } = req.query, numId = parseInt(clubId, 10);
+  const { clubId } = req.params;
+  const platform = req.query.platform === 'nx' ? 'nx' : 'common-gen5';
+  const numId = parseInt(clubId, 10);
   try {
-    const [cRes, carRes] = await Promise.allSettled([
+    const [cRes, dMemRes, carRes] = await Promise.allSettled([
       proclubs.members.stats({ clubId: numId, platform }),
+      eaFetch(`https://proclubs.ea.com/api/fc/members/stats?clubId=${numId}&platform=${platform}`),
       eaFetch(`https://proclubs.ea.com/api/fc/members/career/stats?clubId=${numId}&platform=${platform}`)
     ]);
-    const rawM = valOf(cRes), carP = valOf(carRes);
+    const sdkM = valOf(cRes), dirM = valOf(dMemRes), carP = valOf(carRes);
+    const rawM = Object.keys(sdkM).length ? sdkM : dirM;
     const list = Array.isArray(rawM) ? rawM : (Array.isArray(rawM?.members) ? rawM.members : Object.values(rawM?.members || rawM || {}));
     const carMap = new Map();
     const cList = Array.isArray(carP) ? carP : (carP?.members || Object.values(carP || {}));
@@ -340,7 +392,9 @@ app.get('/api/club/:clubId/members', async (req, res) => {
 
 // 4. Match History
 app.get('/api/club/:clubId/matches', async (req, res) => {
-  const { clubId } = req.params, { platform = 'common-gen5' } = req.query, numId = parseInt(clubId, 10);
+  const { clubId } = req.params;
+  const platform = req.query.platform === 'nx' ? 'nx' : 'common-gen5';
+  const numId = parseInt(clubId, 10);
   const all = [];
   for (const m of [{ t: 'leagueMatch', l: 'League' }, { t: 'playoffMatch', l: 'Playoff' }]) {
     const data = await eaFetch(`https://proclubs.ea.com/api/fc/clubs/matches?clubIds=${numId}&platform=${platform}&matchType=${m.t}&maxResultCount=10`);
@@ -356,13 +410,17 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
 
   const oppMap = new Map();
   await Promise.allSettled(Array.from(oppIds).map(async (oppId) => {
-    const [sRes, rInfo, seaRes] = await Promise.allSettled([
-      proclubs.clubs.overallStats({ clubId: oppId, platform }),
-      eaFetch(`https://proclubs.ea.com/api/fc/clubs/info?clubIds=${oppId}&platform=${platform}`),
-      eaFetch(`https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${oppId}&platform=${platform}`)
+    const [sRes, rInfo] = await Promise.allSettled([
+      eaFetch(`https://proclubs.ea.com/api/fc/clubs/overallStats?clubIds=${oppId}&platform=${platform}`),
+      eaFetch(`https://proclubs.ea.com/api/fc/clubs/info?clubIds=${oppId}&platform=${platform}`)
     ]);
-    const st = unwrapEa(valOf(sRes), oppId), inf = unwrapEa(valOf(rInfo), oppId), sea = unwrapEa(valOf(seaRes), oppId);
-    const { divisionLabel } = resolveClubDivisions(sea, st, inf, {});
+    const st = unwrapEa(valOf(sRes), oppId), inf = unwrapEa(valOf(rInfo), oppId);
+    let csLb = {};
+    if (inf?.name) {
+      const lbArr = await eaFetch(`https://proclubs.ea.com/api/fc/currentSeasonLeaderboard/search?platform=${platform}&clubName=${encodeURIComponent(inf.name)}`);
+      if (Array.isArray(lbArr)) csLb = lbArr.find(x => String(extractClubId(x)) === String(oppId)) || {};
+    }
+    const { divisionLabel } = resolveClubDivisions(csLb, {}, st, inf);
     oppMap.set(String(oppId), { skillRating: st?.skillRating || st?.rating || null, division: divisionLabel, crestId: resolveCrestId(inf, st) });
   }));
 
@@ -384,7 +442,8 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
 // 5. Crest Proxy
 app.get('/api/crest/:crestId', async (req, res) => {
   let rawId = String(req.params.crestId || '').replace(/^l/i, '').trim();
-  const { name = 'FC', clubId, platform = 'common-gen5' } = req.query;
+  const { name = 'FC', clubId } = req.query;
+  const platform = req.query.platform === 'nx' ? 'nx' : 'common-gen5';
   if ((!rawId || ['0','undefined','null'].includes(rawId)) && clubId && /^\d+$/.test(String(clubId))) {
     const inf = unwrapEa(await eaFetch(`https://proclubs.ea.com/api/fc/clubs/info?clubIds=${clubId}&platform=${platform}`), clubId);
     const r = resolveCrestId(inf, {}); if (r) rawId = String(r).replace(/^l/i, '').trim();
@@ -458,17 +517,11 @@ app.post('/api/discord/send', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 8. Diagnostic Division & Match Lineup Inspector
-app.get('/api/debug/divisions/:clubId', async (req, res) => {
-  const { clubId } = req.params, { platform = 'common-gen5' } = req.query, numId = parseInt(clubId, 10);
-  const [sRes, sSdk, sDir] = await Promise.allSettled([
-    proclubs.clubs.overallStats({ clubId: numId, platform }),
-    proclubs.clubs.seasonalStats ? proclubs.clubs.seasonalStats({ clubId: numId, platform }) : Promise.resolve(null),
-    eaFetch(`https://proclubs.ea.com/api/fc/clubs/seasonalStats?clubIds=${numId}&platform=${platform}`)
-  ]);
-  res.json({ overall: valOf(sRes), seasonalSdk: valOf(sSdk), seasonalDirect: valOf(sDir) });
+// Express v4 & v5 Compatible SPA Catch-All Route (Serves index.html for /club-name slugs)
+app.use((req, res) => {
+  if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'API route not found' });
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.get('*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => console.log(`Pro Clubs backend running on port ${PORT}`));
