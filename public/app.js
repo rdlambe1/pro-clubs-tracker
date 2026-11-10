@@ -441,8 +441,15 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
   const divShield = document.getElementById('clubDivShieldContainer');
   if (data.division) { divShield.innerHTML = renderDivisionShieldHtml(data.divisionNum ?? data.division, 'lg'); divShield.classList.remove('hidden'); }
   document.getElementById('clubIdentityBar').classList.remove('hidden');
-  const reg = data.regionInfo || { name: 'British Isles', flag: 'ie' };
-  document.getElementById('clubRegionFlag').src = `https://flagcdn.com/w40/${reg.flag}.png`;
+
+  const reg = data.regionInfo || { name: 'Global Matchmaking', flag: null };
+  const regFlagEl = document.getElementById('clubRegionFlag');
+  if (reg.flag) {
+    regFlagEl.src = `https://flagcdn.com/w40/${reg.flag}.png`;
+    regFlagEl.classList.remove('hidden');
+  } else {
+    regFlagEl.classList.add('hidden');
+  }
   document.getElementById('clubRegionName').innerText = reg.name;
   document.getElementById('clubStadiumName').innerText = data.stadiumName || 'Pro Clubs Arena';
 
