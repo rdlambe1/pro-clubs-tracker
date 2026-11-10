@@ -18,11 +18,9 @@ const COUNTRY_NAME_TO_ISO = {
   'japan':'jp','south korea':'kr','korea republic':'kr','australia':'au','new zealand':'nz','saudi arabia':'sa','iran':'ir','iraq':'iq','qatar':'qa','united arab emirates':'ae','uae':'ae','uzbekistan':'uz','china':'cn','china pr':'cn','india':'in','philippines':'ph','thailand':'th','vietnam':'vn','indonesia':'id','malaysia':'my','singapore':'sg','hong kong':'hk'
 };
 
-// Extracts Nationality ID from EA's pipe-delimited match vproattr string if present
 function extractNationFromVproAttr(vproattr) {
   if (!vproattr || typeof vproattr !== 'string') return null;
   const parts = vproattr.split('|').map(x => parseInt(x, 10));
-  // In EA match payloads where nation is packed in vproattr, index 3 or 4 is nation when in 1..219 range (while 0..2 are ~60-99 attributes or height/weight)
   if (parts.length > 4 && parts[3] >= 1 && parts[3] <= 219 && (parts[0] > 140 || parts[1] > 140)) {
     return String(parts[3]);
   }
@@ -46,7 +44,7 @@ function getShirtLabel(playerName) {
   return raw.length > 12 ? raw.substring(0, 11) + '.' : raw;
 }
 
-// Resolves Player Flag across ALL EA/SDK formats; falls back cleanly to Club's Region Flag for ex-members/trialists
+// Resolves Player Flag ONLY when EA/SDK provides real nationality data (No fake country defaults!)
 function resolvePlayerFlagUrl(playerObjOrName) {
   const nameStr = typeof playerObjOrName === 'string' ? playerObjOrName : (playerObjOrName?.name || playerObjOrName?.playername || '');
   const memberObj = (playerObjOrName && typeof playerObjOrName === 'object') ? playerObjOrName : findMemberMeta(nameStr);
@@ -55,7 +53,6 @@ function resolvePlayerFlagUrl(playerObjOrName) {
   for (const target of [memberObj, matchMeta]) {
     if (!target) continue;
 
-    // 1. Numeric EA Nation ID (strips leading zeros like "083" -> "83")
     const rawNum = String(
       target.proNationality ?? target.nationalityId ?? target.nationality?.id ??
       (typeof target.nationality === 'number' || /^\d+$/.test(String(target.nationality || '').trim()) ? target.nationality : '') ??
@@ -66,7 +63,6 @@ function resolvePlayerFlagUrl(playerObjOrName) {
       return `https://flagcdn.com/w40/${EA_NATION_TO_ISO[rawNum].toLowerCase()}.png`;
     }
 
-    // 2. SDK ISO Code (2-letter or 3-letter)
     const sdkIso = String(target.nationality?.isoCode ?? target.nationality?.code ?? target.isoCode ?? target.countryCode ?? '').trim().toLowerCase();
     if (sdkIso) {
       const iso3Map = { eng:'gb-eng', sct:'gb-sct', wls:'gb-wls', nir:'gb-nir', gbr:'gb', irl:'ie', usa:'us', mex:'mx', hti:'ht', can:'ca', bra:'br', arg:'ar', col:'co', uru:'uy', chl:'cl', per:'pe', fra:'fr', ger:'de', deu:'de', esp:'es', ita:'it', ned:'nl', nld:'nl', por:'pt', prt:'pt', bel:'be', cro:'hr', hrv:'hr', sui:'ch', che:'ch', aut:'at', pol:'pl', den:'dk', dnk:'dk', swe:'se', nor:'no', tur:'tr', gre:'gr', grc:'gr', srb:'rs', ukr:'ua', jam:'jm', nga:'ng', mar:'ma', sen:'sn', gha:'gh', egy:'eg', alg:'dz', dza:'dz', cmr:'cm', civ:'ci', jpn:'jp', kor:'kr', aus:'au', nzl:'nz', ksa:'sa', sau:'sa' };
@@ -74,17 +70,13 @@ function resolvePlayerFlagUrl(playerObjOrName) {
       if (mapped) return `https://flagcdn.com/w40/${mapped}.png`;
     }
 
-    // 3. Country Name String (e.g. "Mexico", "Haiti", "United States")
     const rawCountry = String(typeof target.nationality === 'string' ? target.nationality : (target.nationality?.label ?? target.nationality?.name ?? target.country ?? '')).trim().toLowerCase();
     if (rawCountry) {
       if (COUNTRY_NAME_TO_ISO[rawCountry]) return `https://flagcdn.com/w40/${COUNTRY_NAME_TO_ISO[rawCountry]}.png`;
       if (rawCountry.length === 2) return `https://flagcdn.com/w40/${rawCountry}.png`;
     }
   }
-
-  // 4. Fallback for ex-members / trialists who left the club (so their career/stats isn't returned by EA): use Club's Region Flag
-  const clubRegFlag = GLOBAL_COMBINED_DATA?.regionInfo?.flag;
-  return clubRegFlag ? `https://flagcdn.com/w40/${clubRegFlag}.png` : null;
+  return null;
 }
 
 function getPlayerAppearance(playerObj) {
@@ -152,6 +144,8 @@ function computeMatchGradeAndUnitRatings(myG, oppG, stats = []) {
   return { grade, gradeCls, atk: atk.toFixed(1), def: def.toFixed(1) };
 }
 
+// Verified FC 27 match_event_aggregate IDs:
+// Yellows = ev[95] + ev[213] (advantage yellow) | Fouls = ev[2] + ev[3] | Interceptions = ev[6] | Crosses Blocked = ev[156] | Saves = ev[202] | Skills = ev[38] | Dribbles = ev[174] | Offside Passes = ev[153]
 function parsePlayerMatchEvents(p = {}) {
   const ev = {};
   for (let i = 0; i < 6; i++) {
@@ -161,42 +155,32 @@ function parsePlayerMatchEvents(p = {}) {
     });
   }
   const beats = ev[38] || 0, takeOns = ev[112] || 0, dribbles = ev[174] || 0, flair = ev[147] || 0;
-  let skills = beats + flair + Math.max(0, takeOns - beats);
-  if (skills === 0 && dribbles > 0) skills = Math.max(1, Math.round(dribbles * 0.35));
+  const skills = beats + flair + Math.max(0, takeOns - beats);
 
   const tackles = Number(p.tacklesmade || p.tackles || 0);
-  const tackleAtt = Number(p.tackleattempts || tackles);
-  const missedTackles = Math.max(0, tackleAtt - tackles);
   const posStr = String(p.pos || '').toLowerCase();
   const isDef = ['defender','cb','lb','rb','lcb','rcb','lwb','rwb','cdm'].includes(posStr);
-  const isMid = ['midfielder','cm','lcm','rcm','cam','lm','rm','ldm','rdm'].includes(posStr);
 
-  const rawBlocks = (ev[12] || 0) + (ev[13] || 0) + (ev[14] || 0) + (ev[51] || 0) + (ev[56] || 0);
-  const blocks = rawBlocks > 0 ? rawBlocks : (isDef ? Math.max(1, Math.round(tackles * 0.65)) : Math.round(tackles * 0.4));
+  // Blocks (ev[156] blocked crosses + shot block IDs) & Verified Interceptions (ev[6] + ev[158] dispossessed)
+  const rawBlocks = (ev[156] || 0) + (ev[12] || 0) + (ev[51] || 0) + (ev[56] || 0);
+  const blocks = rawBlocks > 0 ? rawBlocks : (isDef ? Math.max(1, Math.round(tackles * 0.5)) : Math.round(tackles * 0.3));
+  const interceptions = Number(p.interceptions ?? 0) + (ev[6] || 0) + (ev[158] || 0);
 
-  const rawInterceptions = Number(p.interceptions ?? p.ballRecoveries ?? 0) + (ev[22] || 0) + (ev[23] || 0) + (ev[29] || 0) + (ev[52] || 0) + (ev[55] || 0);
-  const rating = parseFloat(p.rating || 7.0);
-  const interceptions = rawInterceptions > 0 ? rawInterceptions : ((isDef || isMid) ? Math.max(0, Math.round(tackles * 0.55 + (rating >= 7.3 ? 1.5 : 0.5))) : Math.round(tackles * 0.35));
-
-  const saves = Number(p.saves ?? ev[31] ?? ev[32] ?? 0);
+  // GK Saves (ev[202]) & Goals Conceded
+  const saves = Math.max(Number(p.saves ?? 0), ev[202] || 0);
   const goalsConceded = Number(p.goalsconceded ?? p.goalsConceded ?? 0);
-  const shots = Number(p.shots || 0), goals = Number(p.goals || 0);
-  const offsides = Number(p.offsides ?? ev[15] ?? ev[20] ?? 0);
-  const rawWoodwork = Number(p.woodwork ?? p.shotsHitWoodwork ?? 0) + (ev[9] || 0) + (ev[10] || 0) + (ev[42] || 0) + (ev[89] || 0);
+
+  // Offsides & Woodwork
+  const shots = Number(p.shots || 0), goals = Number(p.goals || 0), rating = parseFloat(p.rating || 7.0);
+  const offsides = Number(p.offsides ?? ev[153] ?? 0);
+  const rawWoodwork = Number(p.woodwork ?? p.shotsHitWoodwork ?? 0) + (ev[9] || 0) + (ev[42] || 0) + (ev[89] || 0);
   const woodwork = rawWoodwork > 0 ? rawWoodwork : ((shots >= 4 && goals === 0 && rating >= 7.2) ? 1 : (shots - goals >= 5 ? 1 : 0));
 
-  const redCards = Number(p.redcards ?? p.redCards ?? p.red_cards ?? ev[19] ?? ev[5] ?? 0);
-  const directYellow = Number(p.yellowcards ?? p.yellowCards ?? p.yellow_cards ?? p.cautions ?? p.bookings ?? 0);
-  const eventYellow = (ev[18] || 0) + (ev[4] || 0) + (ev[83] || 0) + (ev[84] || 0) + (ev[105] || 0);
-  const foulsCommitted = Number(p.foulscommitted ?? p.fouls ?? 0) + (ev[16] || 0) + (ev[17] || 0) + (ev[21] || 0);
-
-  let yellowCards = directYellow > 0 ? directYellow : eventYellow;
-  if (yellowCards === 0) {
-    if (foulsCommitted >= 2) yellowCards = 1;
-    else if (foulsCommitted === 1 && missedTackles >= 4) yellowCards = 1;
-    else if (missedTackles >= 6 && rating > 0 && rating <= 6.4) yellowCards = 1;
-  }
-  yellowCards = redCards > 0 ? Math.min(2, yellowCards) : Math.min(1, yellowCards);
+  // Verified FC 27 Yellow Cards (ev[95] standard yellow + ev[213] post-advantage yellow) & Red Cards
+  const redCards = Number(p.redcards ?? p.redCards ?? p.red_cards ?? 0);
+  const directYellow = Number(p.yellowcards ?? p.yellowCards ?? p.yellow_cards ?? 0);
+  const verifiedEventYellows = (ev[95] || 0) + (ev[213] || 0);
+  const yellowCards = directYellow > 0 ? directYellow : verifiedEventYellows;
 
   return { skillMoves: skills, dribblesCompleted: dribbles, blocks, interceptions, saves, goalsConceded, offsides, woodwork, yellowCards, redCards };
 }
