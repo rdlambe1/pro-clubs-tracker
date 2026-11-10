@@ -61,23 +61,17 @@ function resolveCrestId(info = {}, stat = {}, matchClub = {}) {
   return hit ? String(hit).trim() : null;
 }
 
-// EA FC 27 Leaderboard & OverallStats 1..6 Division Scale:
-// 1 = Elite, 2 = Div 1, 3 = Div 2, 4 = Div 3, 5 = Div 4, 6 = Div 5
 function mapEaOneToSixDivision(raw) {
   if (raw === undefined || raw === null || raw === '') return null;
   const s = String(raw).trim().toLowerCase();
   if (s === 'elite') return 0;
   const n = parseInt(s.replace(/[^0-9-]/g, ''), 10);
   if (isNaN(n) || n < 1 || n > 6) return null;
-  return n - 1; // 0 = Elite, 1 = Div 1 ... 5 = Div 5
+  return n - 1;
 }
 
 const fmtDiv = (n) => (n === null || n === undefined || isNaN(n)) ? 'Div 5' : (n <= 0 ? 'Elite' : `Div ${Math.min(5, Math.max(1, n))}`);
 
-// Mathematically consistent Current vs Peak Division resolver:
-// 1. 0 promotions = strictly Div 5 (Current & Peak)
-// 2. Neither Current nor Peak can ever beat (5 - totalPromotions)
-// 3. Peak Division is strictly guaranteed to be >= Current Division (lower tier integer)
 function resolveClubDivisions(currSeasonLb = {}, allTimeLb = {}, stat = {}, info = {}) {
   const sr = Number(stat.skillRating ?? stat.rating ?? allTimeLb.skillRating ?? currSeasonLb.skillRating ?? 1500);
   const promos = Math.max(Number(currSeasonLb.promotions || 0), Number(stat.promotions || 0), Number(allTimeLb.promotions || 0));
@@ -87,19 +81,14 @@ function resolveClubDivisions(currSeasonLb = {}, allTimeLb = {}, stat = {}, info
   const losses = Number(stat.losses ?? stat.overallLosses ?? allTimeLb.losses ?? 0);
   const totalGames = wins + ties + losses;
 
-  // Hard Ceiling: Every club starts in Div 5 (tier 5). With N promotions, best possible tier is max(0, 5 - N).
   const minByPromo = Math.max(0, 5 - promos);
-
-  // Law 1: If a club has 0 promotions, it has never left Div 5.
   if (promos <= 0) {
     return { currDivNum: 5, divisionLabel: 'Div 5', peakDivNum: 5, peakDivisionLabel: 'Div 5' };
   }
 
-  // Try official EA live division fields first
   const rawCurr = currSeasonLb.currentDivision ?? allTimeLb.currentDivision ?? stat.currentDivision ?? null;
   let curr = mapEaOneToSixDivision(rawCurr);
 
-  // Fallback when EA leaderboard endpoints are blocked/empty (only for clubs with >= 1 real promotion)
   if (curr === null) {
     const netClimb = Math.max(0, promos - relegs);
     let srEst = 5;
@@ -109,7 +98,6 @@ function resolveClubDivisions(currSeasonLb = {}, allTimeLb = {}, stat = {}, info
     else if (totalGames >= 8 && sr >= 1540) srEst = 3;
     else if (promos >= 1 && sr >= 1320) srEst = 4;
 
-    // Respect current season reset window while never exceeding promotion ceiling
     const daysSinceLaunch = Math.max(1, (Date.now() - new Date('2026-09-24T00:00:00Z').getTime()) / 86400000);
     const daysIntoSeason = daysSinceLaunch % 42;
     const estCurrSeasonClimb = netClimb > 0 ? Math.min(netClimb, Math.max(1, Math.round(promos * Math.max(0.22, daysIntoSeason / 42)))) : 1;
@@ -118,10 +106,8 @@ function resolveClubDivisions(currSeasonLb = {}, allTimeLb = {}, stat = {}, info
     curr = Math.min(promoEst, srEst);
   }
 
-  // Law 2: Clamp Current Division so it can never exceed total promotions earned
   curr = Math.min(5, Math.max(curr, minByPromo));
 
-  // Resolve All-Time Peak Division
   const allowElite = (curr === 0 || (promos >= 5 && sr >= 1950));
   const bestCands = [
     curr,
@@ -131,9 +117,7 @@ function resolveClubDivisions(currSeasonLb = {}, allTimeLb = {}, stat = {}, info
   ].filter(n => n !== null && n >= 0 && n <= 5 && (n !== 0 || allowElite))
    .map(n => Math.max(n, minByPromo));
 
-  // Law 3: Peak Division is ALWAYS at least as good as Current Division (lower number = higher division)
   const peak = Math.min(curr, ...(bestCands.length ? bestCands : [curr]));
-
   return { currDivNum: curr, divisionLabel: fmtDiv(curr), peakDivNum: peak, peakDivisionLabel: fmtDiv(peak) };
 }
 
@@ -154,7 +138,6 @@ function resolveClubRegion(id) {
 
 function computeGlobalPercentile(sr, w, l, d, currDiv) {
   const s = Number(sr || 0), tot = w + l + d;
-  // Prevent brand-new <5 game clubs at default ~1450-1500 SR from showing inflated percentiles
   if (tot < 6) {
     const starterPct = w > l ? 35 : 55;
     return { percentile: starterPct, label: `Top ${starterPct}% Worldwide` };
@@ -177,7 +160,6 @@ function computeClubRepAndFans(stat = {}, currSeasonLb = {}, info = {}, allTimeL
 
   const rawFans = Number(stat.fans ?? stat.fanCount ?? allTimeLb.fans ?? info.fans ?? 0);
   const peakDivBonus = Math.max(0, (5 - peakDiv) * 185000);
-  // Only award SR bonus once a club has played at least 10 matches (avoids starter 1500 SR inflation)
   const srBonus = totalGames >= 10 ? Math.max(0, (sr - 1200) * 650) : 0;
   const calcFans = 100000 + (totalGames * 12800) + (w * 18500) + (d * 5500) + (gf * 1450) + (promos * 115000) + (titles * 350000) + peakDivBonus + srBonus;
   const fans = rawFans > 10000 ? rawFans : Math.round(calcFans);
@@ -389,34 +371,51 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// 3. Squad Members
+// 3. Squad Members (Merges SDK + Direct EA Members + Direct EA Career Stats so proNationality & proName are NEVER lost)
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const platform = req.query.platform === 'nx' ? 'nx' : 'common-gen5';
   const numId = parseInt(clubId, 10);
+  const toList = (p) => Array.isArray(p) ? p : (Array.isArray(p?.members) ? p.members : Object.values(p?.members || p || {}));
+
   try {
     const [cRes, dMemRes, carRes] = await Promise.allSettled([
       proclubs.members.stats({ clubId: numId, platform }),
       eaFetch(`https://proclubs.ea.com/api/fc/members/stats?clubId=${numId}&platform=${platform}`),
       eaFetch(`https://proclubs.ea.com/api/fc/members/career/stats?clubId=${numId}&platform=${platform}`)
     ]);
-    const sdkM = valOf(cRes), dirM = valOf(dMemRes), carP = valOf(carRes);
-    const rawM = Object.keys(sdkM).length ? sdkM : dirM;
-    const list = Array.isArray(rawM) ? rawM : (Array.isArray(rawM?.members) ? rawM.members : Object.values(rawM?.members || rawM || {}));
-    const carMap = new Map();
-    const cList = Array.isArray(carP) ? carP : (carP?.members || Object.values(carP || {}));
-    if (Array.isArray(cList)) cList.forEach(cm => cm?.name && carMap.set(String(cm.name).toLowerCase().trim(), cm));
 
-    list.forEach(m => {
+    const sdkList = toList(valOf(cRes));
+    const dirList = toList(valOf(dMemRes));
+    const carList = toList(valOf(carRes));
+
+    const dirMap = new Map(), carMap = new Map();
+    dirList.forEach(dm => dm?.name && dirMap.set(String(dm.name).toLowerCase().trim(), dm));
+    carList.forEach(cm => cm?.name && carMap.set(String(cm.name).toLowerCase().trim(), cm));
+
+    const baseList = sdkList.length ? sdkList : dirList;
+    baseList.forEach(m => {
       if (!m || typeof m !== 'object') return;
-      const co = carMap.get(String(m.name || m.proName || '').toLowerCase().trim()) || {};
-      ['proStyle','proHeight','proWeight','proOverall','proNationality','proPos','proName'].forEach(k => { if (!m[k] && co[k]) m[k] = co[k]; });
-      m.totalCleanSheets = Number(m.cleanSheetsDef ?? co.cleanSheetsDef ?? 0) + Number(m.cleanSheetsGK ?? co.cleanSheetsGK ?? 0);
-      m.shotConvRate = Number(m.shotSuccessRate ?? co.shotSuccessRate ?? 0);
-      const cG = Number(m.gamesPlayed ?? m.games ?? 0), totG = Math.max(cG, Number(co.gamesPlayed ?? co.games ?? cG));
-      m.careerTotalGames = totG; m.otherClubGames = Math.max(0, totG - cG); m.loyaltyPct = totG > 0 ? Math.round((cG / totG) * 100) : 100;
+      const key = String(m.name || m.proName || '').toLowerCase().trim();
+      const dm = dirMap.get(key) || {};
+      const co = carMap.get(key) || {};
+
+      // Preserve raw EA fields that proclubs-sdk renames or omits
+      ['proStyle','proHeight','proWeight','proOverall','proNationality','proPos','proName'].forEach(k => {
+        const val = dm[k] ?? co[k] ?? m[k];
+        if (val !== undefined && val !== null && String(val) !== '') m[k] = val;
+      });
+      if (!m.proNationality && m.nationality?.id) m.proNationality = String(m.nationality.id);
+
+      m.totalCleanSheets = Number(m.cleanSheetsDef ?? dm.cleanSheetsDef ?? co.cleanSheetsDef ?? 0) + Number(m.cleanSheetsGK ?? dm.cleanSheetsGK ?? co.cleanSheetsGK ?? 0);
+      m.shotConvRate = Number(m.shotSuccessRate ?? dm.shotSuccessRate ?? co.shotSuccessRate ?? 0);
+      const cG = Number(m.gamesPlayed ?? dm.gamesPlayed ?? m.games ?? 0);
+      const totG = Math.max(cG, Number(co.gamesPlayed ?? co.games ?? cG));
+      m.careerTotalGames = totG;
+      m.otherClubGames = Math.max(0, totG - cG);
+      m.loyaltyPct = totG > 0 ? Math.round((cG / totG) * 100) : 100;
     });
-    res.json(list);
+    res.json(baseList);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
