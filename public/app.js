@@ -1,3 +1,5 @@
+let CURRENT_LEADERBOARD_MODE = 'season';
+
 function applyStoredTheme() {
   const isLight = (localStorage.getItem('proClubsTheme') || 'dark') === 'light';
   document.body.classList.toggle('light-mode', isLight);
@@ -8,6 +10,131 @@ function applyStoredTheme() {
 function toggleThemeMode() {
   localStorage.setItem('proClubsTheme', document.body.classList.contains('light-mode') ? 'dark' : 'light');
   applyStoredTheme();
+}
+
+function syncPlatformSelectors(val) {
+  const p1 = document.getElementById('platformSelect'), p2 = document.getElementById('homePlatformSelect');
+  if (p1 && p1.value !== val) p1.value = val;
+  if (p2 && p2.value !== val) p2.value = val;
+  if (!document.getElementById('homeView')?.classList.contains('hidden')) {
+    loadTop10ClubsLeaderboard(CURRENT_LEADERBOARD_MODE);
+  }
+}
+
+// Toggles cleanly between Homepage Hub ('home') and Full Club Dashboard ('dashboard')
+function setAppView(view) {
+  const isHome = view === 'home';
+  document.getElementById('homeView')?.classList.toggle('hidden', !isHome);
+  document.getElementById('clubDashboardView')?.classList.toggle('hidden', isHome);
+  const hdrSearch = document.getElementById('headerSearchControls');
+  if (hdrSearch) {
+    hdrSearch.classList.toggle('hidden', isHome);
+    hdrSearch.classList.toggle('flex', !isHome);
+  }
+}
+
+function goHome(pushHistory = true) {
+  setStatus('');
+  document.getElementById('matchesCard')?.classList.add('hidden');
+  document.title = 'FC Pro Clubs Live Tracker';
+  setAppView('home');
+  renderRecentClubsChips();
+  if (pushHistory && window.location.pathname !== '/') {
+    window.history.pushState({ view: 'home' }, '', '/');
+  }
+}
+
+// Recently Viewed Clubs Storage (Saves up to 6 visited clubs in localStorage)
+function getRecentClubs() {
+  try { return JSON.parse(localStorage.getItem('proClubsRecentV1') || '[]'); } catch (_) { return []; }
+}
+
+function saveRecentClub(clubId, name, crestId, platform) {
+  if (!clubId || !name) return;
+  const list = getRecentClubs().filter(c => String(c.id) !== String(clubId));
+  list.unshift({ id: String(clubId), name, crestId: crestId || '0', platform: platform || 'common-gen5' });
+  localStorage.setItem('proClubsRecentV1', JSON.stringify(list.slice(0, 6)));
+}
+
+function removeRecentClub(clubId, ev) {
+  if (ev) ev.stopPropagation();
+  const list = getRecentClubs().filter(c => String(c.id) !== String(clubId));
+  localStorage.setItem('proClubsRecentV1', JSON.stringify(list));
+  renderRecentClubsChips();
+}
+
+function renderRecentClubsChips() {
+  const sec = document.getElementById('recentClubsSection'), box = document.getElementById('recentClubsList');
+  if (!sec || !box) return;
+  const list = getRecentClubs();
+  if (!list.length) return sec.classList.add('hidden');
+  sec.classList.remove('hidden');
+
+  box.innerHTML = list.map(c => {
+    const safeName = String(c.name || 'FC').replace(/'/g, "\\'");
+    const crestUrl = `${API_BASE}/crest/${encodeURIComponent(c.crestId || '0')}?name=${encodeURIComponent(c.name || 'FC')}&clubId=${encodeURIComponent(c.id)}&platform=${encodeURIComponent(c.platform || 'common-gen5')}`;
+    return `<div onclick="loadClub('${c.id}', '${c.platform || 'common-gen5'}')" class="group inline-flex items-center gap-2 bg-gray-900/90 hover:bg-gray-800 border border-gray-700 hover:border-emerald-500/50 px-3 py-1.5 rounded-full text-xs font-bold text-white cursor-pointer transition shadow">
+      <img src="${crestUrl}" class="w-4 h-4 object-contain" alt="${c.name}">
+      <span>${c.name}</span>
+      <button onclick="removeRecentClub('${c.id}', event)" class="text-gray-500 hover:text-rose-400 ml-0.5 text-[10px]" title="Remove"><i class="fa-solid fa-xmark"></i></button>
+    </div>`;
+  }).join('');
+}
+
+function switchLeaderboardMode(mode) {
+  CURRENT_LEADERBOARD_MODE = mode;
+  document.getElementById('btnLbSeason').className = mode === 'season' ? 'px-3 py-1 rounded text-xs font-black bg-emerald-500 text-black transition shadow' : 'px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
+  document.getElementById('btnLbAllTime').className = mode === 'allTime' ? 'px-3 py-1 rounded text-xs font-black bg-emerald-500 text-black transition shadow' : 'px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
+  loadTop10ClubsLeaderboard(mode);
+}
+
+async function loadTop10ClubsLeaderboard(mode = 'season') {
+  const tbody = document.getElementById('top10ClubsTable');
+  if (!tbody) return;
+  const platform = document.getElementById('homePlatformSelect')?.value || document.getElementById('platformSelect')?.value || 'common-gen5';
+  tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-gray-400"><i class="fa-solid fa-spinner fa-spin mr-2 text-emerald-400"></i>Loading Global Top 10 Clubs...</td></tr>`;
+
+  try {
+    const res = await fetch(`${API_BASE}/leaderboard/clubs?type=${encodeURIComponent(mode)}&platform=${encodeURIComponent(platform)}`);
+    const list = await res.json();
+    if (!res.ok || !Array.isArray(list) || !list.length) {
+      tbody.innerHTML = `<tr><td colspan="9" class="py-6 text-center text-gray-500">Leaderboard temporarily unavailable from EA servers. Search any club above!</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = list.map(c => {
+      const rankBadge = c.rank === 1
+        ? `<span class="w-6 h-6 rounded-full bg-yellow-500/20 border border-yellow-400 text-yellow-300 font-black text-xs inline-flex items-center justify-center">1</span>`
+        : c.rank === 2
+        ? `<span class="w-6 h-6 rounded-full bg-slate-400/20 border border-slate-300 text-slate-200 font-black text-xs inline-flex items-center justify-center">2</span>`
+        : c.rank === 3
+        ? `<span class="w-6 h-6 rounded-full bg-amber-700/30 border border-amber-500 text-amber-300 font-black text-xs inline-flex items-center justify-center">3</span>`
+        : `<span class="font-mono font-bold text-gray-400">${c.rank}</span>`;
+
+      const gd = c.goals - c.goalsAgainst;
+      const reg = c.regionInfo || { name: 'Global', flag: null };
+      const regHtml = `<div class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-gray-900 border border-gray-800 text-[11px] text-gray-300">${reg.flag ? `<img src="https://flagcdn.com/w40/${reg.flag}.png" class="w-3.5 h-2.5 object-cover rounded-[1px]">` : ''}<span>${reg.name}</span></div>`;
+
+      return `<tr onclick="loadClub('${c.clubId}', '${platform}')" class="hover:bg-gray-800/50 transition border-b border-gray-800/60 cursor-pointer group">
+        <td class="py-2.5 px-2 text-center">${rankBadge}</td>
+        <td class="py-2.5 px-2 font-bold text-white"><div class="flex items-center gap-2.5">${renderCrestHtml(c.name, c.crestId, 'w-7 h-7 sm:w-8 sm:h-8', c.clubId)}<span class="group-hover:text-emerald-400 transition">${c.name}</span></div></td>
+        <td class="py-2.5 px-2 text-center">${regHtml}</td>
+        <td class="py-2.5 px-2 text-center">${renderDivisionShieldHtml(c.divisionNum ?? c.division, 'sm')}</td>
+        <td class="py-2.5 px-2 text-center"><span class="font-mono font-black text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded">${c.skillRating}</span></td>
+        <td class="py-2.5 px-2 text-center font-mono text-gray-200">${c.wins}-${c.ties}-${c.losses}</td>
+        <td class="py-2.5 px-2 text-center font-bold text-sky-400">${c.winPct}%</td>
+        <td class="py-2.5 px-2 text-center text-gray-300 font-mono">${c.goals}/${c.goalsAgainst} <span class="text-[10px] text-gray-400">(${gd>=0?`+${gd}`:gd})</span></td>
+        <td class="py-2.5 px-2 text-right font-black text-yellow-400"><i class="fa-solid fa-trophy text-[10px] mr-1"></i>${c.titlesWon}</td>
+      </tr>`;
+    }).join('');
+  } catch (_) {
+    tbody.innerHTML = `<tr><td colspan="9" class="py-6 text-center text-gray-500">Could not reach EA Leaderboard right now. Use the search bar above!</td></tr>`;
+  }
+}
+
+function handleHomeSearch() {
+  const q = document.getElementById('homeSearchInput')?.value || '';
+  handleSearch(q, false);
 }
 
 function switchDashboardTab(tabKey) {
@@ -125,11 +252,13 @@ async function sendRecapToDiscord() {
 
 async function handleSearch(overrideQuery = null, autoSelectExactSlug = false) {
   const searchEl = document.getElementById('searchInput');
-  const rawInput = typeof overrideQuery === 'string' ? overrideQuery : (searchEl?.value || '');
+  const homeSearchEl = document.getElementById('homeSearchInput');
+  const rawInput = typeof overrideQuery === 'string' ? overrideQuery : (searchEl?.value || homeSearchEl?.value || '');
   const input = String(rawInput).trim();
-  if (typeof overrideQuery === 'string' && searchEl) searchEl.value = input;
+  if (searchEl) searchEl.value = input;
+  if (homeSearchEl) homeSearchEl.value = input;
 
-  const platform = document.getElementById('platformSelect')?.value || 'common-gen5';
+  const platform = document.getElementById('platformSelect')?.value || document.getElementById('homePlatformSelect')?.value || 'common-gen5';
   document.getElementById('matchesCard')?.classList.add('hidden');
   if (!input) return setStatus('Please enter a club name or numeric ID.', true);
   if (/^\d+$/.test(input)) return loadClub(input, platform);
@@ -374,7 +503,8 @@ function renderSeasonsHistory(seasonsHistory = [], trophies = {}) {
   }).join('');
 }
 
-async function loadClub(clubId, platform, updateHistory = true) {
+async function loadClub(clubId, platform = 'common-gen5', updateHistory = true) {
+  document.getElementById('matchesCard')?.classList.add('hidden');
   setStatus(`Loading club stats for ID #${clubId}...`);
   try {
     const [infoRes, memRes, matchesRes] = await Promise.all([
@@ -388,6 +518,9 @@ async function loadClub(clubId, platform, updateHistory = true) {
     GLOBAL_CLUB_ID = clubId; GLOBAL_COMBINED_DATA = combined;
     GLOBAL_MEMBERS = Array.isArray(memData) ? memData : (memData?.members || Object.values(memData || {}));
     GLOBAL_MATCHES = Array.isArray(matchesPayload) ? matchesPayload : (matchesPayload?.matches || []);
+
+    setAppView('dashboard');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 
     const shameList = computeMatchIntelligence(clubId, GLOBAL_MATCHES);
     const membersList = renderMembers(GLOBAL_MEMBERS);
@@ -407,15 +540,19 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
   const wins = statObj.wins ?? statObj.overallWins ?? 0, ties = statObj.ties ?? statObj.overallTies ?? 0, losses = statObj.losses ?? statObj.overallLosses ?? 0;
   const goals = statObj.goals ?? statObj.overallGoals ?? 0, conceded = statObj.goalsAgainst ?? statObj.overallGoalsAgainst ?? 0, rating = statObj.skillRating ?? statObj.rating ?? '--';
 
+  const gDiff = Number(goals) - Number(conceded), myMatchClub = matchesPayload[0]?.clubs?.[clubId];
+  const crestId = data.crestId || myMatchClub?.crestId || infoObj.customKit?.crestAssetId || infoObj.teamId || '0';
+
+  // Save to Recently Viewed Chips
+  saveRecentClub(clubId, name, crestId, platform);
+
   const clubSlug = slugifyClubName(name);
   if (clubSlug) {
     document.title = `${name} | FC Pro Clubs Live Tracker`;
     const newPath = `/${clubSlug}${platform !== 'common-gen5' ? `?platform=${encodeURIComponent(platform)}` : ''}`;
-    if (updateHistory && window.location.pathname !== `/${clubSlug}`) window.history.pushState({ clubId, platform, clubName: name }, '', newPath);
+    if (updateHistory && window.location.pathname !== `/${clubSlug}`) window.history.pushState({ view: 'dashboard', clubId, platform, clubName: name }, '', newPath);
   }
 
-  const gDiff = Number(goals) - Number(conceded), myMatchClub = matchesPayload[0]?.clubs?.[clubId];
-  const crestId = data.crestId || myMatchClub?.crestId || infoObj.customKit?.crestAssetId || infoObj.teamId || '0';
   CURRENT_CLUB_CREST_URL = `${API_BASE}/crest/${crestId}?name=${encodeURIComponent(name)}&clubId=${encodeURIComponent(clubId)}&platform=${encodeURIComponent(platform)}`;
   document.getElementById('heroCrestBox').innerHTML = `<img src="${CURRENT_CLUB_CREST_URL}" class="w-full h-full object-contain p-1 drop-shadow" alt="${name}">`;
   document.getElementById('clubName').innerText = name;
@@ -698,18 +835,32 @@ function buildDynamicPitchTactic(members = [], matches = []) {
 }
 
 function checkInitialUrlRoute() {
-  const params = new URLSearchParams(window.location.search), platSelect = document.getElementById('platformSelect');
-  if (params.get('platform') && platSelect) platSelect.value = params.get('platform');
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('platform')) syncPlatformSelectors(params.get('platform'));
   const rawPath = decodeURIComponent(window.location.pathname || '').replace(/^\/+|\/+$/g, '');
-  if (!rawPath || rawPath === 'index.html' || rawPath.startsWith('api/')) return;
-  if (/^\d+$/.test(rawPath)) { document.getElementById('searchInput').value = rawPath; loadClub(rawPath, platSelect?.value || 'common-gen5', false); }
-  else handleSearch(rawPath.replace(/-/g, ' ').trim(), true);
+
+  if (!rawPath || rawPath === 'index.html' || rawPath.startsWith('api/')) {
+    goHome(false);
+    loadTop10ClubsLeaderboard(CURRENT_LEADERBOARD_MODE);
+    return;
+  }
+
+  const plat = document.getElementById('platformSelect')?.value || 'common-gen5';
+  if (/^\d+$/.test(rawPath)) {
+    loadClub(rawPath, plat, false);
+  } else {
+    handleSearch(rawPath.replace(/-/g, ' ').trim(), true);
+  }
 }
 
-window.addEventListener('popstate', (e) => e.state?.clubId ? loadClub(e.state.clubId, e.state.platform || 'common-gen5', false) : checkInitialUrlRoute());
+window.addEventListener('popstate', (e) => {
+  if (e.state?.clubId) loadClub(e.state.clubId, e.state.platform || 'common-gen5', false);
+  else checkInitialUrlRoute();
+});
 
 window.onload = () => {
   applyStoredTheme();
-  buildDynamicPitchTactic([], []);
+  renderRecentClubsChips();
+  loadTop10ClubsLeaderboard('season');
   checkInitialUrlRoute();
 };
