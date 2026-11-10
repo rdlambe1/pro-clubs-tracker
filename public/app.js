@@ -152,6 +152,7 @@ function computeMatchGradeAndUnitRatings(myG, oppG, stats = []) {
   return { grade, gradeCls, atk: atk.toFixed(1), def: def.toFixed(1) };
 }
 
+// Extracts Full Pitch Telemetry: Skills, Blocks, Interceptions/Recoveries, Saves, Offsides, Woodwork & Cards
 function parsePlayerMatchEvents(p = {}) {
   const ev = {};
   for (let i = 0; i < 6; i++) {
@@ -164,18 +165,33 @@ function parsePlayerMatchEvents(p = {}) {
   let skills = beats + flair + Math.max(0, takeOns - beats);
   if (skills === 0 && dribbles > 0) skills = Math.max(1, Math.round(dribbles * 0.35));
 
-  const rawBlocks = (ev[12] || 0) + (ev[13] || 0) + (ev[14] || 0) + (ev[51] || 0) + (ev[56] || 0);
   const tackles = Number(p.tacklesmade || p.tackles || 0);
   const tackleAtt = Number(p.tackleattempts || tackles);
   const missedTackles = Math.max(0, tackleAtt - tackles);
   const posStr = String(p.pos || '').toLowerCase();
-  const isDef = ['defender','cb','lb','rb','lcb','rcb','cdm'].includes(posStr);
+  const isDef = ['defender','cb','lb','rb','lcb','rcb','lwb','rwb','cdm'].includes(posStr);
+  const isMid = ['midfielder','cm','lcm','rcm','cam','lm','rm','ldm','rdm'].includes(posStr);
+
+  // Shot & Cross Blocks
+  const rawBlocks = (ev[12] || 0) + (ev[13] || 0) + (ev[14] || 0) + (ev[51] || 0) + (ev[56] || 0);
   const blocks = rawBlocks > 0 ? rawBlocks : (isDef ? Math.max(1, Math.round(tackles * 0.65)) : Math.round(tackles * 0.4));
 
-  const shots = Number(p.shots || 0), goals = Number(p.goals || 0), rating = parseFloat(p.rating || 7.0);
+  // Interceptions & Loose Ball Recoveries (EA Event IDs 22, 23, 29, 52, 55 + positional defensive-reading fallback)
+  const rawInterceptions = Number(p.interceptions ?? p.ballRecoveries ?? 0) + (ev[22] || 0) + (ev[23] || 0) + (ev[29] || 0) + (ev[52] || 0) + (ev[55] || 0);
+  const passesMade = Number(p.passesmade || 0), rating = parseFloat(p.rating || 7.0);
+  const interceptions = rawInterceptions > 0 ? rawInterceptions : ((isDef || isMid) ? Math.max(0, Math.round(tackles * 0.55 + (rating >= 7.3 ? 1.5 : 0.5))) : Math.round(tackles * 0.35));
+
+  // Goalkeeper Saves & Goals Conceded
+  const saves = Number(p.saves ?? ev[31] ?? ev[32] ?? 0);
+  const goalsConceded = Number(p.goalsconceded ?? p.goalsConceded ?? 0);
+
+  // Offsides & Woodwork
+  const shots = Number(p.shots || 0), goals = Number(p.goals || 0);
+  const offsides = Number(p.offsides ?? ev[15] ?? ev[20] ?? 0);
   const rawWoodwork = Number(p.woodwork ?? p.shotsHitWoodwork ?? 0) + (ev[9] || 0) + (ev[10] || 0) + (ev[42] || 0) + (ev[89] || 0);
   const woodwork = rawWoodwork > 0 ? rawWoodwork : ((shots >= 4 && goals === 0 && rating >= 7.2) ? 1 : (shots - goals >= 5 ? 1 : 0));
 
+  // Discipline (Yellow & Red Cards)
   const redCards = Number(p.redcards ?? p.redCards ?? p.red_cards ?? ev[19] ?? ev[5] ?? 0);
   const directYellow = Number(p.yellowcards ?? p.yellowCards ?? p.yellow_cards ?? p.cautions ?? p.bookings ?? 0);
   const eventYellow = (ev[18] || 0) + (ev[4] || 0) + (ev[83] || 0) + (ev[84] || 0) + (ev[105] || 0);
@@ -189,7 +205,78 @@ function parsePlayerMatchEvents(p = {}) {
   }
   yellowCards = redCards > 0 ? Math.min(2, yellowCards) : Math.min(1, yellowCards);
 
-  return { skillMoves: skills, dribblesCompleted: dribbles, blocks, woodwork, yellowCards, redCards };
+  return { skillMoves: skills, dribblesCompleted: dribbles, blocks, interceptions, saves, goalsConceded, offsides, woodwork, yellowCards, redCards };
+}
+
+// 12-Dimension All-Round Per-Game Impact Engine (Used for Session MVP, Passenger & Single-Match Box-Score MVP)
+function computePlayerImpactScore(u) {
+  const gp = Math.max(1, u.games || 1);
+  const avgRat = u.ratingSum / gp;
+  const normPos = u.normPos || 'MID';
+
+  // 1. Base Match Rating (Anchor)
+  const ratingScore = avgRat * 10;
+
+  // 2. Goals, Assists & Clinical Shot Conversion (Rewards clinicality, penalizes wasteful shooting)
+  const shotConv = u.shots > 0 ? (u.goals / u.shots) : 0;
+  const wastedShots = Math.max(0, u.shots - u.goals);
+  const convBonus = u.shots >= 2 ? (shotConv - 0.25) * 4.5 : (u.goals > 0 ? 1.0 : 0);
+  const attackScore = ((u.goals * 3.8) + (u.assists * 3.2) - (wastedShots * 0.35)) / gp + convBonus;
+
+  // 3. Passing Volume, Retention & Skill Progression (Rewards crisp high-volume ball progression, penalizes turnovers)
+  const passAtt = Math.max(u.passesMade, u.passAttempts || u.passesMade);
+  const missedPasses = Math.max(0, passAtt - u.passesMade);
+  const passPct = passAtt > 0 ? (u.passesMade / passAtt) * 100 : 75;
+  const passAccBonus = passAtt >= 5 * gp ? ((passPct - 76) * 0.14) : 0;
+  const playmakingScore = ((u.passesMade * 0.12) - (missedPasses * 0.22) + (u.skillMoves * 0.35)) / gp + passAccBonus;
+
+  // 4. Defensive Actions: Tackles, Tackle Efficiency, Blocks, Interceptions/Recoveries & Clean Sheets
+  const tAtt = Math.max(u.tackles, u.tackleAttempts || u.tackles);
+  const missedTackles = Math.max(0, tAtt - u.tackles);
+  const csWeight = (normPos === 'DEF' || normPos === 'GK') ? 3.2 : 1.5;
+  const defenseScore = ((u.tackles * 1.15) - (missedTackles * 0.25) + (u.blocks * 1.1) + (u.interceptions * 0.85) + (u.cleanSheets * csWeight)) / gp;
+
+  // 5. Goalkeeping (Saves & Save Efficiency)
+  const gkShotsFaced = u.saves + (u.goalsConceded || 0);
+  const savePctBonus = (u.saves > 0 && gkShotsFaced >= 2) ? (((u.saves / gkShotsFaced) - 0.65) * 4.0) : 0;
+  const gkScore = ((u.saves * 1.35) / gp) + savePctBonus;
+
+  // 6. Positional & Card Discipline (Offsides, Yellows & Reds)
+  const disciplinePenalty = ((u.offsides * 0.65) + (u.yellows * 1.5) + (u.reds * 5.5)) / gp;
+
+  return ratingScore + attackScore + playmakingScore + defenseScore + gkScore - disciplinePenalty;
+}
+
+// Builds a role-aware, context-rich stat summary explaining WHY a player won MVP or Passenger
+function formatHolisticPlayerSummary(u, isPassenger = false) {
+  const avg = (u.ratingSum / Math.max(1, u.games)).toFixed(1);
+  const passAtt = Math.max(u.passesMade, u.passAttempts || u.passesMade);
+  const passPct = passAtt > 0 ? Math.round((u.passesMade / passAtt) * 100) : 0;
+  const missedPasses = Math.max(0, passAtt - u.passesMade);
+
+  if (isPassenger) {
+    const flaws = [];
+    if (u.reds > 0 || u.yellows > 0) flaws.push(`${u.yellows > 0 ? `${u.yellows}🟨` : ''}${u.reds > 0 ? `${u.reds}🟥` : ''}`);
+    if (u.shots >= 3 && u.goals === 0) flaws.push(`0/${u.shots} Shots`);
+    else if (u.goals + u.assists > 0) flaws.push(`${u.goals}G ${u.assists}A`);
+    if (missedPasses >= 4 * u.games) flaws.push(`${missedPasses} Turnovers (${passPct}%)`);
+    else if (passAtt > 0) flaws.push(`${passPct}% Pass`);
+    if (u.offsides >= 2) flaws.push(`${u.offsides} Offsides`);
+    if (!flaws.length) flaws.push(`${u.tackles + u.interceptions} Def Act`);
+    return `${avg} AVG • ${flaws.slice(0, 2).join(' • ')} (${u.games}G)`;
+  }
+
+  const highlights = [];
+  if (u.saves >= 3) highlights.push(`${u.saves} Saves`);
+  if (u.goals + u.assists > 0) {
+    const convStr = u.shots >= 2 && u.goals > 0 ? ` (${Math.round((u.goals / u.shots) * 100)}%)` : '';
+    highlights.push(`${u.goals}G ${u.assists}A${convStr}`);
+  }
+  const defTotal = u.tackles + u.blocks + u.interceptions;
+  if (defTotal >= 2 * u.games) highlights.push(`${u.tackles}Tkl ${u.blocks + u.interceptions}Blk/Int`);
+  if (u.cleanSheets > 0 && (u.normPos === 'DEF' || u.normPos === 'GK' || highlights.length < 2)) highlights.push(`${u.cleanSheets} CS`);
+  if (highlights.length < 2 && passAtt > 0) highlights.push(`${passPct}% Pass`);
+  return `${avg} AVG • ${highlights.slice(0, 2).join(' • ')} (${u.games}G)`;
 }
 
 function renderCardBadgesHtml(yellows = 0, reds = 0) {
@@ -351,7 +438,7 @@ function switchRecapMode(mode) {
   updateRecapMetricsDisplay(GLOBAL_CLUB_ID, mode === 'session' ? SESSION_MATCHES_CACHE : GLOBAL_MATCHES.slice(0, 10), mode);
 }
 
-// Dynamically updates Record, Per-Game MVP/Passenger, 2/3/4/5+ Own Party Win % & Opponent Lobby Size Row
+// Dynamically updates Record, 12-Factor Holistic MVP/Passenger, 2/3/4/5+ Own Party Win % & Opponent Lobby Size Row
 function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const sec = document.getElementById('sessionRecapSection');
   if (!fixtures.length) return sec.classList.add('hidden');
@@ -368,9 +455,11 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const oppBuckets = {
     2: { label: 'vs. 2-Man', w: 0, d: 0, l: 0, total: 0 },
     3: { label: 'vs. 3-Man', w: 0, d: 0, l: 0, total: 0 },
-    4: { label: 'vs. 4-Man', w: 0, d: 0, l: 0, total: 0 },
-    5: { label: 'vs. 5+ Man', w: 0, d: 0, l: 0, total: 0 }
+    4: { label: '4-Man', labelFull: 'vs. 4-Man', w: 0, d: 0, l: 0, total: 0 },
+    5: { label: '5+ Man', labelFull: 'vs. 5+ Man', w: 0, d: 0, l: 0, total: 0 }
   };
+  oppBuckets[4].label = 'vs. 4-Man';
+  oppBuckets[5].label = 'vs. 5+ Man';
 
   fixtures.forEach(m => {
     const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
@@ -397,13 +486,39 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
 
     myPlayers.forEach(p => {
       const n = p.playername || p.name || 'Pro';
-      if (!pMap[n]) pMap[n] = { name: n, games: 0, goals: 0, assists: 0, tackles: 0, cleanSheets: 0, ratingSum: 0 };
-      pMap[n].games++;
-      pMap[n].goals += Number(p.goals || 0);
-      pMap[n].assists += Number(p.assists || 0);
-      pMap[n].tackles += Number(p.tacklesmade || p.tackles || 0);
-      if (oG === 0) pMap[n].cleanSheets++;
-      pMap[n].ratingSum += parseFloat(p.rating || 7.0);
+      const ev = parsePlayerMatchEvents(p);
+      const memberMeta = GLOBAL_MEMBERS.find(gm => (gm.name || gm.proName) === n);
+      const normPos = p.pos ? normalizePosition(p.pos) : normalizePosition(memberMeta?.favoritePosition || 'MID');
+
+      if (!pMap[n]) {
+        pMap[n] = {
+          name: n, normPos, games: 0, goals: 0, assists: 0, shots: 0,
+          passesMade: 0, passAttempts: 0, tackles: 0, tackleAttempts: 0,
+          blocks: 0, interceptions: 0, skillMoves: 0, saves: 0, goalsConceded: 0,
+          offsides: 0, yellows: 0, reds: 0, cleanSheets: 0, ratingSum: 0
+        };
+      }
+      const u = pMap[n];
+      u.games++;
+      u.goals += Number(p.goals || 0);
+      u.assists += Number(p.assists || 0);
+      u.shots += Number(p.shots || 0);
+      const pm = Number(p.passesmade || 0), pa = Number(p.passattempts || pm);
+      u.passesMade += pm;
+      u.passAttempts += pa;
+      const tm = Number(p.tacklesmade || p.tackles || 0), ta = Number(p.tackleattempts || tm);
+      u.tackles += tm;
+      u.tackleAttempts += ta;
+      u.blocks += ev.blocks;
+      u.interceptions += ev.interceptions;
+      u.skillMoves += ev.skillMoves;
+      u.saves += ev.saves;
+      u.goalsConceded += ev.goalsConceded || oG;
+      u.offsides += ev.offsides;
+      u.yellows += ev.yellowCards;
+      u.reds += ev.redCards;
+      if (oG === 0) u.cleanSheets++;
+      u.ratingSum += parseFloat(p.rating || 7.0);
     });
   });
 
@@ -420,25 +535,18 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   tb.className = sL > sW && sL >= 2 ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40' : sW > sL ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40';
   tb.innerText = sL > sW && sL >= 2 ? '🚨 HIGH TILT' : sW > sL ? '🔥 VIBES IMMACULATE' : '⚖️ MIXED BAG';
 
-  // Fair Per-Game & Position-Balanced Impact Formula (Credits G, A, Tackles & Clean Sheets per appearance)
-  const arr = Object.values(pMap).map(sp => {
-    const avgRat = sp.ratingSum / sp.games;
-    const perGameBonus = (sp.goals * 4 + sp.assists * 3 + sp.tackles * 0.8 + sp.cleanSheets * 2.5) / sp.games;
-    return { ...sp, avgRat, imp: avgRat * 10 + perGameBonus };
-  }).sort((a, b) => b.imp - a.imp);
+  const arr = Object.values(pMap).map(u => ({ ...u, imp: computePlayerImpactScore(u) })).sort((a, b) => b.imp - a.imp);
 
   if (arr.length) {
     const mvp = arr[0], liab = arr[arr.length - 1];
-    const fmtLine = (u) => (u.goals + u.assists > 0) ? `${u.avgRat.toFixed(1)} AVG • ${u.goals}G ${u.assists}A (${u.games}G)` : `${u.avgRat.toFixed(1)} AVG • ${u.tackles} Tkl (${u.games}G)`;
     document.getElementById('sessionMvpName').innerText = mvp.name;
-    document.getElementById('sessionMvpStats').innerText = fmtLine(mvp);
+    document.getElementById('sessionMvpStats').innerText = formatHolisticPlayerSummary(mvp, false);
     document.getElementById('sessionMvpAvatar').src = getPlayerAvatarUrl(mvp.name);
     document.getElementById('sessionLiabilityName').innerText = liab.name;
-    document.getElementById('sessionLiabilityStats').innerText = fmtLine(liab);
+    document.getElementById('sessionLiabilityStats').innerText = formatHolisticPlayerSummary(liab, arr.length > 1);
     document.getElementById('sessionLiabilityAvatar').src = getPlayerAvatarUrl(liab.name);
   }
 
-  // Render 2, 3, 4, 5+ Own Party Size Win % Grid
   const ownModeEl = document.getElementById('ownPartyModeBadge');
   if (ownModeEl) ownModeEl.innerText = pfx;
   const ownGridEl = document.getElementById('ownPartySizeGrid');
@@ -455,7 +563,6 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     ? `Best synergy: ${activePartyBuckets[0].label} (${Math.round((activePartyBuckets[0].w / activePartyBuckets[0].total) * 100)}% Win)`
     : 'Balanced squad chemistry';
 
-  // Render Bottom Row: Performance vs. Opponent Lobby Sizes (Synced to Session vs Last 10 Toggle)
   const oppTitleEl = document.getElementById('vsOpponentHeaderTitle');
   if (oppTitleEl) oppTitleEl.innerHTML = `<i class="fa-solid fa-people-arrows text-emerald-400"></i> Performance vs. Opponent Lobby Sizes (${windowName})`;
   document.getElementById('vsOpponentSizeGrid').innerHTML = [2, 3, 4, 5].map(k => {
@@ -523,14 +630,14 @@ function computeMatchIntelligence(clubId, matchesPayload) {
       const isSub = maxSecs > 600 && Number(p.secondsPlayed || maxSecs) <= maxSecs * 0.78 && reds === 0;
 
       if (idx < 5 && r > 0) { if (!ratingBuckets[pName]) ratingBuckets[pName] = []; ratingBuckets[pName].push(r); }
-      if (!RECENT_10_STATS_MAP[pName]) RECENT_10_STATS_MAP[pName] = { games:0, goals:0, assists:0, shots:0, tackles:0, totalRating:0, skillMoves:0, blocks:0, woodwork:0, yellows:0, reds:0, superSubGA:0, subGames:0, recentCleanSheets:0 };
+      if (!RECENT_10_STATS_MAP[pName]) RECENT_10_STATS_MAP[pName] = { games:0, goals:0, assists:0, shots:0, tackles:0, totalRating:0, skillMoves:0, blocks:0, interceptions:0, woodwork:0, yellows:0, reds:0, superSubGA:0, subGames:0, recentCleanSheets:0 };
       const r10 = RECENT_10_STATS_MAP[pName];
-      r10.games++; r10.goals += g; r10.assists += a; r10.shots += shots; r10.tackles += t; r10.totalRating += r; r10.skillMoves += ev.skillMoves; r10.blocks += ev.blocks; r10.woodwork += ev.woodwork; r10.yellows += yellows; r10.reds += reds;
+      r10.games++; r10.goals += g; r10.assists += a; r10.shots += shots; r10.tackles += t; r10.totalRating += r; r10.skillMoves += ev.skillMoves; r10.blocks += ev.blocks; r10.interceptions += ev.interceptions; r10.woodwork += ev.woodwork; r10.yellows += yellows; r10.reds += reds;
       if (isSub) r10.subGames++; if (isSub && (g + a > 0)) r10.superSubGA += (g + a); if (oppG === 0) r10.recentCleanSheets++;
 
-      if (!shameMap[pName]) shameMap[pName] = { name: pName, games:0, missedPasses:0, skillMoves:0, dribblesCompleted:0, blocks:0, woodwork:0, shots:0, goals:0, assists:0, yellows:0, reds:0, tackles:0, tackleAtt:0, superSubGA:0, subGames:0, cleanSheets:0 };
+      if (!shameMap[pName]) shameMap[pName] = { name: pName, games:0, missedPasses:0, skillMoves:0, dribblesCompleted:0, blocks:0, interceptions:0, woodwork:0, shots:0, goals:0, assists:0, yellows:0, reds:0, tackles:0, tackleAtt:0, superSubGA:0, subGames:0, cleanSheets:0 };
       const sm = shameMap[pName];
-      sm.games++; sm.missedPasses += missedP; sm.skillMoves += ev.skillMoves; sm.dribblesCompleted += ev.dribblesCompleted; sm.blocks += ev.blocks; sm.woodwork += ev.woodwork; sm.shots += shots; sm.goals += g; sm.assists += a; sm.yellows += yellows; sm.reds += reds; sm.tackles += t; sm.tackleAtt += tAtt;
+      sm.games++; sm.missedPasses += missedP; sm.skillMoves += ev.skillMoves; sm.dribblesCompleted += ev.dribblesCompleted; sm.blocks += ev.blocks; sm.interceptions += ev.interceptions; sm.woodwork += ev.woodwork; sm.shots += shots; sm.goals += g; sm.assists += a; sm.yellows += yellows; sm.reds += reds; sm.tackles += t; sm.tackleAtt += tAtt;
       if (isSub) sm.subGames++; if (isSub && (g + a > 0)) sm.superSubGA += (g + a); if (oppG === 0) sm.cleanSheets++;
       if (g + a > 0) activeContributors.push({ name: pName, ga: g + a });
     });
@@ -889,13 +996,31 @@ function renderRecentMatches(clubId, matches) {
 
     let bestMvp = null, hiScore = -Infinity, matchYellows = 0, matchReds = 0;
     playerStats.forEach(p => {
-      const made = Number(p.passesmade || 0), att = Number(p.passattempts || 0);
+      const pName = p.playername || p.name || 'Pro';
+      const made = Number(p.passesmade || 0), att = Number(p.passattempts || made);
+      const tkl = Number(p.tacklesmade || p.tackles || 0), tAtt = Number(p.tackleattempts || tkl);
+      const memberMeta = GLOBAL_MEMBERS.find(gm => (gm.name || gm.proName) === pName);
+      const normPos = p.pos ? normalizePosition(p.pos) : normalizePosition(memberMeta?.favoritePosition || 'MID');
+
       p._passPct = att > 0 ? Math.round((made / att) * 100) : Number(p.passsuccessrate || 0);
       p._made = made; p._att = att; p._ev = parsePlayerMatchEvents(p);
       matchYellows += p._ev.yellowCards;
       matchReds += p._ev.redCards;
-      p._inf = parseFloat(p.rating || 0) * 12 + Number(p.goals || 0) * 5 + Number(p.assists || 0) * 4 + Number(p.tacklesmade || 0) * 2 + p._passPct * 0.05;
-      if (p._inf > hiScore) { hiScore = p._inf; bestMvp = p.playername || p.name; }
+
+      // Single-match holistic 12-dimension impact score
+      p._inf = computePlayerImpactScore({
+        games: 1, normPos,
+        ratingSum: parseFloat(p.rating || 7.0),
+        goals: Number(p.goals || 0), assists: Number(p.assists || 0), shots: Number(p.shots || 0),
+        passesMade: made, passAttempts: att,
+        tackles: tkl, tackleAttempts: tAtt,
+        blocks: p._ev.blocks, interceptions: p._ev.interceptions, skillMoves: p._ev.skillMoves,
+        saves: p._ev.saves, goalsConceded: p._ev.goalsConceded || oppG,
+        offsides: p._ev.offsides, yellows: p._ev.yellowCards, reds: p._ev.redCards,
+        cleanSheets: oppG === 0 ? 1 : 0
+      });
+
+      if (p._inf > hiScore) { hiScore = p._inf; bestMvp = pName; }
     });
 
     matchYellows = Math.max(matchYellows, Number(myClub.yellowcards ?? myClub.yellowCards ?? m.aggregate?.[thisId]?.yellowcards ?? 0));
@@ -908,11 +1033,11 @@ function renderRecentMatches(clubId, matches) {
       const subbed = maxSecs > 600 && Number(p.secondsPlayed || maxSecs) <= maxSecs * 0.78 && p._ev.redCards === 0;
       const subBadge = (subbed && (goals + assists > 0)) ? `<span class="ml-1 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/50 text-[9px] font-black">🦸‍♂️ SUPER-SUB</span>` : (subbed ? `<span class="ml-1 text-[9px] text-gray-400">🔄 Sub</span>` : '');
       let mvpBadge = '--';
-      if (!crownGiven && pName === bestMvp && hiScore > 0) { mvpBadge = `<span class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-[10px] font-black">👑 MVP</span>`; crownGiven = true; }
-      return `<tr class="border-b border-gray-800/60"><td class="py-2 px-2 font-semibold text-white"><div class="flex items-center gap-1.5"><img src="${getPlayerAvatarUrl(pName)}" class="w-5 h-5 rounded-full bg-gray-900"><span>${pName}</span>${subBadge}</div></td><td class="py-2 px-2 text-center font-black text-yellow-400">${parseFloat(p.rating||0).toFixed(1)}</td><td class="py-2 px-2 text-center font-bold text-emerald-400">${goals}</td><td class="py-2 px-2 text-center font-bold text-sky-400">${assists}</td><td class="py-2 px-2 text-center font-mono">${shots} <span class="text-[10px] text-emerald-400">(${shots>0?`${Math.round((goals/shots)*100)}%`:'--'})</span></td><td class="py-2 px-2 text-center font-mono text-cyan-400">${p._att>0?`${p._made}/${p._att} (${p._passPct}%)`:`${p._passPct}%`}</td><td class="py-2 px-2 text-center font-mono text-amber-400">${Math.max(0,p._att-p._made)}</td><td class="py-2 px-2 text-center font-mono text-fuchsia-400">${p._ev.skillMoves}</td><td class="py-2 px-2 text-center text-sky-400">${p.tacklesmade||0}</td><td class="py-2 px-2 text-center">${renderCardBadgesHtml(p._ev.yellowCards, p._ev.redCards)}</td><td class="py-2 px-2 text-right">${mvpBadge}</td></tr>`;
+      if (!crownGiven && pName === bestMvp && hiScore > -Infinity) { mvpBadge = `<span class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-[10px] font-black">👑 MVP</span>`; crownGiven = true; }
+      return `<tr class="border-b border-gray-800/60"><td class="py-2 px-2 font-semibold text-white"><div class="flex items-center gap-1.5"><img src="${getPlayerAvatarUrl(pName)}" class="w-5 h-5 rounded-full bg-gray-900"><span>${pName}</span>${subBadge}</div></td><td class="py-2 px-2 text-center font-black text-yellow-400">${parseFloat(p.rating||0).toFixed(1)}</td><td class="py-2 px-2 text-center font-bold text-emerald-400">${goals}</td><td class="py-2 px-2 text-center font-bold text-sky-400">${assists}</td><td class="py-2 px-2 text-center font-mono">${shots} <span class="text-[10px] text-emerald-400">(${shots>0?`${Math.round((goals/shots)*100)}%`:'--'})</span></td><td class="py-2 px-2 text-center font-mono text-cyan-400">${p._att>0?`${p._made}/${p._att} (${p._passPct}%)`:`${p._passPct}%`}</td><td class="py-2 px-2 text-center font-mono text-amber-400">${Math.max(0,p._att-p._made)}</td><td class="py-2 px-2 text-center font-mono text-fuchsia-400">${p._ev.skillMoves}</td><td class="py-2 px-2 text-center text-sky-400" title="${p.tacklesmade||0} Tackles • ${p._ev.blocks} Blocks • ${p._ev.interceptions} Interceptions">${p.tacklesmade||0} <span class="text-[10px] text-gray-400">(${p._ev.blocks+p._ev.interceptions} B/I)</span></td><td class="py-2 px-2 text-center">${renderCardBadgesHtml(p._ev.yellowCards, p._ev.redCards)}</td><td class="py-2 px-2 text-right">${mvpBadge}</td></tr>`;
     }).join('');
 
-    return `<tr onclick="document.getElementById('boxScore_${idx}').classList.toggle('hidden')" class="hover:bg-gray-800/40 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2"><span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-800 text-gray-300 border border-gray-700">${m._inferredCategory||'League'}</span></td><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-1.5">${renderCrestHtml(oppName, oppClub.crestId||oppClub.TEAM||oppClub.details?.crestAssetId, 'w-6 h-6 sm:w-7 sm:h-7', oppId)}<span>${oppName}</span>${oppCnt>0?`<span class="text-[10px] text-gray-400 font-mono">(${oppCnt}p)</span>`:''}${rqBadge}<i class="fa-solid fa-chevron-down text-[9px] text-gray-500"></i></div></td><td class="py-2.5 px-2 text-center" title="${chaos.label}">${chaos.emoji}</td><td class="py-2.5 px-2 text-center">${renderDivisionShieldHtml(oppClub.division||'Div 4','sm')}</td><td class="py-2.5 px-2 text-center">${oppSR?`<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">${oppSR}</span>`:'--'}</td><td class="py-2.5 px-2 text-center font-bold text-white">${myG} - ${oppG}</td><td class="py-2.5 px-2 text-center"><div class="inline-flex items-center gap-1.5"><span class="w-6 h-5 rounded flex items-center justify-center text-[11px] font-black border ${mg.gradeCls}">${mg.grade}</span><span class="text-[10px] font-mono text-emerald-400">A:${mg.atk}</span><span class="text-[10px] font-mono text-sky-400">D:${mg.def}</span></div></td><td class="py-2.5 px-2 text-center">${renderCardBadgesHtml(matchYellows, matchReds)}</td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-bold border ${resCls}">${resLbl}</span></td><td class="py-2.5 px-2 text-right text-gray-400 text-xs">${dateText}</td></tr><tr id="boxScore_${idx}" class="hidden bg-gray-900/60 border-b border-gray-800"><td colspan="10" class="p-3"><div class="overflow-x-auto touch-scroll rounded border border-gray-800 bg-gray-950/80"><table class="w-full text-left text-xs whitespace-nowrap"><thead class="bg-gray-900 text-gray-400 uppercase text-[10px]"><tr><th class="py-1.5 px-2">Player</th><th class="py-1.5 px-2 text-center">Rat</th><th class="py-1.5 px-2 text-center">G</th><th class="py-1.5 px-2 text-center">A</th><th class="py-1.5 px-2 text-center">Shots (Conv%)</th><th class="py-1.5 px-2 text-center">Passes</th><th class="py-1.5 px-2 text-center">Missed</th><th class="py-1.5 px-2 text-center">Skills</th><th class="py-1.5 px-2 text-center">Tkl</th><th class="py-1.5 px-2 text-center">Cards</th><th class="py-1.5 px-2 text-right">Award</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></td></tr>`;
+    return `<tr onclick="document.getElementById('boxScore_${idx}').classList.toggle('hidden')" class="hover:bg-gray-800/40 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2"><span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-800 text-gray-300 border border-gray-700">${m._inferredCategory||'League'}</span></td><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-1.5">${renderCrestHtml(oppName, oppClub.crestId||oppClub.TEAM||oppClub.details?.crestAssetId, 'w-6 h-6 sm:w-7 sm:h-7', oppId)}<span>${oppName}</span>${oppCnt>0?`<span class="text-[10px] text-gray-400 font-mono">(${oppCnt}p)</span>`:''}${rqBadge}<i class="fa-solid fa-chevron-down text-[9px] text-gray-500"></i></div></td><td class="py-2.5 px-2 text-center" title="${chaos.label}">${chaos.emoji}</td><td class="py-2.5 px-2 text-center">${renderDivisionShieldHtml(oppClub.division||'Div 4','sm')}</td><td class="py-2.5 px-2 text-center">${oppSR?`<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">${oppSR}</span>`:'--'}</td><td class="py-2.5 px-2 text-center font-bold text-white">${myG} - ${oppG}</td><td class="py-2.5 px-2 text-center"><div class="inline-flex items-center gap-1.5"><span class="w-6 h-5 rounded flex items-center justify-center text-[11px] font-black border ${mg.gradeCls}">${mg.grade}</span><span class="text-[10px] font-mono text-emerald-400">A:${mg.atk}</span><span class="text-[10px] font-mono text-sky-400">D:${mg.def}</span></div></td><td class="py-2.5 px-2 text-center">${renderCardBadgesHtml(matchYellows, matchReds)}</td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-bold border ${resCls}">${resLbl}</span></td><td class="py-2.5 px-2 text-right text-gray-400 text-xs">${dateText}</td></tr><tr id="boxScore_${idx}" class="hidden bg-gray-900/60 border-b border-gray-800"><td colspan="10" class="p-3"><div class="overflow-x-auto touch-scroll rounded border border-gray-800 bg-gray-950/80"><table class="w-full text-left text-xs whitespace-nowrap"><thead class="bg-gray-900 text-gray-400 uppercase text-[10px]"><tr><th class="py-1.5 px-2">Player</th><th class="py-1.5 px-2 text-center">Rat</th><th class="py-1.5 px-2 text-center">G</th><th class="py-1.5 px-2 text-center">A</th><th class="py-1.5 px-2 text-center">Shots (Conv%)</th><th class="py-1.5 px-2 text-center">Passes</th><th class="py-1.5 px-2 text-center">Missed</th><th class="py-1.5 px-2 text-center">Skills</th><th class="py-1.5 px-2 text-center">Tkl (Blk/Int)</th><th class="py-1.5 px-2 text-center">Cards</th><th class="py-1.5 px-2 text-right">Award</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></td></tr>`;
   }).join('');
   formContainer.innerHTML = formList.join('');
 }
