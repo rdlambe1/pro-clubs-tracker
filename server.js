@@ -126,7 +126,6 @@ function eaIntToHex(val, fb = '#10b981') {
   return (isNaN(n) || n < 0) ? fb : `#${(n & 0xFFFFFF).toString(16).padStart(6, '0')}`;
 }
 
-// Decodes EA's 3-byte ASCII-packed regionId integer (e.g. 5457237 = 0x534555 = "SEU" -> Southern Europe)
 function decodeEaRegionAscii(id) {
   let num = parseInt(id, 10);
   if (isNaN(num) || num <= 0) return '';
@@ -178,10 +177,8 @@ function resolveClubRegion(infoObj = {}, statObj = {}, lbClubInfo = {}) {
 
   if (sdkLabel) {
     const low = sdkLabel.toLowerCase();
-    if (low.includes('british')) return { name: sdkLabel, flag: 'eu' };
-    if (low.includes('europe')) return { name: sdkLabel, flag: 'eu' };
-    if (low.includes('east') && (low.includes('us') || low.includes('north america') || low.includes('america'))) return { name: sdkLabel, flag: 'us' };
-    if (low.includes('west') && (low.includes('us') || low.includes('north america') || low.includes('america'))) return { name: sdkLabel, flag: 'us' };
+    if (low.includes('british') || low.includes('europe')) return { name: sdkLabel, flag: 'eu' };
+    if ((low.includes('east') || low.includes('west')) && (low.includes('us') || low.includes('america'))) return { name: sdkLabel, flag: 'us' };
     if (low.includes('central america') || low.includes('mexico')) return { name: sdkLabel, flag: 'mx' };
     if (low.includes('south america')) return { name: sdkLabel, flag: 'br' };
     if (low.includes('middle east')) return { name: sdkLabel, flag: 'sa' };
@@ -325,6 +322,74 @@ function generateFallbackSvg(name) {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 115"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${b1}"/><stop offset="100%" stop-color="${b2}"/></linearGradient></defs><path d="M50 5 C80 5 95 15 95 35 C95 75 50 110 50 110 C50 110 5 75 5 35 C5 15 20 5 50 5 Z" fill="url(#g)" stroke="${st}" stroke-width="4"/><text x="50" y="66" font-family="sans-serif" font-size="29" font-weight="900" fill="#fff" text-anchor="middle">${init}</text></svg>`;
 }
 
+// 0. Global Top 10 Clubs Leaderboard (30-Minute In-Memory Cache for Instant Homepage Loads)
+const LEADERBOARD_CACHE = new Map();
+const LEADERBOARD_TTL_MS = 30 * 60 * 1000;
+
+app.get('/api/leaderboard/clubs', async (req, res) => {
+  const platform = req.query.platform === 'nx' ? 'nx' : 'common-gen5';
+  const type = req.query.type === 'allTime' ? 'allTime' : 'season';
+  const cacheKey = `${platform}_${type}`;
+
+  const cached = LEADERBOARD_CACHE.get(cacheKey);
+  if (cached && (Date.now() - cached.ts < LEADERBOARD_TTL_MS)) {
+    return res.json(cached.data);
+  }
+
+  try {
+    const endpoint = type === 'allTime' ? 'allTimeLeaderboard' : 'currentSeasonLeaderboard';
+    const sdkFn = type === 'allTime'
+      ? (proclubs.rankings?.allTime || proclubs.leaderboards?.allTime)
+      : (proclubs.rankings?.currentSeason || proclubs.leaderboards?.seasonal || proclubs.leaderboards?.currentSeason);
+
+    const [sdkRes, dirRes] = await Promise.allSettled([
+      typeof sdkFn === 'function' ? sdkFn.call(proclubs.rankings || proclubs.leaderboards, { platform }) : Promise.resolve(null),
+      eaFetch(`https://proclubs.ea.com/api/fc/${endpoint}?platform=${platform}`)
+    ]);
+
+    const raw = (Array.isArray(valOf(dirRes)) && valOf(dirRes).length) ? valOf(dirRes) : valOf(sdkRes);
+    const list = Array.isArray(raw) ? raw : Object.values(raw || {}).filter(v => v && typeof v === 'object');
+
+    const top10 = list
+      .filter(c => extractClubId(c))
+      .sort((a, b) => Number(b.skillRating || 0) - Number(a.skillRating || 0))
+      .slice(0, 10)
+      .map((c, i) => {
+        const cInfo = c.clubInfo || {};
+        const clubId = extractClubId(c);
+        const name = c.clubName || cInfo.name || c.name || `Club #${clubId}`;
+        const wins = Number(c.wins ?? 0), ties = Number(c.ties ?? 0), losses = Number(c.losses ?? 0);
+        const goals = Number(c.goals ?? 0), ga = Number(c.goalsAgainst ?? 0);
+        const promos = Number(c.promotions ?? 0);
+        const rawDiv = mapEaOneToSixDivision(c.currentDivision ?? c.bestDivision);
+        const divNum = rawDiv !== null ? rawDiv : (Number(c.skillRating || 0) >= 2050 ? 0 : 1);
+
+        return {
+          rank: i + 1,
+          clubId,
+          name,
+          skillRating: Number(c.skillRating || 0),
+          wins, ties, losses,
+          winPct: (wins + ties + losses) > 0 ? Math.round((wins / (wins + ties + losses)) * 100) : 0,
+          goals, goalsAgainst: ga,
+          titlesWon: Number(c.titlesWon ?? c.leaguesWon ?? 0),
+          promotions: promos,
+          divisionNum: divNum,
+          division: fmtDiv(divNum),
+          crestId: resolveCrestId(cInfo, c, { details: cInfo }),
+          regionInfo: resolveClubRegion(cInfo, c, cInfo)
+        };
+      });
+
+    if (top10.length) {
+      LEADERBOARD_CACHE.set(cacheKey, { ts: Date.now(), data: top10 });
+    }
+    res.json(top10);
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // 1. Search Clubs
 app.get('/api/search', async (req, res) => {
   const rawQuery = String(req.query.clubName || '').trim();
@@ -383,7 +448,6 @@ app.get('/api/club/:clubId/info', async (req, res) => {
 
     const sdkInfo = unwrapEa(valOf(iRes), clubId);
     const dirInfo = unwrapEa(valOf(rInfo), clubId);
-    // Merge both so SDK's regionLabel AND direct EA's raw customKit/regionId are both preserved!
     const infoObj = { ...sdkInfo, ...dirInfo };
     if (sdkInfo.regionLabel && !infoObj.regionLabel) infoObj.regionLabel = sdkInfo.regionLabel;
 
@@ -600,20 +664,7 @@ app.get('/api/crest/:crestId', async (req, res) => {
   res.send(generateFallbackSvg(name));
 });
 
-// 6. Global Squad Appearance Locker
-const SQUAD_APPEARANCES = {};
-app.get('/api/appearances', (req, res) => res.json(SQUAD_APPEARANCES));
-app.post('/api/appearances', (req, res) => {
-  const { playerName, skin, hair } = req.body || {};
-  if (playerName) {
-    const k = String(playerName).toLowerCase().trim();
-    if (!skin && !hair) delete SQUAD_APPEARANCES[k];
-    else SQUAD_APPEARANCES[k] = { ...(SQUAD_APPEARANCES[k] || {}), ...(skin ? { skin } : {}), ...(hair ? { hair } : {}) };
-  }
-  res.json({ ok: true, appearances: SQUAD_APPEARANCES });
-});
-
-// 7. Discord Webhook Integration
+// 6. Discord Webhook Integration
 app.post('/api/discord/send', async (req, res) => {
   const { webhookUrl, clubName, clubId, division, skillRating, modeLabel, record, goalDiffText, tiltStatus, mvp, passenger, banter, trackerUrl } = req.body || {};
   const target = (webhookUrl || process.env.DISCORD_WEBHOOK_URL || '').trim();
