@@ -7,6 +7,24 @@ let CURRENT_PITCH_MODE = 'lastMatch', CURRENT_RECAP_MODE = 'session', CURRENT_BA
 const slugifyClubName = (name) => String(name || '').toLowerCase().trim().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 const getFlagUrl = (id) => `https://flagcdn.com/w40/${EA_NATION_TO_ISO[String(id || '')] || 'ie'}.png`;
 const getAppearanceMap = () => { try { return JSON.parse(localStorage.getItem('proClubsAppearanceV3') || '{}'); } catch (_) { return {}; } };
+const escXml = (s) => String(s || '').replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
+
+// Looks up a player's EA Virtual Pro Shirt Name (proName) and Country ID (proNationality) from GLOBAL_MEMBERS
+function findMemberMeta(playerName) {
+  const key = String(playerName || '').toLowerCase().trim();
+  return GLOBAL_MEMBERS.find(m => String(m.name || '').toLowerCase().trim() === key || String(m.proName || '').toLowerCase().trim() === key) || null;
+}
+
+function getShirtLabel(playerName) {
+  const m = findMemberMeta(playerName);
+  const raw = String(m?.proName || playerName || 'PRO').trim().toUpperCase();
+  return raw.length > 12 ? raw.substring(0, 11) + '.' : raw;
+}
+
+function getPlayerNationId(playerName) {
+  const m = findMemberMeta(playerName);
+  return m?.proNationality || '25';
+}
 
 function applyStoredTheme() {
   const isLight = (localStorage.getItem('proClubsTheme') || 'dark') === 'light';
@@ -18,14 +36,6 @@ function applyStoredTheme() {
 function toggleThemeMode() {
   localStorage.setItem('proClubsTheme', document.body.classList.contains('light-mode') ? 'dark' : 'light');
   applyStoredTheme();
-}
-
-async function copyShareableClubLink() {
-  const url = window.location.href, el = document.getElementById('copyLinkText');
-  try {
-    await navigator.clipboard.writeText(url);
-    if (el) { el.innerText = 'Copied!'; setTimeout(() => { el.innerText = 'Copy Club Link'; }, 2000); }
-  } catch (_) { prompt('Copy your shareable club link:', url); }
 }
 
 function switchDashboardTab(tabKey) {
@@ -110,9 +120,34 @@ function getPlayerAppearance(playerObj) {
   return (!saved || (!saved.skin && !saved.hair)) ? { isCustom: false, skin: null, hair: null } : { isCustom: true, skin: saved.skin || 'f2d3b1', hair: saved.hair || '0e0e0e' };
 }
 
+// Generates Avatar URL with Player's Virtual Pro Shirt Name (proName) Stamped Across the Jersey Chest
 function getPlayerAvatarUrl(playerName) {
   const look = getPlayerAppearance(playerName);
-  return !look.isCustom ? PRO_SILHOUETTE_DATA_URI : `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(String(playerName || 'Pro').trim())}&skinColor=${look.skin}&hairColor=${look.hair}`;
+  const shirt = escXml(getShirtLabel(playerName));
+  const fSize = shirt.length <= 5 ? 30 : shirt.length <= 8 ? 24 : shirt.length <= 10 ? 20 : 17;
+
+  if (!look.isCustom) {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" shape-rendering="geometricPrecision"><defs><radialGradient id="bgG" cx="50%" cy="38%" r="58%"><stop offset="0%" stop-color="#1e293b"/><stop offset="65%" stop-color="#0f172a"/><stop offset="100%" stop-color="#070a12"/></radialGradient><radialGradient id="emH" cx="50%" cy="32%" r="42%"><stop offset="0%" stop-color="#10b981" stop-opacity="0.22"/><stop offset="100%" stop-color="#10b981" stop-opacity="0"/></radialGradient><linearGradient id="hdG" x1="20%" y1="0%" x2="80%" y2="100%"><stop offset="0%" stop-color="#94a3b8"/><stop offset="45%" stop-color="#475569"/><stop offset="100%" stop-color="#1e293b"/></linearGradient><linearGradient id="jsG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#334155"/><stop offset="50%" stop-color="#1e293b"/><stop offset="100%" stop-color="#090d16"/></linearGradient><linearGradient id="rmL" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#e2e8f0" stop-opacity="0.9"/><stop offset="50%" stop-color="#64748b" stop-opacity="0.4"/><stop offset="100%" stop-color="#10b981" stop-opacity="0.7"/></linearGradient></defs><rect width="256" height="256" fill="url(#bgG)"/><circle cx="128" cy="96" r="96" fill="url(#emH)"/><path d="M 96 130 L 84 166 L 172 166 L 160 130 Z" fill="#1e293b"/><path d="M 102 130 L 96 164 L 128 176 L 160 164 L 154 130 Z" fill="url(#hdG)" opacity="0.85"/><path d="M 12 256 C 16 192 50 166 94 156 L 128 188 L 162 156 C 206 166 240 192 244 256 Z" fill="url(#jsG)" stroke="url(#rmL)" stroke-width="2.5" stroke-linejoin="round"/><path d="M 42 184 C 62 170 78 164 96 159" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.85"/><path d="M 214 184 C 194 170 178 164 160 159" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.85"/><path d="M 90 156 L 128 194 L 166 156 L 156 153 L 128 181 L 100 153 Z" fill="#0f172a" stroke="#10b981" stroke-width="1.8" stroke-linejoin="round"/><path d="M 128 32 C 100 32 84 48 84 74 L 84 86 C 79 86 76 91 77 98 C 78 105 81 109 85 109 C 88 124 98 138 112 145 C 118 148 123 149 128 149 C 133 149 138 148 144 145 C 158 138 168 124 171 109 C 175 109 178 105 179 98 C 180 91 177 86 172 86 L 172 74 C 172 48 156 32 128 32 Z" fill="url(#hdG)" stroke="url(#rmL)" stroke-width="2.5" stroke-linejoin="round"/><path d="M 94 64 C 94 48 108 38 128 38" fill="none" stroke="#f8fafc" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/><rect x="44" y="201" width="168" height="34" rx="6" fill="#070a12" fill-opacity="0.58"/><text x="128" y="226" font-family="'Oswald','Arial Narrow',sans-serif" font-size="${fSize}" font-weight="900" letter-spacing="1.4" fill="#f8fafc" stroke="#070a12" stroke-width="2.5" paint-order="stroke" text-anchor="middle">${shirt}</text></svg>`;
+    return `data:image/svg+xml;utf8,` + encodeURIComponent(svg);
+  }
+
+  return `https://api.dicebear.com/9.x/adventurer/svg?seed=${encodeURIComponent(String(playerName || 'Pro').trim())}&skinColor=${look.skin}&hairColor=${look.hair}`;
+}
+
+// Renders Circular Player Avatar with Shirt Name Overlay (for DiceBear) + Bottom-Right Nationality Flag Badge
+function renderAvatarWithFlagHtml(playerName, sizeCls = 'w-8 h-8', borderCls = 'border-emerald-500/40', flagCls = 'w-3.5 h-2.5') {
+  const nationId = getPlayerNationId(playerName);
+  const shirt = getShirtLabel(playerName);
+  const look = getPlayerAppearance(playerName);
+  const customChestPlate = look.isCustom
+    ? `<span class="absolute bottom-[12%] left-1/2 -translate-x-1/2 px-1 rounded bg-gray-950/85 text-[6px] font-black text-white uppercase tracking-tighter leading-tight max-w-[85%] truncate pointer-events-none border border-white/15">${shirt}</span>`
+    : '';
+
+  return `<div class="relative inline-flex flex-shrink-0" title="${playerName} (${shirt})">
+    <img src="${getPlayerAvatarUrl(playerName)}" class="${sizeCls} rounded-full avatar-circle border ${borderCls} bg-gray-900 object-cover" alt="${playerName}">
+    ${customChestPlate}
+    <img src="${getFlagUrl(nationId)}" class="absolute -bottom-0.5 -right-0.5 ${flagCls} object-cover rounded-[2px] border border-gray-950 shadow-md z-10 pointer-events-none" alt="Flag">
+  </div>`;
 }
 
 function updateProLook(type, hexValue) {
@@ -127,7 +162,12 @@ function updateProLook(type, hexValue) {
     fetch(`${API_BASE}/appearances`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ playerName: ACTIVE_MODAL_PLAYER, ...map[key] }) }).catch(() => {});
   }
   localStorage.setItem('proClubsAppearanceV3', JSON.stringify(map));
-  renderMembers(GLOBAL_MEMBERS); buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES); openFutModal(ACTIVE_MODAL_PLAYER);
+  computeMatchIntelligence(GLOBAL_CLUB_ID, GLOBAL_MATCHES);
+  renderMembers(GLOBAL_MEMBERS);
+  renderCareerMilestones(GLOBAL_MEMBERS);
+  buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
+  renderRecentMatches(GLOBAL_CLUB_ID, GLOBAL_MATCHES);
+  openFutModal(ACTIVE_MODAL_PLAYER);
 }
 
 function getCardTierTheme(ovr) {
@@ -152,7 +192,6 @@ function computeMatchGradeAndUnitRatings(myG, oppG, stats = []) {
   return { grade, gradeCls, atk: atk.toFixed(1), def: def.toFixed(1) };
 }
 
-// Extracts Full Pitch Telemetry: Skills, Blocks, Interceptions/Recoveries, Saves, Offsides, Woodwork & Cards
 function parsePlayerMatchEvents(p = {}) {
   const ev = {};
   for (let i = 0; i < 6; i++) {
@@ -172,26 +211,20 @@ function parsePlayerMatchEvents(p = {}) {
   const isDef = ['defender','cb','lb','rb','lcb','rcb','lwb','rwb','cdm'].includes(posStr);
   const isMid = ['midfielder','cm','lcm','rcm','cam','lm','rm','ldm','rdm'].includes(posStr);
 
-  // Shot & Cross Blocks
   const rawBlocks = (ev[12] || 0) + (ev[13] || 0) + (ev[14] || 0) + (ev[51] || 0) + (ev[56] || 0);
   const blocks = rawBlocks > 0 ? rawBlocks : (isDef ? Math.max(1, Math.round(tackles * 0.65)) : Math.round(tackles * 0.4));
 
-  // Interceptions & Loose Ball Recoveries (EA Event IDs 22, 23, 29, 52, 55 + positional defensive-reading fallback)
   const rawInterceptions = Number(p.interceptions ?? p.ballRecoveries ?? 0) + (ev[22] || 0) + (ev[23] || 0) + (ev[29] || 0) + (ev[52] || 0) + (ev[55] || 0);
-  const passesMade = Number(p.passesmade || 0), rating = parseFloat(p.rating || 7.0);
+  const rating = parseFloat(p.rating || 7.0);
   const interceptions = rawInterceptions > 0 ? rawInterceptions : ((isDef || isMid) ? Math.max(0, Math.round(tackles * 0.55 + (rating >= 7.3 ? 1.5 : 0.5))) : Math.round(tackles * 0.35));
 
-  // Goalkeeper Saves & Goals Conceded
   const saves = Number(p.saves ?? ev[31] ?? ev[32] ?? 0);
   const goalsConceded = Number(p.goalsconceded ?? p.goalsConceded ?? 0);
-
-  // Offsides & Woodwork
   const shots = Number(p.shots || 0), goals = Number(p.goals || 0);
   const offsides = Number(p.offsides ?? ev[15] ?? ev[20] ?? 0);
   const rawWoodwork = Number(p.woodwork ?? p.shotsHitWoodwork ?? 0) + (ev[9] || 0) + (ev[10] || 0) + (ev[42] || 0) + (ev[89] || 0);
   const woodwork = rawWoodwork > 0 ? rawWoodwork : ((shots >= 4 && goals === 0 && rating >= 7.2) ? 1 : (shots - goals >= 5 ? 1 : 0));
 
-  // Discipline (Yellow & Red Cards)
   const redCards = Number(p.redcards ?? p.redCards ?? p.red_cards ?? ev[19] ?? ev[5] ?? 0);
   const directYellow = Number(p.yellowcards ?? p.yellowCards ?? p.yellow_cards ?? p.cautions ?? p.bookings ?? 0);
   const eventYellow = (ev[18] || 0) + (ev[4] || 0) + (ev[83] || 0) + (ev[84] || 0) + (ev[105] || 0);
@@ -208,46 +241,36 @@ function parsePlayerMatchEvents(p = {}) {
   return { skillMoves: skills, dribblesCompleted: dribbles, blocks, interceptions, saves, goalsConceded, offsides, woodwork, yellowCards, redCards };
 }
 
-// 12-Dimension All-Round Per-Game Impact Engine (Used for Session MVP, Passenger & Single-Match Box-Score MVP)
 function computePlayerImpactScore(u) {
   const gp = Math.max(1, u.games || 1);
   const avgRat = u.ratingSum / gp;
   const normPos = u.normPos || 'MID';
 
-  // 1. Base Match Rating (Anchor)
   const ratingScore = avgRat * 10;
-
-  // 2. Goals, Assists & Clinical Shot Conversion (Rewards clinicality, penalizes wasteful shooting)
   const shotConv = u.shots > 0 ? (u.goals / u.shots) : 0;
   const wastedShots = Math.max(0, u.shots - u.goals);
   const convBonus = u.shots >= 2 ? (shotConv - 0.25) * 4.5 : (u.goals > 0 ? 1.0 : 0);
   const attackScore = ((u.goals * 3.8) + (u.assists * 3.2) - (wastedShots * 0.35)) / gp + convBonus;
 
-  // 3. Passing Volume, Retention & Skill Progression (Rewards crisp high-volume ball progression, penalizes turnovers)
   const passAtt = Math.max(u.passesMade, u.passAttempts || u.passesMade);
   const missedPasses = Math.max(0, passAtt - u.passesMade);
   const passPct = passAtt > 0 ? (u.passesMade / passAtt) * 100 : 75;
   const passAccBonus = passAtt >= 5 * gp ? ((passPct - 76) * 0.14) : 0;
   const playmakingScore = ((u.passesMade * 0.12) - (missedPasses * 0.22) + (u.skillMoves * 0.35)) / gp + passAccBonus;
 
-  // 4. Defensive Actions: Tackles, Tackle Efficiency, Blocks, Interceptions/Recoveries & Clean Sheets
   const tAtt = Math.max(u.tackles, u.tackleAttempts || u.tackles);
   const missedTackles = Math.max(0, tAtt - u.tackles);
   const csWeight = (normPos === 'DEF' || normPos === 'GK') ? 3.2 : 1.5;
   const defenseScore = ((u.tackles * 1.15) - (missedTackles * 0.25) + (u.blocks * 1.1) + (u.interceptions * 0.85) + (u.cleanSheets * csWeight)) / gp;
 
-  // 5. Goalkeeping (Saves & Save Efficiency)
   const gkShotsFaced = u.saves + (u.goalsConceded || 0);
   const savePctBonus = (u.saves > 0 && gkShotsFaced >= 2) ? (((u.saves / gkShotsFaced) - 0.65) * 4.0) : 0;
   const gkScore = ((u.saves * 1.35) / gp) + savePctBonus;
 
-  // 6. Positional & Card Discipline (Offsides, Yellows & Reds)
   const disciplinePenalty = ((u.offsides * 0.65) + (u.yellows * 1.5) + (u.reds * 5.5)) / gp;
-
   return ratingScore + attackScore + playmakingScore + defenseScore + gkScore - disciplinePenalty;
 }
 
-// Builds a role-aware, context-rich stat summary explaining WHY a player won MVP or Passenger
 function formatHolisticPlayerSummary(u, isPassenger = false) {
   const avg = (u.ratingSum / Math.max(1, u.games)).toFixed(1);
   const passAtt = Math.max(u.passesMade, u.passAttempts || u.passesMade);
@@ -438,7 +461,6 @@ function switchRecapMode(mode) {
   updateRecapMetricsDisplay(GLOBAL_CLUB_ID, mode === 'session' ? SESSION_MATCHES_CACHE : GLOBAL_MATCHES.slice(0, 10), mode);
 }
 
-// Dynamically updates Record, 12-Factor Holistic MVP/Passenger, 2/3/4/5+ Own Party Win % & Opponent Lobby Size Row
 function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const sec = document.getElementById('sessionRecapSection');
   if (!fixtures.length) return sec.classList.add('hidden');
@@ -455,11 +477,9 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const oppBuckets = {
     2: { label: 'vs. 2-Man', w: 0, d: 0, l: 0, total: 0 },
     3: { label: 'vs. 3-Man', w: 0, d: 0, l: 0, total: 0 },
-    4: { label: '4-Man', labelFull: 'vs. 4-Man', w: 0, d: 0, l: 0, total: 0 },
-    5: { label: '5+ Man', labelFull: 'vs. 5+ Man', w: 0, d: 0, l: 0, total: 0 }
+    4: { label: 'vs. 4-Man', w: 0, d: 0, l: 0, total: 0 },
+    5: { label: 'vs. 5+ Man', w: 0, d: 0, l: 0, total: 0 }
   };
-  oppBuckets[4].label = 'vs. 4-Man';
-  oppBuckets[5].label = 'vs. 5+ Man';
 
   fixtures.forEach(m => {
     const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
@@ -487,7 +507,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     myPlayers.forEach(p => {
       const n = p.playername || p.name || 'Pro';
       const ev = parsePlayerMatchEvents(p);
-      const memberMeta = GLOBAL_MEMBERS.find(gm => (gm.name || gm.proName) === n);
+      const memberMeta = findMemberMeta(n);
       const normPos = p.pos ? normalizePosition(p.pos) : normalizePosition(memberMeta?.favoritePosition || 'MID');
 
       if (!pMap[n]) {
@@ -541,10 +561,10 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     const mvp = arr[0], liab = arr[arr.length - 1];
     document.getElementById('sessionMvpName').innerText = mvp.name;
     document.getElementById('sessionMvpStats').innerText = formatHolisticPlayerSummary(mvp, false);
-    document.getElementById('sessionMvpAvatar').src = getPlayerAvatarUrl(mvp.name);
+    document.getElementById('sessionMvpAvatarBox').innerHTML = renderAvatarWithFlagHtml(mvp.name, 'w-11 h-11', 'border-emerald-400', 'w-4 h-3');
     document.getElementById('sessionLiabilityName').innerText = liab.name;
     document.getElementById('sessionLiabilityStats').innerText = formatHolisticPlayerSummary(liab, arr.length > 1);
-    document.getElementById('sessionLiabilityAvatar').src = getPlayerAvatarUrl(liab.name);
+    document.getElementById('sessionLiabilityAvatarBox').innerHTML = renderAvatarWithFlagHtml(liab.name, 'w-11 h-11', 'border-rose-400', 'w-4 h-3');
   }
 
   const ownModeEl = document.getElementById('ownPartyModeBadge');
@@ -668,7 +688,7 @@ function computeMatchIntelligence(clubId, matchesPayload) {
     if (topDuo) {
       document.getElementById('duoNames').innerText = `${topDuo.p1} & ${topDuo.p2}`;
       document.getElementById('duoMeta').innerText = `${topDuo.combinedGA} combined G+A across ${topDuo.gamesTogether} shared goalscoring games`;
-      document.getElementById('duoAvatars').innerHTML = `<img src="${getPlayerAvatarUrl(topDuo.p1)}" class="w-10 h-10 rounded-full border-2 border-emerald-400 bg-gray-900"><img src="${getPlayerAvatarUrl(topDuo.p2)}" class="w-10 h-10 rounded-full border-2 border-emerald-400 bg-gray-900">`;
+      document.getElementById('duoAvatars').innerHTML = `${renderAvatarWithFlagHtml(topDuo.p1, 'w-10 h-10', 'border-emerald-400', 'w-3.5 h-2.5')}${renderAvatarWithFlagHtml(topDuo.p2, 'w-10 h-10', 'border-emerald-400', 'w-3.5 h-2.5')}`;
     }
     const repeat = Object.values(opponentCounts).filter(o => o.played > 1).sort((a, b) => b.played - a.played);
     const tOpp = repeat[0] || highestSrOpp;
@@ -764,7 +784,7 @@ function renderShameBoard(shameList = []) {
       { title: '🟥 Sunday League Butcher', w: byRed.name, st: (byRed.reds > 0 || byRed.yellows > 0) ? `${byRed.yellows}🟨 ${byRed.reds}🟥 Cards` : `${byRed.tackles} Tackles Won`, sub: 'Midfield enforcer in last 10', b: 'border-red-500/40', c: 'text-red-400' }
     ];
   }
-  document.getElementById('shameBoardGrid').innerHTML = cards.map(c => `<div class="bg-gray-900/60 border ${c.b} rounded-xl p-3.5 flex items-center justify-between"><div class="min-w-0 pr-2"><div class="text-[10px] font-black uppercase text-gray-400 truncate">${c.title}</div><div class="text-sm font-extrabold text-white mt-0.5 truncate">${c.w}</div><div class="text-xs font-bold ${c.c} mt-0.5">${c.st}</div><div class="text-[10px] text-gray-500 mt-0.5 truncate">${c.sub}</div></div><img src="${getPlayerAvatarUrl(c.w)}" class="w-11 h-11 rounded-full border border-gray-700 bg-gray-900 flex-shrink-0"></div>`).join('');
+  document.getElementById('shameBoardGrid').innerHTML = cards.map(c => `<div class="bg-gray-900/60 border ${c.b} rounded-xl p-3.5 flex items-center justify-between"><div class="min-w-0 pr-2"><div class="text-[10px] font-black uppercase text-gray-400 truncate">${c.title}</div><div class="text-sm font-extrabold text-white mt-0.5 truncate">${c.w}</div><div class="text-xs font-bold ${c.c} mt-0.5">${c.st}</div><div class="text-[10px] text-gray-500 mt-0.5 truncate">${c.sub}</div></div>${renderAvatarWithFlagHtml(c.w, 'w-11 h-11', 'border-gray-700', 'w-4 h-3')}</div>`).join('');
 }
 
 function renderCareerMilestones(members = []) {
@@ -779,7 +799,7 @@ function renderCareerMilestones(members = []) {
       const t = nextT(val); if (val > 0) items.push({ name: n, cat, ic, bg, cur: val, target: t, rem: t - val, pct: Math.round((val / t) * 100) });
     });
   });
-  document.getElementById('milestonesGrid').innerHTML = items.sort((a, b) => b.pct - a.pct).slice(0, 4).map(i => `<div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3.5 space-y-2"><div class="flex items-center justify-between"><div class="flex items-center gap-2 min-w-0"><img src="${getPlayerAvatarUrl(i.name)}" class="w-8 h-8 rounded-full border border-gray-700 bg-gray-900"><div class="min-w-0"><div class="text-xs font-extrabold text-white truncate">${i.name}</div><div class="text-[10px] font-bold text-gray-400"><i class="fa-solid ${i.ic} mr-1"></i>${i.cat}</div></div></div><span class="text-xs font-black text-white font-mono">${i.cur}/${i.target}</span></div><div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden"><div class="h-full ${i.bg} rounded-full" style="width:${Math.min(100,i.pct)}%"></div></div><div class="text-[10px] text-gray-400">Only <b class="text-white">${i.rem}</b> away from <b class="text-emerald-400">${i.target}</b>!</div></div>`).join('');
+  document.getElementById('milestonesGrid').innerHTML = items.sort((a, b) => b.pct - a.pct).slice(0, 4).map(i => `<div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3.5 space-y-2"><div class="flex items-center justify-between"><div class="flex items-center gap-2 min-w-0">${renderAvatarWithFlagHtml(i.name, 'w-8 h-8', 'border-gray-700', 'w-3 h-2')}<div class="min-w-0"><div class="text-xs font-extrabold text-white truncate">${i.name}</div><div class="text-[10px] font-bold text-gray-400"><i class="fa-solid ${i.ic} mr-1"></i>${i.cat}</div></div></div><span class="text-xs font-black text-white font-mono">${i.cur}/${i.target}</span></div><div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden"><div class="h-full ${i.bg} rounded-full" style="width:${Math.min(100,i.pct)}%"></div></div><div class="text-[10px] text-gray-400">Only <b class="text-white">${i.rem}</b> away from <b class="text-emerald-400">${i.target}</b>!</div></div>`).join('');
 }
 
 function renderSeasonsHistory(seasonsHistory = [], trophies = {}) {
@@ -899,7 +919,7 @@ function renderMembers(data) {
     m._normalizedPos = normPos; m._rawPos = exactPos;
     const funTag = getPlayerFunTag(m);
     const bCol = normPos === 'FWD' ? 'text-rose-400 bg-rose-500/10' : normPos === 'MID' ? 'text-amber-400 bg-amber-500/10' : normPos === 'DEF' ? 'text-blue-400 bg-blue-500/10' : 'text-purple-400 bg-purple-500/10';
-    return `<tr onclick="openFutModal('${name.replace(/'/g, "\\'")}')" class="hover:bg-gray-800/50 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-1.5"><img src="${getPlayerAvatarUrl(name)}" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full border border-emerald-500/40 bg-gray-900 flex-shrink-0"><img src="${getFlagUrl(m.proNationality||'25')}" class="w-4 h-3 object-cover rounded-[2px] flex-shrink-0"><span class="hover:text-yellow-400 font-bold">${name}</span><span class="px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold border ${funTag.cls}">${funTag.label}</span>${loyaltyBadge}</div></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded border font-black text-xs ${tierInfo.badgeClass}">${ovr}</span></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${bCol}">${exactPos}</span></td><td class="py-2.5 px-2 text-center text-gray-300">${games}</td><td class="py-2.5 px-2 text-center font-bold text-emerald-400">${goals} ${shotConv!=='--'?`<span class="text-[10px] text-gray-400 font-mono">(${shotConv}%)</span>`:''}</td><td class="py-2.5 px-2 text-center text-gray-300">${assists}</td><td class="py-2.5 px-2 text-center text-emerald-300 font-mono">${gaPg}</td><td class="py-2.5 px-2 text-center text-sky-400 font-medium">${tackles} <span class="text-xs text-gray-400">(${tWin}%)</span>${csBadge}</td><td class="py-2.5 px-2 text-center text-yellow-400 font-semibold">${careerRat.toFixed(1)}${formArr}</td><td class="py-2.5 px-2 text-center text-gray-300">${pass}%</td><td class="py-2.5 px-2 text-center text-purple-400">${motm}</td></tr>`;
+    return `<tr onclick="openFutModal('${name.replace(/'/g, "\\'")}')" class="hover:bg-gray-800/50 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-2">${renderAvatarWithFlagHtml(name, 'w-8 h-8 sm:w-9 sm:h-9', 'border-emerald-500/40', 'w-3.5 h-2.5')}<span class="hover:text-yellow-400 font-bold">${name}</span><span class="px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-extrabold border ${funTag.cls}">${funTag.label}</span>${loyaltyBadge}</div></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded border font-black text-xs ${tierInfo.badgeClass}">${ovr}</span></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${bCol}">${exactPos}</span></td><td class="py-2.5 px-2 text-center text-gray-300">${games}</td><td class="py-2.5 px-2 text-center font-bold text-emerald-400">${goals} ${shotConv!=='--'?`<span class="text-[10px] text-gray-400 font-mono">(${shotConv}%)</span>`:''}</td><td class="py-2.5 px-2 text-center text-gray-300">${assists}</td><td class="py-2.5 px-2 text-center text-emerald-300 font-mono">${gaPg}</td><td class="py-2.5 px-2 text-center text-sky-400 font-medium">${tackles} <span class="text-xs text-gray-400">(${tWin}%)</span>${csBadge}</td><td class="py-2.5 px-2 text-center text-yellow-400 font-semibold">${careerRat.toFixed(1)}${formArr}</td><td class="py-2.5 px-2 text-center text-gray-300">${pass}%</td><td class="py-2.5 px-2 text-center text-purple-400">${motm}</td></tr>`;
   }).join('');
   return list;
 }
@@ -999,7 +1019,7 @@ function renderRecentMatches(clubId, matches) {
       const pName = p.playername || p.name || 'Pro';
       const made = Number(p.passesmade || 0), att = Number(p.passattempts || made);
       const tkl = Number(p.tacklesmade || p.tackles || 0), tAtt = Number(p.tackleattempts || tkl);
-      const memberMeta = GLOBAL_MEMBERS.find(gm => (gm.name || gm.proName) === pName);
+      const memberMeta = findMemberMeta(pName);
       const normPos = p.pos ? normalizePosition(p.pos) : normalizePosition(memberMeta?.favoritePosition || 'MID');
 
       p._passPct = att > 0 ? Math.round((made / att) * 100) : Number(p.passsuccessrate || 0);
@@ -1007,7 +1027,6 @@ function renderRecentMatches(clubId, matches) {
       matchYellows += p._ev.yellowCards;
       matchReds += p._ev.redCards;
 
-      // Single-match holistic 12-dimension impact score
       p._inf = computePlayerImpactScore({
         games: 1, normPos,
         ratingSum: parseFloat(p.rating || 7.0),
@@ -1034,7 +1053,7 @@ function renderRecentMatches(clubId, matches) {
       const subBadge = (subbed && (goals + assists > 0)) ? `<span class="ml-1 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/50 text-[9px] font-black">🦸‍♂️ SUPER-SUB</span>` : (subbed ? `<span class="ml-1 text-[9px] text-gray-400">🔄 Sub</span>` : '');
       let mvpBadge = '--';
       if (!crownGiven && pName === bestMvp && hiScore > -Infinity) { mvpBadge = `<span class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-[10px] font-black">👑 MVP</span>`; crownGiven = true; }
-      return `<tr class="border-b border-gray-800/60"><td class="py-2 px-2 font-semibold text-white"><div class="flex items-center gap-1.5"><img src="${getPlayerAvatarUrl(pName)}" class="w-5 h-5 rounded-full bg-gray-900"><span>${pName}</span>${subBadge}</div></td><td class="py-2 px-2 text-center font-black text-yellow-400">${parseFloat(p.rating||0).toFixed(1)}</td><td class="py-2 px-2 text-center font-bold text-emerald-400">${goals}</td><td class="py-2 px-2 text-center font-bold text-sky-400">${assists}</td><td class="py-2 px-2 text-center font-mono">${shots} <span class="text-[10px] text-emerald-400">(${shots>0?`${Math.round((goals/shots)*100)}%`:'--'})</span></td><td class="py-2 px-2 text-center font-mono text-cyan-400">${p._att>0?`${p._made}/${p._att} (${p._passPct}%)`:`${p._passPct}%`}</td><td class="py-2 px-2 text-center font-mono text-amber-400">${Math.max(0,p._att-p._made)}</td><td class="py-2 px-2 text-center font-mono text-fuchsia-400">${p._ev.skillMoves}</td><td class="py-2 px-2 text-center text-sky-400" title="${p.tacklesmade||0} Tackles • ${p._ev.blocks} Blocks • ${p._ev.interceptions} Interceptions">${p.tacklesmade||0} <span class="text-[10px] text-gray-400">(${p._ev.blocks+p._ev.interceptions} B/I)</span></td><td class="py-2 px-2 text-center">${renderCardBadgesHtml(p._ev.yellowCards, p._ev.redCards)}</td><td class="py-2 px-2 text-right">${mvpBadge}</td></tr>`;
+      return `<tr class="border-b border-gray-800/60"><td class="py-2 px-2 font-semibold text-white"><div class="flex items-center gap-2">${renderAvatarWithFlagHtml(pName, 'w-6 h-6', 'border-gray-700', 'w-2.5 h-2')}<span>${pName}</span>${subBadge}</div></td><td class="py-2 px-2 text-center font-black text-yellow-400">${parseFloat(p.rating||0).toFixed(1)}</td><td class="py-2 px-2 text-center font-bold text-emerald-400">${goals}</td><td class="py-2 px-2 text-center font-bold text-sky-400">${assists}</td><td class="py-2 px-2 text-center font-mono">${shots} <span class="text-[10px] text-emerald-400">(${shots>0?`${Math.round((goals/shots)*100)}%`:'--'})</span></td><td class="py-2 px-2 text-center font-mono text-cyan-400">${p._att>0?`${p._made}/${p._att} (${p._passPct}%)`:`${p._passPct}%`}</td><td class="py-2 px-2 text-center font-mono text-amber-400">${Math.max(0,p._att-p._made)}</td><td class="py-2 px-2 text-center font-mono text-fuchsia-400">${p._ev.skillMoves}</td><td class="py-2 px-2 text-center text-sky-400" title="${p.tacklesmade||0} Tackles • ${p._ev.blocks} Blocks • ${p._ev.interceptions} Interceptions">${p.tacklesmade||0} <span class="text-[10px] text-gray-400">(${p._ev.blocks+p._ev.interceptions} B/I)</span></td><td class="py-2 px-2 text-center">${renderCardBadgesHtml(p._ev.yellowCards, p._ev.redCards)}</td><td class="py-2 px-2 text-right">${mvpBadge}</td></tr>`;
     }).join('');
 
     return `<tr onclick="document.getElementById('boxScore_${idx}').classList.toggle('hidden')" class="hover:bg-gray-800/40 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2"><span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-800 text-gray-300 border border-gray-700">${m._inferredCategory||'League'}</span></td><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-1.5">${renderCrestHtml(oppName, oppClub.crestId||oppClub.TEAM||oppClub.details?.crestAssetId, 'w-6 h-6 sm:w-7 sm:h-7', oppId)}<span>${oppName}</span>${oppCnt>0?`<span class="text-[10px] text-gray-400 font-mono">(${oppCnt}p)</span>`:''}${rqBadge}<i class="fa-solid fa-chevron-down text-[9px] text-gray-500"></i></div></td><td class="py-2.5 px-2 text-center" title="${chaos.label}">${chaos.emoji}</td><td class="py-2.5 px-2 text-center">${renderDivisionShieldHtml(oppClub.division||'Div 4','sm')}</td><td class="py-2.5 px-2 text-center">${oppSR?`<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">${oppSR}</span>`:'--'}</td><td class="py-2.5 px-2 text-center font-bold text-white">${myG} - ${oppG}</td><td class="py-2.5 px-2 text-center"><div class="inline-flex items-center gap-1.5"><span class="w-6 h-5 rounded flex items-center justify-center text-[11px] font-black border ${mg.gradeCls}">${mg.grade}</span><span class="text-[10px] font-mono text-emerald-400">A:${mg.atk}</span><span class="text-[10px] font-mono text-sky-400">D:${mg.def}</span></div></td><td class="py-2.5 px-2 text-center">${renderCardBadgesHtml(matchYellows, matchReds)}</td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-bold border ${resCls}">${resLbl}</span></td><td class="py-2.5 px-2 text-right text-gray-400 text-xs">${dateText}</td></tr><tr id="boxScore_${idx}" class="hidden bg-gray-900/60 border-b border-gray-800"><td colspan="10" class="p-3"><div class="overflow-x-auto touch-scroll rounded border border-gray-800 bg-gray-950/80"><table class="w-full text-left text-xs whitespace-nowrap"><thead class="bg-gray-900 text-gray-400 uppercase text-[10px]"><tr><th class="py-1.5 px-2">Player</th><th class="py-1.5 px-2 text-center">Rat</th><th class="py-1.5 px-2 text-center">G</th><th class="py-1.5 px-2 text-center">A</th><th class="py-1.5 px-2 text-center">Shots (Conv%)</th><th class="py-1.5 px-2 text-center">Passes</th><th class="py-1.5 px-2 text-center">Missed</th><th class="py-1.5 px-2 text-center">Skills</th><th class="py-1.5 px-2 text-center">Tkl (Blk/Int)</th><th class="py-1.5 px-2 text-center">Cards</th><th class="py-1.5 px-2 text-right">Award</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></td></tr>`;
@@ -1109,13 +1128,17 @@ function buildDynamicPitchTactic(members = [], matches = []) {
     return null;
   };
 
+  // Pitch Node: Top-Left OVR, Top-Right Rating, Shirt Name on Chest & Nationality Flag on Bottom-Right Rim
   const nodeHtml = (p, slot) => {
     if (!p) return `<div class="flex flex-col items-center opacity-35 select-none w-16 sm:w-24"><div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full border-2 border-dashed border-gray-400 bg-gray-950/70 flex items-center justify-center text-[9px] text-gray-300 font-black">AI</div><span class="text-[9px] font-bold text-gray-300 mt-1">CPU</span><span class="text-[8px] text-gray-400 uppercase font-extrabold">${slot}</span></div>`;
     assigned.push(p);
     const name = p._displayName, ovr = Number(p.proOverall || 85), tier = getCardTierTheme(ovr);
     const rat = (CURRENT_PITCH_MODE === 'lastMatch' && p._lmRat !== null ? p._lmRat : parseFloat(p.ratingAve || 7.0)).toFixed(1);
     const pill = CURRENT_PITCH_MODE === 'lastMatch' && p._lmRat !== null ? `${p._lmGA} G+A` : p._archetype;
-    return `<div onclick="openFutModal('${name.replace(/'/g,"\\'")}')" class="flex flex-col items-center hover:scale-105 transition cursor-pointer group w-[74px] sm:w-24"><div class="relative"><img src="${getPlayerAvatarUrl(name)}" class="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-full border-2 border-emerald-400 bg-gray-900 object-cover shadow-xl"><span class="absolute -top-1 -left-1.5 bg-gray-950 ${tier.badgeClass} border font-black text-[8px] sm:text-[9px] px-1 rounded">${ovr}</span><span class="absolute -bottom-1 -right-1 bg-yellow-500 text-black font-black text-[8px] sm:text-[9px] px-1 rounded-sm">${rat}</span></div><span class="text-[10px] sm:text-xs font-extrabold text-white mt-1 drop-shadow max-w-[70px] sm:max-w-[96px] truncate" title="${p._proNickname}">${name}</span><div class="flex items-center gap-0.5 mt-0.5"><span class="text-[8px] sm:text-[9px] bg-black/60 text-emerald-300 px-1 rounded uppercase font-black">${slot || p._exactRole}</span><span class="hidden sm:inline text-[9px] bg-black/60 text-gray-200 px-1 rounded font-semibold truncate max-w-[60px]">${pill}</span></div></div>`;
+    const look = getPlayerAppearance(name), shirt = getShirtLabel(name);
+    const customPlate = look.isCustom ? `<span class="absolute bottom-[13%] left-1/2 -translate-x-1/2 px-1 rounded bg-gray-950/85 text-[6px] font-black text-white uppercase tracking-tighter leading-tight max-w-[82%] truncate pointer-events-none">${shirt}</span>` : '';
+
+    return `<div onclick="openFutModal('${name.replace(/'/g,"\\'")}')" class="flex flex-col items-center hover:scale-105 transition cursor-pointer group w-[74px] sm:w-24"><div class="relative"><img src="${getPlayerAvatarUrl(name)}" class="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-full avatar-circle border-2 border-emerald-400 bg-gray-900 object-cover shadow-xl">${customPlate}<span class="absolute -top-1 -left-1.5 bg-gray-950 ${tier.badgeClass} border font-black text-[8px] sm:text-[9px] px-1 rounded z-10">${ovr}</span><span class="absolute -top-1 -right-1.5 bg-yellow-500 text-black font-black text-[8px] sm:text-[9px] px-1 rounded-sm z-10">${rat}</span><img src="${getFlagUrl(p.proNationality || getPlayerNationId(name))}" class="absolute -bottom-0.5 -right-0.5 w-3.5 h-2.5 sm:w-4 sm:h-3 object-cover rounded-[2px] border border-gray-950 shadow-md z-10" alt="Nation"></div><span class="text-[10px] sm:text-xs font-extrabold text-white mt-1 drop-shadow max-w-[70px] sm:max-w-[96px] truncate" title="${p._proNickname || shirt}">${name}</span><div class="flex items-center gap-0.5 mt-0.5"><span class="text-[8px] sm:text-[9px] bg-black/60 text-emerald-300 px-1 rounded uppercase font-black">${slot || p._exactRole}</span><span class="hidden sm:inline text-[9px] bg-black/60 text-gray-200 px-1 rounded font-semibold truncate max-w-[60px]">${pill}</span></div></div>`;
   };
 
   tpl.atk.forEach(s => rows[0].innerHTML += nodeHtml(claim('FWD', s, true), s));
