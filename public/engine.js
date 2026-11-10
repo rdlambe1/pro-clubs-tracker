@@ -8,60 +8,83 @@ const slugifyClubName = (name) => String(name || '').toLowerCase().trim().replac
 const getAppearanceMap = () => { try { return JSON.parse(localStorage.getItem('proClubsAppearanceV3') || '{}'); } catch (_) { return {}; } };
 const escXml = (s) => String(s || '').replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
 
-// Fallback Country Name -> ISO-3166 Map (Handles SDK string labels & match-level country strings)
 const COUNTRY_NAME_TO_ISO = {
-  'ireland':'ie','republic of ireland':'ie','northern ireland':'gb-nir','england':'gb-eng','scotland':'gb-sct','wales':'gb-wls','united kingdom':'gb',
-  'united states':'us','usa':'us','canada':'ca','mexico':'mx','haiti':'ht','jamaica':'jm','trinidad and tobago':'tt','costa rica':'cr','panama':'pa','honduras':'hn','dominican republic':'do','puerto rico':'pr',
-  'brazil':'br','argentina':'ar','colombia':'co','uruguay':'uy','chile':'cl','peru':'pe','ecuador':'ec','venezuela':'ve','paraguay':'py','bolivia':'bo',
+  'ireland':'ie','republic of ireland':'ie','northern ireland':'gb-nir','england':'gb-eng','scotland':'gb-sct','wales':'gb-wls','united kingdom':'gb','great britain':'gb',
+  'united states':'us','united states of america':'us','usa':'us','canada':'ca','mexico':'mx','haiti':'ht','jamaica':'jm','trinidad and tobago':'tt','costa rica':'cr','panama':'pa','honduras':'hn','el salvador':'sv','guatemala':'gt','cuba':'cu','dominican republic':'do','puerto rico':'pr','curacao':'cw','suriname':'sr','bermuda':'bm','barbados':'bb',
+  'brazil':'br','argentina':'ar','colombia':'co','uruguay':'uy','chile':'cl','peru':'pe','ecuador':'ec','venezuela':'ve','paraguay':'py','bolivia':'bo','guyana':'gy',
   'france':'fr','germany':'de','spain':'es','italy':'it','netherlands':'nl','holland':'nl','portugal':'pt','belgium':'be','croatia':'hr','switzerland':'ch','austria':'at',
-  'poland':'pl','denmark':'dk','sweden':'se','norway':'no','finland':'fi','iceland':'is','turkey':'tr','turkiye':'tr','greece':'gr','serbia':'rs','ukraine':'ua','czechia':'cz','czech republic':'cz','romania':'ro','hungary':'hu','slovakia':'sk','slovenia':'si','albania':'al','bosnia and herzegovina':'ba','kosovo':'xk',
-  'nigeria':'ng','morocco':'ma','senegal':'sn','ghana':'gh','egypt':'eg','algeria':'dz','cameroon':'cm','ivory coast':'ci','cote d\'ivoire':'ci','mali':'ml','tunisia':'tn','south africa':'za','dr congo':'cd','congo dr':'cd','guinea':'gn',
-  'japan':'jp','south korea':'kr','korea republic':'kr','australia':'au','new zealand':'nz','saudi arabia':'sa','iran':'ir','china':'cn','india':'in','philippines':'ph'
+  'poland':'pl','denmark':'dk','sweden':'se','norway':'no','finland':'fi','iceland':'is','turkey':'tr','turkiye':'tr','greece':'gr','serbia':'rs','ukraine':'ua','czechia':'cz','czech republic':'cz','romania':'ro','hungary':'hu','slovakia':'sk','slovenia':'si','albania':'al','bosnia and herzegovina':'ba','bosnia-herzegovina':'ba','kosovo':'xk','north macedonia':'mk','montenegro':'me','bulgaria':'bg','georgia':'ge','armenia':'am','israel':'il','cyprus':'cy','luxembourg':'lu','malta':'mt','estonia':'ee','latvia':'lv','lithuania':'lt',
+  'nigeria':'ng','morocco':'ma','senegal':'sn','ghana':'gh','egypt':'eg','algeria':'dz','cameroon':'cm','ivory coast':'ci','cote d\'ivoire':'ci','mali':'ml','tunisia':'tn','south africa':'za','dr congo':'cd','congo dr':'cd','guinea':'gn','burkina faso':'bf','cape verde':'cv','gabon':'ga','gambia':'gm','angola':'ao','zambia':'zm','zimbabwe':'zw','kenya':'ke','uganda':'ug',
+  'japan':'jp','south korea':'kr','korea republic':'kr','australia':'au','new zealand':'nz','saudi arabia':'sa','iran':'ir','iraq':'iq','qatar':'qa','united arab emirates':'ae','uae':'ae','uzbekistan':'uz','china':'cn','china pr':'cn','india':'in','philippines':'ph','thailand':'th','vietnam':'vn','indonesia':'id','malaysia':'my','singapore':'sg','hong kong':'hk'
 };
+
+// Extracts Nationality ID from EA's pipe-delimited match vproattr string if present
+function extractNationFromVproAttr(vproattr) {
+  if (!vproattr || typeof vproattr !== 'string') return null;
+  const parts = vproattr.split('|').map(x => parseInt(x, 10));
+  // In EA match payloads where nation is packed in vproattr, index 3 or 4 is nation when in 1..219 range (while 0..2 are ~60-99 attributes or height/weight)
+  if (parts.length > 4 && parts[3] >= 1 && parts[3] <= 219 && (parts[0] > 140 || parts[1] > 140)) {
+    return String(parts[3]);
+  }
+  return null;
+}
 
 function findMemberMeta(playerName) {
   const key = String(playerName || '').toLowerCase().trim();
   if (!key) return null;
   return GLOBAL_MEMBERS.find(m =>
     String(m.name || '').toLowerCase().trim() === key ||
+    String(m.username || '').toLowerCase().trim() === key ||
     String(m.proName || '').toLowerCase().trim() === key
   ) || MATCH_PLAYER_META[key] || null;
 }
 
 function getShirtLabel(playerName) {
   const m = findMemberMeta(playerName);
-  const raw = String(m?.proName || m?.vproname || playerName || 'PRO').trim().toUpperCase();
+  const mp = MATCH_PLAYER_META[String(playerName || '').toLowerCase().trim()];
+  const raw = String(m?.proName || mp?.proName || m?.vproname || playerName || 'PRO').trim().toUpperCase();
   return raw.length > 12 ? raw.substring(0, 11) + '.' : raw;
 }
 
-// Multi-tier Flag Resolver: Checks EA ID -> SDK ISO -> SDK Country Label -> Match Player Meta
+// Resolves Player Flag across ALL EA/SDK formats; falls back cleanly to Club's Region Flag for ex-members/trialists
 function resolvePlayerFlagUrl(playerObjOrName) {
-  const m = (playerObjOrName && typeof playerObjOrName === 'object') ? playerObjOrName : findMemberMeta(playerObjOrName);
-  const fallbackMeta = (typeof playerObjOrName === 'string') ? MATCH_PLAYER_META[playerObjOrName.toLowerCase().trim()] : null;
-  const target = m || fallbackMeta;
-  if (!target) return null;
+  const nameStr = typeof playerObjOrName === 'string' ? playerObjOrName : (playerObjOrName?.name || playerObjOrName?.playername || '');
+  const memberObj = (playerObjOrName && typeof playerObjOrName === 'object') ? playerObjOrName : findMemberMeta(nameStr);
+  const matchMeta = MATCH_PLAYER_META[String(nameStr).toLowerCase().trim()] || null;
 
-  // 1. Numeric EA Nation ID (proNationality / nationality / nation)
-  const rawId = String(target.proNationality ?? target.nationality?.id ?? (typeof target.nationality === 'number' || /^\d+$/.test(String(target.nationality || '')) ? target.nationality : '') ?? target.nation ?? '').trim();
-  if (rawId && EA_NATION_TO_ISO[rawId]) {
-    return `https://flagcdn.com/w40/${EA_NATION_TO_ISO[rawId].toLowerCase()}.png`;
+  for (const target of [memberObj, matchMeta]) {
+    if (!target) continue;
+
+    // 1. Numeric EA Nation ID (strips leading zeros like "083" -> "83")
+    const rawNum = String(
+      target.proNationality ?? target.nationalityId ?? target.nationality?.id ??
+      (typeof target.nationality === 'number' || /^\d+$/.test(String(target.nationality || '').trim()) ? target.nationality : '') ??
+      target.nation ?? extractNationFromVproAttr(target.vproattr) ?? ''
+    ).trim().replace(/^0+/, '');
+
+    if (rawNum && EA_NATION_TO_ISO[rawNum]) {
+      return `https://flagcdn.com/w40/${EA_NATION_TO_ISO[rawNum].toLowerCase()}.png`;
+    }
+
+    // 2. SDK ISO Code (2-letter or 3-letter)
+    const sdkIso = String(target.nationality?.isoCode ?? target.nationality?.code ?? target.isoCode ?? target.countryCode ?? '').trim().toLowerCase();
+    if (sdkIso) {
+      const iso3Map = { eng:'gb-eng', sct:'gb-sct', wls:'gb-wls', nir:'gb-nir', gbr:'gb', irl:'ie', usa:'us', mex:'mx', hti:'ht', can:'ca', bra:'br', arg:'ar', col:'co', uru:'uy', chl:'cl', per:'pe', fra:'fr', ger:'de', deu:'de', esp:'es', ita:'it', ned:'nl', nld:'nl', por:'pt', prt:'pt', bel:'be', cro:'hr', hrv:'hr', sui:'ch', che:'ch', aut:'at', pol:'pl', den:'dk', dnk:'dk', swe:'se', nor:'no', tur:'tr', gre:'gr', grc:'gr', srb:'rs', ukr:'ua', jam:'jm', nga:'ng', mar:'ma', sen:'sn', gha:'gh', egy:'eg', alg:'dz', dza:'dz', cmr:'cm', civ:'ci', jpn:'jp', kor:'kr', aus:'au', nzl:'nz', ksa:'sa', sau:'sa' };
+      const mapped = iso3Map[sdkIso] || ((sdkIso.length === 2 || sdkIso.startsWith('gb-')) ? sdkIso : null);
+      if (mapped) return `https://flagcdn.com/w40/${mapped}.png`;
+    }
+
+    // 3. Country Name String (e.g. "Mexico", "Haiti", "United States")
+    const rawCountry = String(typeof target.nationality === 'string' ? target.nationality : (target.nationality?.label ?? target.nationality?.name ?? target.country ?? '')).trim().toLowerCase();
+    if (rawCountry) {
+      if (COUNTRY_NAME_TO_ISO[rawCountry]) return `https://flagcdn.com/w40/${COUNTRY_NAME_TO_ISO[rawCountry]}.png`;
+      if (rawCountry.length === 2) return `https://flagcdn.com/w40/${rawCountry}.png`;
+    }
   }
 
-  // 2. SDK ISO Code (2-letter or 3-letter)
-  const sdkIso = String(target.nationality?.isoCode ?? target.isoCode ?? '').trim().toLowerCase();
-  if (sdkIso) {
-    const iso3Map = { eng:'gb-eng', sct:'gb-sct', wls:'gb-wls', nir:'gb-nir', irl:'ie', usa:'us', mex:'mx', hti:'ht', can:'ca', bra:'br', arg:'ar', fra:'fr', ger:'de', deu:'de', esp:'es', ita:'it', ned:'nl', nld:'nl', por:'pt', prt:'pt', jam:'jm', nga:'ng', mar:'ma', jpn:'jp', kor:'kr', aus:'au' };
-    const cleanIso = iso3Map[sdkIso] || (sdkIso.length === 2 || sdkIso.startsWith('gb-') ? sdkIso : null);
-    if (cleanIso) return `https://flagcdn.com/w40/${cleanIso}.png`;
-  }
-
-  // 3. Country Name String (e.g., proclubs-sdk string or label)
-  const countryLabel = String(typeof target.nationality === 'string' ? target.nationality : (target.nationality?.label ?? target.nationality?.name ?? target.country ?? '')).trim().toLowerCase();
-  if (countryLabel && COUNTRY_NAME_TO_ISO[countryLabel]) {
-    return `https://flagcdn.com/w40/${COUNTRY_NAME_TO_ISO[countryLabel]}.png`;
-  }
-
-  return null;
+  // 4. Fallback for ex-members / trialists who left the club (so their career/stats isn't returned by EA): use Club's Region Flag
+  const clubRegFlag = GLOBAL_COMBINED_DATA?.regionInfo?.flag;
+  return clubRegFlag ? `https://flagcdn.com/w40/${clubRegFlag}.png` : null;
 }
 
 function getPlayerAppearance(playerObj) {
@@ -358,12 +381,12 @@ function computeMatchIntelligence(clubId, matchesPayload) {
     lobbyPlayers.forEach(p => {
       const pName = p.playername || p.name || 'Pro';
       const pKey = String(pName).toLowerCase().trim();
-      // Cache match-level nation & shirt name for trialists / ex-members who left GLOBAL_MEMBERS
       if (!MATCH_PLAYER_META[pKey]) {
         MATCH_PLAYER_META[pKey] = {
           name: pName,
           proName: p.vproname || p.proName || null,
-          proNationality: p.proNationality || p.nationality || p.nation || null
+          proNationality: p.proNationality || p.nationality || p.nation || extractNationFromVproAttr(p.vproattr) || null,
+          vproattr: p.vproattr || null
         };
       }
 
