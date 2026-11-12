@@ -51,7 +51,6 @@
         <button onclick="toggleThemeMode()" class="md:hidden bg-gray-800 border border-gray-700 text-yellow-400 px-3 py-1.5 rounded text-xs font-bold flex items-center gap-1.5"><i class="fa-solid fa-sun theme-icon"></i><span class="theme-text text-gray-200">Light</span></button>
       </div>
 
-      <!-- Compact Header Search Bar (Hidden on Homepage; Shown When Viewing a Club) -->
       <div class="flex items-center gap-2 w-full md:w-auto justify-end">
         <div id="headerSearchControls" class="hidden flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
           <select id="platformSelect" onchange="syncPlatformSelectors(this.value)" class="bg-gray-800 border border-gray-700 px-3 py-2 rounded text-xs sm:text-sm text-gray-200 focus:outline-none focus:border-emerald-500">
@@ -69,8 +68,6 @@
     </header>
 
     <div id="statusBanner" class="hidden text-xs sm:text-sm px-4 py-3 rounded"></div>
-
-    <!-- Multiple Search Results Selector (Shared Between Home & Dashboard) -->
     <div id="matchesCard" class="hidden card p-4 space-y-3">
       <div class="flex items-center justify-between">
         <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Select your club:</h3>
@@ -79,12 +76,8 @@
       <div id="matchesList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
     </div>
 
-    <!-- ========================================================= -->
-    <!-- VIEW 1: HOMEPAGE LANDING HUB (Search + Recents + Top 10)  -->
-    <!-- ========================================================= -->
+    <!-- VIEW 1: HOMEPAGE LANDING HUB -->
     <main id="homeView" class="space-y-8 py-4 sm:py-8">
-
-      <!-- Centered Hero Search Box -->
       <section class="max-w-3xl mx-auto text-center space-y-5 px-1">
         <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-black uppercase tracking-widest">
           <i class="fa-solid fa-bolt"></i> EA Sports FC™ Live Pro Clubs Telemetry
@@ -115,14 +108,12 @@
           </div>
         </div>
 
-        <!-- Recently Viewed Clubs Chips -->
         <div id="recentClubsSection" class="hidden pt-1 space-y-2">
           <div class="text-[10px] font-black uppercase tracking-widest text-gray-500">Recently Viewed Clubs</div>
           <div id="recentClubsList" class="flex flex-wrap items-center justify-center gap-2"></div>
         </div>
       </section>
 
-      <!-- Global Top 10 Clubs Leaderboard -->
       <section class="card p-4 sm:p-6 space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-gray-800 pb-3.5">
           <div>
@@ -160,12 +151,8 @@
       </section>
     </main>
 
-    <!-- ========================================================= -->
-    <!-- VIEW 2: FULL CLUB DASHBOARD (Hidden Until Club Selected)  -->
-    <!-- ========================================================= -->
+    <!-- VIEW 2: FULL CLUB DASHBOARD -->
     <div id="clubDashboardView" class="hidden space-y-5">
-
-      <!-- Club Overview Card -->
       <section class="card p-4 sm:p-6 space-y-5">
         <div class="flex flex-col lg:flex-row justify-between items-center gap-5">
           <div class="flex flex-col sm:flex-row items-center text-center sm:text-left gap-4 w-full lg:w-auto">
@@ -251,6 +238,20 @@
           <div class="pt-3 border-t border-gray-800/80"><div id="vsOpponentHeaderTitle" class="text-[11px] font-black uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-people-arrows text-emerald-400"></i> Performance vs. Opponent Lobby Sizes (Latest Session)</div><div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5" id="vsOpponentSizeGrid"></div></div>
         </section>
 
+        <!-- Skill Rating History Graph Over Time -->
+        <section id="srGraphSection" class="hidden card p-4 sm:p-6 space-y-3">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
+            <div>
+              <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-chart-line text-emerald-400"></i> Skill Rating Progression (Last 10 Matches)</h3>
+              <p class="text-xs text-gray-400">Chronological trend of club skill rating across recent fixtures</p>
+            </div>
+            <span id="srTrendBadge" class="px-2.5 py-0.5 rounded text-[11px] font-black">--</span>
+          </div>
+          <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3 sm:p-4 flex flex-col items-center">
+            <div id="srChartContainer" class="w-full h-[220px] sm:h-[250px] flex items-center justify-center"></div>
+          </div>
+        </section>
+
         <section id="clubReviewSection" class="hidden card p-4 sm:p-6 space-y-4">
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-800 pb-3">
             <div><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-clipboard-check text-emerald-400"></i> Club Tactical Review & Scouting Report</h3><p class="text-xs text-gray-400 mt-0.5">Automated diagnostic of club status, strengths, vulnerabilities & fixes</p></div>
@@ -290,7 +291,7 @@
 
         <section class="card p-4 sm:p-6 space-y-4">
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1"><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance</h3><span class="text-xs text-gray-400">Tap any player row to open & share their <b class="text-yellow-400">FC27 UT Card</b></span></div>
-          <div class="overflow-x-auto touch-scroll"><table class="w-full text-left text-xs sm:text-sm whitespace-nowrap"><thead class="border-b border-gray-800 text-gray-400 uppercase text-[10px] sm:text-xs"><tr><th class="py-2.5 px-2">Player, Tag & Loyalty</th><th class="py-2.5 px-2 text-center">OVR</th><th class="py-2.5 px-2 text-center">Pos</th><th class="py-2.5 px-2 text-center">GP</th><th class="py-2.5 px-2 text-center">Goals (Conv%)</th><th class="py-2.5 px-2 text-center">Assists</th><th class="py-2.5 px-2 text-center">G+A/G</th><th class="py-2.5 px-2 text-center">Tackles / CS</th><th class="py-2.5 px-2 text-center">Rating</th><th class="py-2.5 px-2 text-center">Pass %</th><th class="py-2.5 px-2 text-center">MoTM</th></tr></thead><tbody id="membersTable" class="divide-y border-gray-800"></tbody></table></div>
+          <div class="overflow-x-auto touch-scroll"><table class="w-full text-left text-xs sm:text-sm whitespace-nowrap"><thead class="border-b border-gray-800 text-gray-400 uppercase text-[10px] sm:text-xs"><tr><th class="py-2.5 px-2">Player & Loyalty</th><th class="py-2.5 px-2 text-center">OVR</th><th class="py-2.5 px-2 text-center">Pos</th><th class="py-2.5 px-2 text-center">GP</th><th class="py-2.5 px-2 text-center">Goals (Conv%)</th><th class="py-2.5 px-2 text-center">Assists</th><th class="py-2.5 px-2 text-center">G+A/G</th><th class="py-2.5 px-2 text-center">Tackles / CS</th><th class="py-2.5 px-2 text-center">Rating</th><th class="py-2.5 px-2 text-center">Pass %</th><th class="py-2.5 px-2 text-center">MoTM</th></tr></thead><tbody id="membersTable" class="divide-y border-gray-800"></tbody></table></div>
         </section>
 
         <section id="radarSection" class="hidden card p-4 sm:p-6 space-y-5">
