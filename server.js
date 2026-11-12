@@ -3,7 +3,11 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { ProClubsClient } from 'proclubs-sdk';
-import { eaFetch, valOf, unwrapEa, extractClubId, resolveCrestId, resolveClubDivisions, computeGlobalPercentile, computeClubRepAndFans, buildSeasonsHistory, generateFallbackSvg } from './eaHelpers.js';
+import { 
+  eaFetch, valOf, unwrapEa, extractClubId, resolveCrestId, 
+  mapEaOneToSixDivision, fmtDiv, resolveClubDivisions, resolveClubRegion, 
+  computeGlobalPercentile, computeClubRepAndFans, buildSeasonsHistory, generateFallbackSvg 
+} from './eaHelpers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -168,14 +172,14 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     const { currDivNum, divisionLabel, peakDivNum, peakDivisionLabel } = resolveClubDivisions(currSeasonLb, allTimeLb, statObj);
     const ck = infoObj.customKit || lbClubInfo.customKit || statObj.customKit || {};
     const kits = {
-      home: [eaIntToHex(ck.kitColor1, '#10b981'), eaIntToHex(ck.kitColor2, '#ffffff'), eaIntToHex(ck.kitColor3, '#064e3b')],
-      away: [eaIntToHex(ck.kitAColor1, '#1e293b'), eaIntToHex(ck.kitAColor2, '#38bdf8'), eaIntToHex(ck.kitAColor3, '#0f172a')],
-      third: [eaIntToHex(ck.kitThrdColor1 || ck.dCustomKit || ck.kitColor3, '#f59e0b'), eaIntToHex(ck.kitThrdColor2 || ck.kitColor1, '#111827'), eaIntToHex(ck.kitThrdColor3 || ck.kitAColor2, '#ffffff')]
+      home: [ck.kitColor1 ? `#${(ck.kitColor1 & 0xFFFFFF).toString(16).padStart(6, '0')}` : '#10b981', '#ffffff', '#064e3b'],
+      away: [ck.kitAColor1 ? `#${(ck.kitAColor1 & 0xFFFFFF).toString(16).padStart(6, '0')}` : '#1e293b', '#38bdf8', '#0f172a'],
+      third: ['#f59e0b', '#111827', '#ffffff']
     };
     const sr = Number(statObj.skillRating ?? statObj.rating ?? allTimeLb.skillRating ?? 1500);
     const wins = Number(statObj.wins ?? statObj.overallWins ?? allTimeLb.wins ?? 0);
     const losses = Number(statObj.losses ?? statObj.overallLosses ?? allTimeLb.losses ?? 0);
-    const ties = Number(statObj.ties ?? statObj.overallTies ?? allTimeLb.ties ?? 0);
+    const ties = Number(statObj.ties ?? stat.overallTies ?? allTimeLb.ties ?? 0);
     const seasonsData = buildSeasonsHistory(currSeasonLb, statObj, currDivNum, peakDivNum);
     const clubRep = computeClubRepAndFans(statObj, currSeasonLb, infoObj, allTimeLb, currDivNum, peakDivNum);
 
