@@ -21,7 +21,6 @@ function syncPlatformSelectors(val) {
   }
 }
 
-// Toggles cleanly between Homepage Hub ('home') and Full Club Dashboard ('dashboard')
 function setAppView(view) {
   const isHome = view === 'home';
   document.getElementById('homeView')?.classList.toggle('hidden', !isHome);
@@ -44,7 +43,6 @@ function goHome(pushHistory = true) {
   }
 }
 
-// Recently Viewed Clubs Storage (Saves up to 6 visited clubs in localStorage)
 function getRecentClubs() {
   try { return JSON.parse(localStorage.getItem('proClubsRecentV1') || '[]'); } catch (_) { return []; }
 }
@@ -71,7 +69,6 @@ function renderRecentClubsChips() {
   sec.classList.remove('hidden');
 
   box.innerHTML = list.map(c => {
-    const safeName = String(c.name || 'FC').replace(/'/g, "\\'");
     const crestUrl = `${API_BASE}/crest/${encodeURIComponent(c.crestId || '0')}?name=${encodeURIComponent(c.name || 'FC')}&clubId=${encodeURIComponent(c.id)}&platform=${encodeURIComponent(c.platform || 'common-gen5')}`;
     return `<div onclick="loadClub('${c.id}', '${c.platform || 'common-gen5'}')" class="group inline-flex items-center gap-2 bg-gray-900/90 hover:bg-gray-800 border border-gray-700 hover:border-emerald-500/50 px-3 py-1.5 rounded-full text-xs font-bold text-white cursor-pointer transition shadow">
       <img src="${crestUrl}" class="w-4 h-4 object-contain" alt="${c.name}">
@@ -312,9 +309,12 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     if (oppCnt > 0) { const bk = oppCnt <= 2 ? 2 : oppCnt === 3 ? 3 : oppCnt === 4 ? 4 : 5; oppBuckets[bk].total++; if (isWin) oppBuckets[bk].w++; else if (isLoss) oppBuckets[bk].l++; else oppBuckets[bk].d++; }
 
     myPlayers.forEach(p => {
-      const n = p.playername || p.name || 'Pro', ev = parsePlayerMatchEvents(p), memberMeta = findMemberMeta(n);
+      const n = p.playername || p.name || 'Pro', memberMeta = findMemberMeta(n);
+      const exactPos = EA_PRO_POS_MAP[String(memberMeta?.proPos ?? '')] || '';
       const normPos = p.pos ? normalizePosition(p.pos) : normalizePosition(memberMeta?.favoritePosition || 'MID');
-      if (!pMap[n]) pMap[n] = { name:n, normPos, games:0, goals:0, assists:0, shots:0, passesMade:0, passAttempts:0, tackles:0, tackleAttempts:0, blocks:0, interceptions:0, skillMoves:0, saves:0, goalsConceded:0, offsides:0, yellows:0, reds:0, cleanSheets:0, ratingSum:0 };
+      const ev = parsePlayerMatchEvents(p, exactPos);
+
+      if (!pMap[n]) pMap[n] = { name:n, normPos, exactPos, games:0, goals:0, assists:0, shots:0, passesMade:0, passAttempts:0, tackles:0, tackleAttempts:0, blocks:0, interceptions:0, skillMoves:0, saves:0, goalsConceded:0, offsides:0, yellows:0, reds:0, cleanSheets:0, ratingSum:0 };
       const u = pMap[n];
       u.games++; u.goals += Number(p.goals || 0); u.assists += Number(p.assists || 0); u.shots += Number(p.shots || 0);
       const pm = Number(p.passesmade || 0), pa = Number(p.passattempts || pm), tm = Number(p.tacklesmade || p.tackles || 0), ta = Number(p.tackleattempts || tm);
@@ -543,7 +543,6 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
   const gDiff = Number(goals) - Number(conceded), myMatchClub = matchesPayload[0]?.clubs?.[clubId];
   const crestId = data.crestId || myMatchClub?.crestId || infoObj.customKit?.crestAssetId || infoObj.teamId || '0';
 
-  // Save to Recently Viewed Chips
   saveRecentClub(clubId, name, crestId, platform);
 
   const clubSlug = slugifyClubName(name);
@@ -572,7 +571,7 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
   document.getElementById('clubRegionName').innerText = reg.name;
   document.getElementById('clubStadiumName').innerText = data.stadiumName || 'Pro Clubs Arena';
 
-  const rep = data.clubRep || { formattedFans: '5M–6M', level: 5, tierTitle: 'Up and Coming' };
+  const rep = data.clubRep || { formattedFans: '~6.5M', level: 5, tierTitle: 'Up and Coming' };
   document.getElementById('clubLevelBadgeText').innerText = `Lvl ${rep.level} • ${rep.formattedFans} Fans`;
 
   const kits = data.kits || { home: ['#10b981','#ffffff','#064e3b'], away: ['#1e293b','#38bdf8','#0f172a'], third: ['#f59e0b','#111827','#ffffff'] };
@@ -704,14 +703,15 @@ function renderRecentMatches(clubId, matches) {
     playerStats.forEach(p => {
       const pName = p.playername || p.name || 'Pro', made = Number(p.passesmade || 0), att = Number(p.passattempts || made);
       const tkl = Number(p.tacklesmade || p.tackles || 0), tAtt = Number(p.tackleattempts || tkl), memberMeta = findMemberMeta(pName);
+      const exactPos = EA_PRO_POS_MAP[String(memberMeta?.proPos ?? '')] || '';
       const normPos = p.pos ? normalizePosition(p.pos) : normalizePosition(memberMeta?.favoritePosition || 'MID');
 
       p._passPct = att > 0 ? Math.round((made / att) * 100) : Number(p.passsuccessrate || 0);
-      p._made = made; p._att = att; p._ev = parsePlayerMatchEvents(p);
+      p._made = made; p._att = att; p._ev = parsePlayerMatchEvents(p, exactPos);
       matchYellows += p._ev.yellowCards; matchReds += p._ev.redCards;
 
       p._inf = computePlayerImpactScore({
-        games: 1, normPos, ratingSum: parseFloat(p.rating || 7.0),
+        games: 1, normPos, exactPos, ratingSum: parseFloat(p.rating || 7.0),
         goals: Number(p.goals || 0), assists: Number(p.assists || 0), shots: Number(p.shots || 0),
         passesMade: made, passAttempts: att, tackles: tkl, tackleAttempts: tAtt,
         blocks: p._ev.blocks, interceptions: p._ev.interceptions, skillMoves: p._ev.skillMoves,
