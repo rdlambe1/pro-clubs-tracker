@@ -3,6 +3,7 @@ import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { ProClubsClient } from 'proclubs-sdk';
+import { eaFetch, valOf, unwrapEa, extractClubId, resolveCrestId, resolveClubDivisions, computeGlobalPercentile, computeClubRepAndFans, buildSeasonsHistory, generateFallbackSvg } from './eaHelpers.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -11,320 +12,8 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 const proclubs = new ProClubsClient({ cache: false });
-const EA_HEADERS = {
-  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
-  'Accept': 'application/json, text/plain, */*',
-  'Accept-Language': 'en-US,en;q=0.9',
-  'Referer': 'https://www.ea.com/',
-  'Origin': 'https://www.ea.com'
-};
 
-async function eaFetch(url, timeoutMs = 8000) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
-  try {
-    const r = await fetch(url, { headers: EA_HEADERS, signal: ctrl.signal });
-    return r.ok ? await r.json() : null;
-  } catch (_) {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
-}
-
-const valOf = (res) => (res?.status === 'fulfilled' && res.value ? res.value : {});
-
-function unwrapEa(payload, clubId) {
-  if (!payload) return {};
-  if (Array.isArray(payload)) return payload[0] || {};
-  if (typeof payload === 'object') {
-    if (clubId && payload[clubId] && typeof payload[clubId] === 'object') return payload[clubId];
-    const v = Object.values(payload);
-    return (v.length === 1 && v[0] && typeof v[0] === 'object' && !Array.isArray(v[0])) ? v[0] : payload;
-  }
-  return {};
-}
-
-function extractClubId(o, key = null) {
-  const c = o?.clubId || o?.id || o?.clubInfo?.clubId || (key && /^\d+$/.test(String(key)) ? key : null);
-  return c && Number(c) > 0 ? String(c) : null;
-}
-
-function resolveCrestId(info = {}, stat = {}, matchClub = {}) {
-  const det = matchClub?.details || {}, ck = info?.customKit || det?.customKit || stat?.customKit || matchClub?.customKit || {};
-  if (String(ck.selectedKitType ?? info?.selectedKitType ?? det?.selectedKitType ?? '') === '0') {
-    const auth = info?.teamId || det?.teamId || matchClub?.TEAM || stat?.teamId;
-    if (auth && String(auth) !== '0') return String(auth);
-  }
-  const cands = [matchClub?.crestId, matchClub?.TEAM, ck.crestAssetId, ck.crestId, info?.crestAssetId, det?.crestAssetId, info?.teamId, det?.teamId, stat?.crestAssetId, stat?.teamId];
-  const hit = cands.find(c => c !== undefined && c !== null && !['', '0', '-1'].includes(String(c).trim()));
-  return hit ? String(hit).trim() : null;
-}
-
-function mapEaOneToSixDivision(raw) {
-  if (raw === undefined || raw === null || raw === '') return null;
-  const s = String(raw).trim().toLowerCase();
-  if (s === 'elite') return 0;
-  const n = parseInt(s.replace(/[^0-9-]/g, ''), 10);
-  if (isNaN(n) || n < 1 || n > 6) return null;
-  return n - 1;
-}
-
-const fmtDiv = (n) => (n === null || n === undefined || isNaN(n)) ? 'Div 5' : (n <= 0 ? 'Elite' : `Div ${Math.min(5, Math.max(1, n))}`);
-
-function resolveClubDivisions(currSeasonLb = {}, allTimeLb = {}, stat = {}, info = {}) {
-  const sr = Number(stat.skillRating ?? stat.rating ?? allTimeLb.skillRating ?? currSeasonLb.skillRating ?? 1500);
-  const promos = Math.max(Number(currSeasonLb.promotions || 0), Number(stat.promotions || 0), Number(allTimeLb.promotions || 0));
-  const relegs = Math.max(Number(currSeasonLb.relegations || 0), Number(stat.relegations || 0), Number(allTimeLb.relegations || 0));
-  const wins = Number(stat.wins ?? stat.overallWins ?? allTimeLb.wins ?? 0);
-  const ties = Number(stat.ties ?? stat.overallTies ?? allTimeLb.ties ?? 0);
-  const losses = Number(stat.losses ?? stat.overallLosses ?? allTimeLb.losses ?? 0);
-  const totalGames = wins + ties + losses;
-
-  const minByPromo = Math.max(0, 5 - promos);
-  if (promos <= 0) {
-    return { currDivNum: 5, divisionLabel: 'Div 5', peakDivNum: 5, peakDivisionLabel: 'Div 5' };
-  }
-
-  const rawCurr = currSeasonLb.currentDivision ?? allTimeLb.currentDivision ?? stat.currentDivision ?? null;
-  let curr = mapEaOneToSixDivision(rawCurr);
-
-  if (curr === null) {
-    const netClimb = Math.max(0, promos - relegs);
-    let srEst = 5;
-    if (totalGames >= 15 && sr >= 2050) srEst = 0;
-    else if (totalGames >= 12 && sr >= 1880) srEst = 1;
-    else if (totalGames >= 10 && sr >= 1700) srEst = 2;
-    else if (totalGames >= 8 && sr >= 1540) srEst = 3;
-    else if (promos >= 1 && sr >= 1320) srEst = 4;
-
-    const daysSinceLaunch = Math.max(1, (Date.now() - new Date('2026-09-24T00:00:00Z').getTime()) / 86400000);
-    const daysIntoSeason = daysSinceLaunch % 42;
-    const estCurrSeasonClimb = netClimb > 0 ? Math.min(netClimb, Math.max(1, Math.round(promos * Math.max(0.22, daysIntoSeason / 42)))) : 1;
-    const promoEst = Math.max(0, 5 - estCurrSeasonClimb);
-
-    curr = Math.min(promoEst, srEst);
-  }
-
-  curr = Math.min(5, Math.max(curr, minByPromo));
-
-  const allowElite = (curr === 0 || (promos >= 5 && sr >= 1950));
-  const bestCands = [
-    curr,
-    mapEaOneToSixDivision(currSeasonLb.bestDivision),
-    mapEaOneToSixDivision(allTimeLb.bestDivision),
-    mapEaOneToSixDivision(stat.bestDivision)
-  ].filter(n => n !== null && n >= 0 && n <= 5 && (n !== 0 || allowElite))
-   .map(n => Math.max(n, minByPromo));
-
-  const peak = Math.min(curr, ...(bestCands.length ? bestCands : [curr]));
-  return { currDivNum: curr, divisionLabel: fmtDiv(curr), peakDivNum: peak, peakDivisionLabel: fmtDiv(peak) };
-}
-
-function eaIntToHex(val, fb = '#10b981') {
-  const n = parseInt(val, 10);
-  return (isNaN(n) || n < 0) ? fb : `#${(n & 0xFFFFFF).toString(16).padStart(6, '0')}`;
-}
-
-function decodeEaRegionAscii(id) {
-  let num = parseInt(id, 10);
-  if (isNaN(num) || num <= 0) return '';
-  let code = '';
-  while (num > 0) {
-    const ch = num % 256;
-    if (ch >= 32 && ch <= 126) code = String.fromCharCode(ch) + code;
-    num = Math.floor(num / 256);
-  }
-  return code.trim().toUpperCase();
-}
-
-function resolveClubRegion(infoObj = {}, statObj = {}, lbClubInfo = {}) {
-  const rawId = infoObj.regionId ?? lbClubInfo.regionId ?? statObj.regionId ?? null;
-  const sdkLabel = String(infoObj.regionLabel ?? infoObj.derivedLabels?.regionLabel ?? lbClubInfo.regionLabel ?? '').trim();
-  const ascii = decodeEaRegionAscii(rawId);
-
-  const codeMap = {
-    'BRI': { name: 'British Isles', flag: 'eu' },
-    'BI':  { name: 'British Isles', flag: 'eu' },
-    'WEU': { name: 'Western Europe', flag: 'eu' },
-    'CEU': { name: 'Central Europe', flag: 'eu' },
-    'NEU': { name: 'Northern Europe', flag: 'eu' },
-    'SEU': { name: 'Southern Europe', flag: 'eu' },
-    'EEU': { name: 'Eastern Europe', flag: 'eu' },
-    'EUS': { name: 'NA East', flag: 'us' },
-    'ENA': { name: 'NA East', flag: 'us' },
-    'NAE': { name: 'NA East', flag: 'us' },
-    'WUS': { name: 'NA West', flag: 'us' },
-    'WNA': { name: 'NA West', flag: 'us' },
-    'NAW': { name: 'NA West', flag: 'us' },
-    'CUS': { name: 'NA Central', flag: 'us' },
-    'CAM': { name: 'Central America', flag: 'mx' },
-    'SAM': { name: 'South America', flag: 'br' },
-    'SA':  { name: 'South America', flag: 'br' },
-    'MEA': { name: 'Middle East', flag: 'sa' },
-    'ME':  { name: 'Middle East', flag: 'sa' },
-    'SAF': { name: 'Southern Africa', flag: 'za' },
-    'NAF': { name: 'Northern Africa', flag: 'ma' },
-    'EAS': { name: 'East Asia', flag: 'jp' },
-    'SAS': { name: 'South Asia', flag: 'in' },
-    'SEA': { name: 'Southeast Asia', flag: 'sg' },
-    'ASIA':{ name: 'Asia', flag: 'jp' },
-    'ANZ': { name: 'Australia & NZ', flag: 'au' },
-    'OCE': { name: 'Oceania', flag: 'au' }
-  };
-
-  if (ascii && codeMap[ascii]) return codeMap[ascii];
-
-  if (sdkLabel) {
-    const low = sdkLabel.toLowerCase();
-    if (low.includes('british') || low.includes('europe')) return { name: sdkLabel, flag: 'eu' };
-    if ((low.includes('east') || low.includes('west')) && (low.includes('us') || low.includes('america'))) return { name: sdkLabel, flag: 'us' };
-    if (low.includes('central america') || low.includes('mexico')) return { name: sdkLabel, flag: 'mx' };
-    if (low.includes('south america')) return { name: sdkLabel, flag: 'br' };
-    if (low.includes('middle east')) return { name: sdkLabel, flag: 'sa' };
-    if (low.includes('africa')) return { name: sdkLabel, flag: 'za' };
-    if (low.includes('australia') || low.includes('new zealand') || low.includes('oceania')) return { name: sdkLabel, flag: 'au' };
-    if (low.includes('asia')) return { name: sdkLabel, flag: 'jp' };
-    return { name: sdkLabel, flag: null };
-  }
-
-  if (ascii && /^[A-Z]{2,4}$/.test(ascii)) {
-    return { name: `Region: ${ascii}`, flag: ascii.endsWith('EU') ? 'eu' : (ascii.endsWith('US') ? 'us' : null) };
-  }
-
-  return { name: 'Global Matchmaking', flag: null };
-}
-
-function computeGlobalPercentile(sr, w, l, d, currDiv) {
-  const s = Number(sr || 0), tot = w + l + d;
-  if (tot < 6) {
-    const starterPct = w > l ? 35 : 55;
-    return { percentile: starterPct, label: `Top ${starterPct}% Worldwide` };
-  }
-  let pct = s >= 2100 ? 0.5 : s >= 1950 ? 1 : s >= 1800 ? 2 : s >= 1700 ? 4 : s >= 1600 ? 7 : s >= 1500 ? 12 : s >= 1400 ? 18 : s >= 1300 ? 28 : s >= 1150 ? 42 : 55;
-  if (currDiv === 0) pct = Math.min(pct, 2); else if (currDiv === 1) pct = Math.min(pct, 6); else if (currDiv === 2) pct = Math.min(pct, 12);
-  if (tot > 0 && w / tot >= 0.6) pct = Math.max(0.5, pct - 2);
-  return { percentile: pct, label: `Top ${pct}% Worldwide` };
-}
-
-// Calibrated Fan & Reputation Engine (Guarantees Level 5 / ~6.6M floor for Doge Rovers)
-function computeClubRepAndFans(stat = {}, currSeasonLb = {}, info = {}, allTimeLb = {}, currDiv = 5, peakDiv = 5) {
-  const w = Number(stat.wins ?? stat.overallWins ?? allTimeLb.wins ?? 0);
-  const d = Number(stat.ties ?? stat.overallTies ?? allTimeLb.ties ?? 0);
-  const l = Number(stat.losses ?? stat.overallLosses ?? allTimeLb.losses ?? 0);
-  const gf = Number(stat.goals ?? stat.overallGoals ?? allTimeLb.goals ?? 0);
-  const sr = Number(stat.skillRating ?? stat.rating ?? allTimeLb.skillRating ?? 1500);
-  const promos = Math.max(Number(currSeasonLb.promotions || 0), Number(stat.promotions || 0), Number(allTimeLb.promotions || 0));
-  const titles = Math.max(Number(currSeasonLb.titlesWon || 0), Number(stat.titlesWon || 0), Number(allTimeLb.titlesWon || 0));
-  const totalGames = w + d + l;
-
-  const LEVEL_BRACKETS = {
-    1:  { min: 50000,    max: 349000,   title: 'Grassroots' },
-    2:  { min: 350000,   max: 999000,   title: 'Hometown' },
-    3:  { min: 1000000,  max: 2499000,  title: 'Emerging' },
-    4:  { min: 2500000,  max: 4999000,  title: 'Up and Coming' },
-    5:  { min: 5000000,  max: 7499000,  title: 'Up and Coming' },
-    6:  { min: 7500000,  max: 11999000, title: 'Established' },
-    7:  { min: 12000000, max: 18999000, title: 'Established' },
-    8:  { min: 19000000, max: 28999000, title: 'Renowned' },
-    9:  { min: 29000000, max: 44999000, title: 'Renowned' },
-    10: { min: 45000000, max: 95000000, title: 'World Class' }
-  };
-
-  const rawFans = Number(stat.fans ?? stat.fanCount ?? allTimeLb.fans ?? info.fans ?? 0);
-
-  // Calibrated so Doge Rovers' match/win/goal volume lands naturally at ~6.6M Fans
-  const peakDivBonus = Math.max(0, (5 - peakDiv) * 150000);
-  const srBonus = totalGames >= 10 ? Math.max(0, (sr - 1200) * 520) : 0;
-  let calcFans = 90000 + (totalGames * 11500) + (w * 16800) + (d * 4800) + (gf * 1250) + (promos * 98000) + (titles * 290000) + peakDivBonus + srBonus;
-
-  const explicitLvl = Number(
-    allTimeLb.reputationlevel ?? allTimeLb.reputationLevel ??
-    currSeasonLb.reputationlevel ?? currSeasonLb.reputationLevel ??
-    stat.reputationlevel ?? info.reputationlevel ?? stat.clubLevel ?? 0
-  );
-
-  let level = explicitLvl >= 1 && explicitLvl <= 10 ? explicitLvl : 0;
-  if (level === 0) {
-    for (let lv = 10; lv >= 1; lv--) {
-      if (calcFans >= LEVEL_BRACKETS[lv].min) { level = lv; break; }
-    }
-  }
-
-  const b = LEVEL_BRACKETS[level] || LEVEL_BRACKETS[5];
-  if (calcFans < b.min) calcFans = b.min + 1200000; // Ensures Level 5 has a solid ~6.2M–6.8M floor rather than dropping to 5.4M
-  if (calcFans > b.max) calcFans = b.max - 400000;
-
-  const fans = rawFans > 10000 ? rawFans : Math.round(calcFans);
-  const formattedFans = `~${(fans / 1000000).toFixed(1)}M`;
-  const tierTitle = b.title;
-
-  return { fans, formattedFans, level, tierTitle };
-}
-
-function buildSeasonsHistory(currSeasonLb = {}, stat = {}, currDiv = 5, peakDiv = 5) {
-  const promos = Math.max(Number(currSeasonLb.promotions || 0), Number(stat.promotions || 0));
-  const relegs = Math.max(Number(currSeasonLb.relegations || 0), Number(stat.relegations || 0));
-  const titles = Math.max(Number(currSeasonLb.titlesWon || 0), Number(stat.titlesWon || 0));
-  const tW = Number(stat.wins ?? stat.overallWins ?? 0), tD = Number(stat.ties ?? stat.overallTies ?? 0), tL = Number(stat.losses ?? stat.overallLosses ?? 0);
-  const tGF = Number(stat.goals ?? stat.overallGoals ?? 0), tGA = Number(stat.goalsAgainst ?? stat.overallGoalsAgainst ?? 0);
-  const days = Math.max(1, (Date.now() - new Date('2026-09-24T00:00:00Z').getTime()) / 86400000);
-  const count = (tW + tD + tL) < 10 ? 1 : Math.max(1, Math.min(10, Math.ceil(days / 42)));
-
-  const csW = currSeasonLb.wins !== undefined ? Number(currSeasonLb.wins) : null;
-  const csD = currSeasonLb.ties !== undefined ? Number(currSeasonLb.ties) : null;
-  const csL = currSeasonLb.losses !== undefined ? Number(currSeasonLb.losses) : null;
-  const csGF = currSeasonLb.goals !== undefined ? Number(currSeasonLb.goals) : null;
-  const csGA = currSeasonLb.goalsAgainst !== undefined ? Number(currSeasonLb.goalsAgainst) : null;
-  const hasExactCurrSeason = csW !== null && (csW + csD + csL) <= (tW + tD + tL);
-
-  if (count <= 1) {
-    return { totalSeasonsCount: 1, list: [{ seasonNumber: 1, label: 'Season 1 (Current)', divisionNum: currDiv, division: fmtDiv(currDiv), wins: tW, draws: tD, losses: tL, goalsFor: tGF, goalsAgainst: tGA, points: tW * 3 + tD, outcome: `IN PROGRESS (${promos}⬆️ ${relegs}⬇️)`, badgeType: 'active', isCurrent: true }] };
-  }
-
-  if (hasExactCurrSeason && count === 2) {
-    const s1W = Math.max(0, tW - csW), s1D = Math.max(0, tD - csD), s1L = Math.max(0, tL - csL);
-    const s1GF = Math.max(0, tGF - (csGF ?? 0)), s1GA = Math.max(0, tGA - (csGA ?? 0));
-    const csPromos = Number(currSeasonLb.promotions ?? 0), csRelegs = Number(currSeasonLb.relegations ?? 0);
-    const s1Promos = Math.max(0, promos - csPromos), s1Relegs = Math.max(0, relegs - csRelegs);
-    return {
-      totalSeasonsCount: 2,
-      list: [
-        { seasonNumber: 2, label: 'Season 2 (Current)', divisionNum: currDiv, division: fmtDiv(currDiv), wins: csW, draws: csD, losses: csL, goalsFor: csGF ?? 0, goalsAgainst: csGA ?? 0, points: csW * 3 + csD, outcome: `IN PROGRESS (${csPromos}⬆️ ${csRelegs}⬇️)`, badgeType: 'active', isCurrent: true },
-        { seasonNumber: 1, label: 'Season 1', divisionNum: peakDiv, division: fmtDiv(peakDiv), wins: s1W, draws: s1D, losses: s1L, goalsFor: s1GF, goalsAgainst: s1GA, points: s1W * 3 + s1D, outcome: titles > 0 ? `TITLE WINNER (${s1Promos}⬆️ ${s1Relegs}⬇️)` : `COMPLETED (${s1Promos}⬆️ ${s1Relegs}⬇️)`, badgeType: titles > 0 ? 'title' : 'promo', isCurrent: false }
-      ]
-    };
-  }
-
-  const comp = count - 1, curDays = Math.max(3, days - comp * 42);
-  const weights = [...Array(comp).fill(42 / days), curDays / days];
-  let uW = 0, uD = 0, uL = 0, uGF = 0, uGA = 0, uP = 0, uR = 0;
-  const list = weights.map((w, i) => {
-    const last = i === count - 1, sNum = i + 1;
-    const sW = last ? Math.max(0, tW - uW) : Math.round(tW * w), sD = last ? Math.max(0, tD - uD) : Math.round(tD * w), sL = last ? Math.max(0, tL - uL) : Math.round(tL * w);
-    const sGF = last ? Math.max(0, tGF - uGF) : Math.round(tGF * w), sGA = last ? Math.max(0, tGA - uGA) : Math.round(tGA * w);
-    const sP = last ? Math.max(0, promos - uP) : Math.round(promos * w), sR = last ? Math.max(0, relegs - uR) : Math.round(relegs * w);
-    uW += sW; uD += sD; uL += sL; uGF += sGF; uGA += sGA; uP += sP; uR += sR;
-    const dTier = last ? currDiv : Math.min(5, Math.max(peakDiv, 5 - sP));
-    const isTitle = !last && titles > 0 && i === 0;
-    return {
-      seasonNumber: sNum, label: last ? `Season ${sNum} (Current)` : `Season ${sNum}`, divisionNum: dTier, division: fmtDiv(dTier),
-      wins: sW, draws: sD, losses: sL, goalsFor: sGF, goalsAgainst: sGA, points: sW * 3 + sD,
-      outcome: isTitle ? `TITLE WINNER (${sP}⬆️ ${sR}⬇️)` : `${last ? 'IN PROGRESS' : 'COMPLETED'} (${sP}⬆️ ${sR}⬇️)`,
-      badgeType: isTitle ? 'title' : (last ? 'active' : (sP >= sR ? 'promo' : 'hold')), isCurrent: last
-    };
-  });
-  return { totalSeasonsCount: count, list: list.reverse() };
-}
-
-function generateFallbackSvg(name) {
-  const init = (name || 'FC').substring(0, 2).toUpperCase();
-  const pals = [['#10b981','#064e3b','#34d399'], ['#3b82f6','#1e3a8a','#60a5fa'], ['#f59e0b','#78350f','#fbbf24'], ['#8b5cf6','#4c1d95','#a78bfa']];
-  let h = 0; for (let i = 0; i < (name || '').length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  const [b1, b2, st] = pals[Math.abs(h) % pals.length];
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 115"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="${b1}"/><stop offset="100%" stop-color="${b2}"/></linearGradient></defs><path d="M50 5 C80 5 95 15 95 35 C95 75 50 110 50 110 C50 110 5 75 5 35 C5 15 20 5 50 5 Z" fill="url(#g)" stroke="${st}" stroke-width="4"/><text x="50" y="66" font-family="sans-serif" font-size="29" font-weight="900" fill="#fff" text-anchor="middle">${init}</text></svg>`;
-}
-
+// 0. Global Top 10 Clubs Leaderboard (30-Minute In-Memory Cache)
 const LEADERBOARD_CACHE = new Map();
 const LEADERBOARD_TTL_MS = 30 * 60 * 1000;
 
@@ -393,6 +82,7 @@ app.get('/api/leaderboard/clubs', async (req, res) => {
   }
 });
 
+// 1. Search Clubs
 app.get('/api/search', async (req, res) => {
   const rawQuery = String(req.query.clubName || '').trim();
   const platform = req.query.platform === 'nx' ? 'nx' : 'common-gen5';
@@ -429,6 +119,7 @@ app.get('/api/search', async (req, res) => {
   }
 });
 
+// 2. Club Info
 app.get('/api/club/:clubId/info', async (req, res) => {
   const { clubId } = req.params;
   const platform = req.query.platform === 'nx' ? 'nx' : 'common-gen5';
@@ -474,7 +165,7 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     }
 
     const lbClubInfo = currSeasonLb.clubInfo || allTimeLb.clubInfo || {};
-    const { currDivNum, divisionLabel, peakDivNum, peakDivisionLabel } = resolveClubDivisions(currSeasonLb, allTimeLb, statObj, infoObj);
+    const { currDivNum, divisionLabel, peakDivNum, peakDivisionLabel } = resolveClubDivisions(currSeasonLb, allTimeLb, statObj);
     const ck = infoObj.customKit || lbClubInfo.customKit || statObj.customKit || {};
     const kits = {
       home: [eaIntToHex(ck.kitColor1, '#10b981'), eaIntToHex(ck.kitColor2, '#ffffff'), eaIntToHex(ck.kitColor3, '#064e3b')],
@@ -484,7 +175,7 @@ app.get('/api/club/:clubId/info', async (req, res) => {
     const sr = Number(statObj.skillRating ?? statObj.rating ?? allTimeLb.skillRating ?? 1500);
     const wins = Number(statObj.wins ?? statObj.overallWins ?? allTimeLb.wins ?? 0);
     const losses = Number(statObj.losses ?? statObj.overallLosses ?? allTimeLb.losses ?? 0);
-    const ties = Number(statObj.ties ?? stat.overallTies ?? allTimeLb.ties ?? 0);
+    const ties = Number(statObj.ties ?? statObj.overallTies ?? allTimeLb.ties ?? 0);
     const seasonsData = buildSeasonsHistory(currSeasonLb, statObj, currDivNum, peakDivNum);
     const clubRep = computeClubRepAndFans(statObj, currSeasonLb, infoObj, allTimeLb, currDivNum, peakDivNum);
 
@@ -508,6 +199,7 @@ app.get('/api/club/:clubId/info', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 3. Squad Members
 app.get('/api/club/:clubId/members', async (req, res) => {
   const { clubId } = req.params;
   const platform = req.query.platform === 'nx' ? 'nx' : 'common-gen5';
@@ -590,6 +282,7 @@ app.get('/api/club/:clubId/members', async (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// 4. Match History
 app.get('/api/club/:clubId/matches', async (req, res) => {
   const { clubId } = req.params;
   const platform = req.query.platform === 'nx' ? 'nx' : 'common-gen5';
@@ -629,7 +322,7 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
         if (Array.isArray(lbArr)) csLb = lbArr.find(x => String(extractClubId(x)) === String(oppId)) || {};
       } catch (_) {}
     }
-    const { divisionLabel } = resolveClubDivisions(csLb, {}, st, inf);
+    const { divisionLabel } = resolveClubDivisions(csLb, {}, st);
     oppMap.set(String(oppId), { skillRating: st?.skillRating || st?.rating || null, division: divisionLabel, crestId: resolveCrestId(inf, st) });
   }));
 
@@ -648,6 +341,7 @@ app.get('/api/club/:clubId/matches', async (req, res) => {
   res.json(recent10);
 });
 
+// 5. Crest Proxy
 app.get('/api/crest/:crestId', async (req, res) => {
   let rawId = String(req.params.crestId || '').replace(/^l/i, '').trim();
   const { name = 'FC', clubId } = req.query;
@@ -665,7 +359,7 @@ app.get('/api/crest/:crestId', async (req, res) => {
     ];
     for (const b of bases) {
       try {
-        const r = await fetch(`${b}${rawId}.png`, { headers: EA_HEADERS });
+        const r = await fetch(`${b}${rawId}.png`);
         if (r.ok && (r.headers.get('content-type') || '').includes('image')) {
           const buf = await r.arrayBuffer();
           if (buf.byteLength > 100) { res.setHeader('Content-Type', 'image/png'); res.setHeader('Cache-Control', 'public, max-age=86400'); return res.send(Buffer.from(buf)); }
@@ -677,6 +371,7 @@ app.get('/api/crest/:crestId', async (req, res) => {
   res.send(generateFallbackSvg(name));
 });
 
+// 6. Discord Webhook Integration
 app.post('/api/discord/send', async (req, res) => {
   const { webhookUrl, clubName, clubId, division, skillRating, modeLabel, record, goalDiffText, tiltStatus, mvp, passenger, banter, trackerUrl } = req.body || {};
   const target = (webhookUrl || process.env.DISCORD_WEBHOOK_URL || '').trim();
