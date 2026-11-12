@@ -240,15 +240,18 @@
 
         <!-- Skill Rating History Graph Over Time -->
         <section id="srGraphSection" class="hidden card p-4 sm:p-6 space-y-3">
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-800 pb-3">
             <div>
-              <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-chart-line text-emerald-400"></i> Skill Rating Progression (Last 10 Matches)</h3>
-              <p class="text-xs text-gray-400">Chronological trend of club skill rating across recent fixtures</p>
+              <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-chart-line text-emerald-400"></i> Skill Rating Progression Over Time</h3>
+              <p class="text-xs text-gray-400 mt-0.5">Match-by-match Elo trajectory across your last 10 fixtures • Hover over any node for match details</p>
             </div>
-            <span id="srTrendBadge" class="px-2.5 py-0.5 rounded text-[11px] font-black">--</span>
+            <div class="flex items-center gap-2">
+              <span id="srPeakLowMeta" class="text-[11px] font-mono text-gray-400 hidden sm:inline">--</span>
+              <span id="srTrendBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-black">--</span>
+            </div>
           </div>
           <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3 sm:p-4 flex flex-col items-center">
-            <div id="srChartContainer" class="w-full h-[220px] sm:h-[250px] flex items-center justify-center"></div>
+            <div id="srChartContainer" class="w-full h-[210px] sm:h-[240px] flex items-center justify-center"></div>
           </div>
         </section>
 
@@ -280,7 +283,7 @@
       <div id="tabPane_players" class="hidden space-y-5">
         <section id="shameBoardSection" class="hidden card p-4 sm:p-6 space-y-4">
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-gray-800 pb-3">
-            <div><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-masks-theater text-rose-400"></i> Dressing Room Banter & Shame Board</h3><p id="shameBoardSubtext" class="text-xs text-gray-400 mt-0.5">Meat Wall Blocks, Super-Subs, Woodwork Merchant, Skill Moves, Missed Passes, Barn Door & Bookings</p></div>
+            <div><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-masks-theater text-rose-400"></i> Dressing Room Banter & Shame Board</h3><p id="shameBoardSubtext" class="text-xs text-gray-400 mt-0.5">Hover over any award card for details</p></div>
             <div class="flex items-center bg-gray-900 p-1 rounded-lg border border-gray-800">
               <button id="btnBanterLast10" onclick="switchBanterMode('last10')" class="px-3 py-1 rounded text-xs font-black bg-rose-500 text-white transition shadow"><i class="fa-solid fa-fire-flame-curved mr-1"></i>Last 10 Matches</button>
               <button id="btnBanterAllTime" onclick="switchBanterMode('allTime')" class="px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition"><i class="fa-solid fa-infinity mr-1"></i>All-Time Career</button>
@@ -325,7 +328,9 @@
                 <span id="formationBadge" class="text-xs font-black px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">--</span>
                 <select id="formationOverrideSelect" onchange="handleFormationOverride(this.value)" class="bg-gray-900 border border-gray-700 text-xs font-bold text-gray-200 px-2 py-1 rounded focus:outline-none focus:border-emerald-500 cursor-pointer">
                   <option value="auto">⚡ Auto-Detect from Match</option>
-                  <option value="4-1-2-1-2">4-1-2-1-2 (4-2-1-2)</option>
+                  <option value="4-1-2-1-2">4-1-2-1-2 Diamond</option>
+                  <option value="4-1-2-1-2 Wide">4-1-2-1-2 Wide</option>
+                  <option value="4-2-2-2">4-2-2-2</option>
                   <option value="4-2-3-1 Narrow">4-2-3-1 Narrow</option>
                   <option value="4-3-3 Attack">4-3-3 Attack</option>
                   <option value="4-3-3 Holding">4-3-3 Holding</option>
