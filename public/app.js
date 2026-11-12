@@ -405,7 +405,6 @@ function switchBanterMode(mode) {
   renderShameBoard(SHAME_LIST_CACHE);
 }
 
-// Renders 10-Card Banter & Specialist Board (Now includes 📡 The Interceptor!)
 function renderShameBoard(shameList = []) {
   const sec = document.getElementById('shameBoardSection');
   if (!shameList.length && !GLOBAL_MEMBERS.length) return sec.classList.add('hidden');
@@ -753,10 +752,24 @@ function renderRecentMatches(clubId, matches) {
   formContainer.innerHTML = formList.join('');
 }
 
+// Respects the actual match bucket (mp.pos) first so a midfielder with a RW/ST build isn't misclassified as a match Forward!
 function getExactPlayerRole(m = {}, mp = {}) {
-  const id = String(m.proPos ?? '');
-  if (EA_PRO_POS_MAP[id]) return EA_PRO_POS_MAP[id];
-  const raw = String(mp.pos || m.favoritePosition || 'MID').toLowerCase();
+  const proRole = EA_PRO_POS_MAP[String(m.proPos ?? '')] || '';
+  const matchBucket = mp.pos ? normalizePosition(mp.pos) : null;
+
+  if (matchBucket === 'FWD') {
+    return ['ST','LS','RS','CF','LW','RW','LF','RF'].includes(proRole) ? proRole : 'ST';
+  }
+  if (matchBucket === 'MID') {
+    return ['CAM','LAM','RAM','CM','LCM','RCM','CDM','LDM','RDM','LM','RM'].includes(proRole) ? proRole : 'CAM';
+  }
+  if (matchBucket === 'DEF') {
+    return ['CB','LCB','RCB','LB','RB','LWB','RWB'].includes(proRole) ? proRole : 'CB';
+  }
+  if (matchBucket === 'GK') return 'GK';
+
+  if (proRole) return proRole;
+  const raw = String(m.favoritePosition || 'MID').toLowerCase();
   return raw === 'forward' ? 'ST' : raw === 'midfielder' ? 'CAM' : raw === 'defender' ? 'CB' : raw === 'goalkeeper' ? 'GK' : raw.toUpperCase();
 }
 
@@ -769,6 +782,7 @@ function switchPitchMode(mode) {
   buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
 }
 
+// Accurately Auto-Detects Formation from Match Bucket Counts (FWD/MID/DEF) rather than stale Virtual Pro winger builds
 function buildDynamicPitchTactic(members = [], matches = []) {
   const rows = ['rowAttack','rowCAM','rowMidfield','rowDefense','rowGK'].map(id => { const el = document.getElementById(id); el.innerHTML = ''; return el; });
   if (!members.length) return;
@@ -783,12 +797,19 @@ function buildDynamicPitchTactic(members = [], matches = []) {
   }
 
   const scored = members.map(m => {
-    const name = m.name || 'Player', lm = Object.values(latestPlayersMap).find(lp => (lp.playername || lp.name) === name);
+    const name = m.name || 'Player';
+    const lm = Object.values(latestPlayersMap).find(lp => String(lp.playername || lp.name || '').toLowerCase().trim() === String(name).toLowerCase().trim());
+    const matchNormPos = lm?.pos ? normalizePosition(lm.pos) : null;
     return {
       ...m, _displayName: name, _proNickname: m.proName && m.proName !== name ? `"${m.proName}"` : '',
-      _exactRole: getExactPlayerRole(m, lm || {}), _activeNormPos: CURRENT_PITCH_MODE === 'lastMatch' && lm?.pos ? normalizePosition(lm.pos) : m._normalizedPos,
-      _buildScore: Number(m.proOverall || 85) * 4 + parseFloat(m.ratingAve || 7.0) * 12, _archetype: computeArchetypeAndPlaystyles(m).archetype,
-      _lmScore: lm ? 1000 + parseFloat(lm.rating || 0) * 20 : -1, _lmRat: lm ? parseFloat(lm.rating || 0) : null, _lmGA: lm ? Number(lm.goals || 0) + Number(lm.assists || 0) : 0
+      _matchNormPos: matchNormPos,
+      _exactRole: getExactPlayerRole(m, lm || {}),
+      _activeNormPos: CURRENT_PITCH_MODE === 'lastMatch' && matchNormPos ? matchNormPos : m._normalizedPos,
+      _buildScore: Number(m.proOverall || 85) * 4 + parseFloat(m.ratingAve || 7.0) * 12,
+      _archetype: computeArchetypeAndPlaystyles(m).archetype,
+      _lmScore: lm ? 1000 + parseFloat(lm.rating || 0) * 20 : -1,
+      _lmRat: lm ? parseFloat(lm.rating || 0) : null,
+      _lmGA: lm ? Number(lm.goals || 0) + Number(lm.assists || 0) : 0
     };
   });
 
@@ -796,14 +817,35 @@ function buildDynamicPitchTactic(members = [], matches = []) {
   const selectEl = document.getElementById('formationOverrideSelect'); if (selectEl) selectEl.value = savedOverride;
 
   let tpl = FORMATION_TEMPLATES['4-1-2-1-2'];
-  if (savedOverride !== 'auto' && FORMATION_TEMPLATES[savedOverride]) tpl = FORMATION_TEMPLATES[savedOverride];
-  else {
-    const activeSet = scored.filter(m => m._lmScore > 0).length ? scored.filter(m => m._lmScore > 0) : scored;
-    const matchFwds = activeSet.filter(m => m._activeNormPos === 'FWD' || ['ST','LS','RS','CF'].includes(m._exactRole));
-    const matchWingers = activeSet.filter(m => ['LW','RW','LF','RF'].includes(m._exactRole));
-    tpl = (matchWingers.length >= 2 || matchFwds.length >= 3) ? FORMATION_TEMPLATES['4-3-3 Attack']
-      : (matchFwds.length === 2 || (matchFwds.length === 1 && scored.filter(m => m._normalizedPos === 'FWD').length >= 2)) ? FORMATION_TEMPLATES['4-1-2-1-2']
-      : FORMATION_TEMPLATES['4-2-3-1 Narrow'];
+  if (savedOverride !== 'auto' && FORMATION_TEMPLATES[savedOverride]) {
+    tpl = FORMATION_TEMPLATES[savedOverride];
+  } else {
+    // Count how many players EA ACTUALLY placed in the "forward" match bucket in the latest match
+    const rawMatchPlayers = Object.values(latestPlayersMap);
+    const actualMatchFwds = rawMatchPlayers.filter(lp => normalizePosition(lp.pos) === 'FWD');
+
+    // Also check average max forwards across recent 5 matches in case 1 striker sat out a single game
+    let maxFwdsRecent5 = actualMatchFwds.length;
+    matches.slice(0, 5).forEach(m => {
+      const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
+      const myId = cIds.find(id => String(id) === String(GLOBAL_CLUB_ID)) || cIds[0];
+      const fCnt = Object.values(m.players?.[myId] || {}).filter(lp => normalizePosition(lp.pos) === 'FWD').length;
+      if (fCnt > maxFwdsRecent5) maxFwdsRecent5 = fCnt;
+    });
+
+    if (actualMatchFwds.length === 2) {
+      // Strictly a 2-striker formation (4-1-2-1-2) — NEVER 4-3-3 when 2 forwards played!
+      tpl = FORMATION_TEMPLATES['4-1-2-1-2'];
+    } else if (actualMatchFwds.length >= 3) {
+      // Only use 4-3-3 when 3 actual match forwards played in the fixture
+      tpl = FORMATION_TEMPLATES['4-3-3 Attack'];
+    } else if (actualMatchFwds.length === 1) {
+      // If 1 human forward played, check if the club regularly plays 2 forwards in recent matches or has 2+ career forwards
+      const squadFwds = scored.filter(m => m._normalizedPos === 'FWD').length;
+      tpl = (maxFwdsRecent5 === 2 || squadFwds >= 2) ? FORMATION_TEMPLATES['4-1-2-1-2'] : FORMATION_TEMPLATES['4-2-3-1 Narrow'];
+    } else {
+      tpl = FORMATION_TEMPLATES['4-1-2-1-2'];
+    }
   }
 
   document.getElementById('formationBadge').innerText = tpl.name;
@@ -813,7 +855,7 @@ function buildDynamicPitchTactic(members = [], matches = []) {
   const used = new Set(), assigned = [];
 
   const claim = (groupPos, slotLabel, fb = true) => {
-    let i = pool.findIndex(p => !used.has(p._displayName) && p._exactRole === slotLabel);
+    let i = pool.findIndex(p => !used.has(p._displayName) && p._activeNormPos === groupPos && p._exactRole === slotLabel);
     if (i === -1) i = pool.findIndex(p => !used.has(p._displayName) && p._activeNormPos === groupPos);
     if (i === -1 && fb && groupPos !== 'GK') i = pool.findIndex(p => !used.has(p._displayName));
     if (i !== -1) { used.add(pool[i]._displayName); return pool[i]; }
