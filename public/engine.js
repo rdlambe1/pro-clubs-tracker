@@ -1,7 +1,7 @@
 const API_BASE = '/api';
 let GLOBAL_MEMBERS = [], GLOBAL_MATCHES = [], GLOBAL_COMBINED_DATA = {}, GLOBAL_CLUB_ID = null;
 let RECENT_FORM_MAP = {}, RECENT_10_STATS_MAP = {}, SESSION_MATCHES_CACHE = [], SHAME_LIST_CACHE = [], MATCH_PLAYER_META = {};
-let TOP_FIDGET_SPINNER_NAME = null, TOP_MEAT_WALL_NAME = null, CURRENT_CLUB_CREST_URL = '', ACTIVE_MODAL_PLAYER = null;
+let TOP_FIDGET_SPINNER_NAME = null, TOP_MEAT_WALL_NAME = null, TOP_INTERCEPTOR_NAME = null, CURRENT_CLUB_CREST_URL = '', ACTIVE_MODAL_PLAYER = null;
 let CURRENT_PITCH_MODE = 'lastMatch', CURRENT_RECAP_MODE = 'session', CURRENT_BANTER_MODE = 'last10', ACTIVE_TAB = 'team';
 
 const slugifyClubName = (name) => String(name || '').toLowerCase().trim().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -77,7 +77,6 @@ function resolvePlayerFlagUrl(playerObjOrName) {
   return null;
 }
 
-// Builds clean Mystery Pro Silhouette with Jersey Nameplate (transparentBg=true blends seamlessly onto UT Card foil!)
 function getPlayerAvatarUrl(playerName, transparentBg = false) {
   const shirt = escXml(getShirtLabel(playerName));
   const fSize = shirt.length <= 5 ? 30 : shirt.length <= 8 ? 24 : shirt.length <= 10 ? 20 : 17;
@@ -107,6 +106,16 @@ function normalizePosition(rawPos) {
   return ['goalkeeper','gk'].includes(p) ? 'GK' : 'MID';
 }
 
+// Identifies whether a player is a Defender (DEF) or Defensive Midfielder (CDM/LDM/RDM/Holding Anchor)
+function isDefensiveAnchorRole(normPos, exactPos = '', tacklesPerGame = 0, goalsPerGame = 0) {
+  if (normPos === 'DEF') return true;
+  const ex = String(exactPos || '').toUpperCase().trim();
+  if (['CDM', 'LDM', 'RDM', 'LWB', 'RWB', 'CB', 'LB', 'RB', 'LCB', 'RCB'].includes(ex)) return true;
+  // Also recognize midfielders whose match profile is clearly a holding CDM (high tackles, low shots/goals)
+  if (normPos === 'MID' && tacklesPerGame >= 1.8 && goalsPerGame <= 0.25) return true;
+  return false;
+}
+
 function getCardTierTheme(ovr) {
   const r = Number(ovr || 75);
   if (r < 76) return { tier: 'BRONZE', badgeClass: 'bg-amber-900/40 text-amber-300 border-amber-600/50', textColor: '#271406', baseStops: ['#f7d4b6','#e29e6b','#c67a43','#9c5525','#5e2d0d'], plateStops: ['#f2c29b','#c87d48','#85461b'], rimStops: ['#ffffff','#f5cba7','#7c3f19','#f7d4b6'] };
@@ -129,7 +138,8 @@ function computeMatchGradeAndUnitRatings(myG, oppG, stats = []) {
   return { grade, gradeCls, atk: atk.toFixed(1), def: def.toFixed(1) };
 }
 
-function parsePlayerMatchEvents(p = {}) {
+// Extracts Pitch Telemetry with Position-Specific Interception, Ball Recovery & Run-Tracking Recognition
+function parsePlayerMatchEvents(p = {}, exactRole = '') {
   const ev = {};
   for (let i = 0; i < 6; i++) {
     String(p[`match_event_aggregate_${i}`] || '').split(',').forEach(pair => {
@@ -141,17 +151,31 @@ function parsePlayerMatchEvents(p = {}) {
   const skills = beats + flair + Math.max(0, takeOns - beats);
 
   const tackles = Number(p.tacklesmade || p.tackles || 0);
+  const rating = parseFloat(p.rating || 7.0);
   const posStr = String(p.pos || '').toLowerCase();
-  const isDef = ['defender','cb','lb','rb','lcb','rcb','lwb','rwb','cdm'].includes(posStr);
+  const normPos = normalizePosition(posStr);
+  const isAnchor = isDefensiveAnchorRole(normPos, exactRole, tackles, Number(p.goals || 0));
 
-  const rawBlocks = (ev[156] || 0) + (ev[12] || 0) + (ev[51] || 0) + (ev[56] || 0);
-  const blocks = rawBlocks > 0 ? rawBlocks : (isDef ? Math.max(1, Math.round(tackles * 0.5)) : Math.round(tackles * 0.3));
-  const interceptions = Number(p.interceptions ?? 0) + (ev[6] || 0) + (ev[158] || 0);
+  // Blocks (ev[156] blocked crosses + shot block IDs)
+  const rawBlocks = (ev[156] || 0) + (ev[12] || 0) + (ev[13] || 0) + (ev[14] || 0) + (ev[51] || 0) + (ev[56] || 0);
+  const blocks = rawBlocks > 0 ? rawBlocks : (isAnchor ? Math.max(1, Math.round(tackles * 0.55)) : Math.round(tackles * 0.25));
+
+  // Interceptions, Loose Ball Recoveries & Run-Tracking (ev[6] interceptions + ev[158] dispossessed + ev[22,23,29,52,55] ball recoveries)
+  const rawInterceptions = Number(p.interceptions ?? p.ballRecoveries ?? 0) +
+    (ev[6] || 0) + (ev[158] || 0) + (ev[22] || 0) + (ev[23] || 0) + (ev[29] || 0) + (ev[52] || 0) + (ev[55] || 0);
+
+  // If EA's event aggregate omits passive lane-covering interceptions for a high-rated DEF/CDM, credit their positional reading
+  let interceptions = rawInterceptions;
+  if (isAnchor && interceptions === 0 && (tackles > 0 || rating >= 7.0)) {
+    interceptions = Math.max(1, Math.round(tackles * 0.65 + (rating >= 7.4 ? 2 : 1)));
+  } else if (normPos === 'MID' && interceptions === 0 && tackles >= 2) {
+    interceptions = Math.round(tackles * 0.45);
+  }
 
   const saves = Math.max(Number(p.saves ?? 0), ev[202] || 0);
   const goalsConceded = Number(p.goalsconceded ?? p.goalsConceded ?? 0);
 
-  const shots = Number(p.shots || 0), goals = Number(p.goals || 0), rating = parseFloat(p.rating || 7.0);
+  const shots = Number(p.shots || 0), goals = Number(p.goals || 0);
   const offsides = Number(p.offsides ?? ev[153] ?? 0);
   const rawWoodwork = Number(p.woodwork ?? p.shotsHitWoodwork ?? 0) + (ev[9] || 0) + (ev[42] || 0) + (ev[89] || 0);
   const woodwork = rawWoodwork > 0 ? rawWoodwork : ((shots >= 4 && goals === 0 && rating >= 7.2) ? 1 : (shots - goals >= 5 ? 1 : 0));
@@ -164,33 +188,68 @@ function parsePlayerMatchEvents(p = {}) {
   return { skillMoves: skills, dribblesCompleted: dribbles, blocks, interceptions, saves, goalsConceded, offsides, woodwork, yellowCards, redCards };
 }
 
+// Position-Aware 12-Dimension Impact Engine:
+// Heavily rewards Interceptions, Run-Covering, Blocks, Tackle Win % & Low-Concession for DEF & CDM, while discounting fluke interceptions by Strikers!
 function computePlayerImpactScore(u) {
   const gp = Math.max(1, u.games || 1);
   const avgRat = u.ratingSum / gp;
   const normPos = u.normPos || 'MID';
+  const isAnchor = isDefensiveAnchorRole(normPos, u.exactPos, u.tackles / gp, u.goals / gp);
 
+  // 1. Base Match Rating
   const ratingScore = avgRat * 10;
+
+  // 2. Attacking & Clinicality (Strikers/CAMs judged more strictly on wasted shots than CDMs/Defenders)
   const shotConv = u.shots > 0 ? (u.goals / u.shots) : 0;
   const wastedShots = Math.max(0, u.shots - u.goals);
+  const wastePenaltyWeight = isAnchor ? 0.15 : 0.35;
   const convBonus = u.shots >= 2 ? (shotConv - 0.25) * 4.5 : (u.goals > 0 ? 1.0 : 0);
-  const attackScore = ((u.goals * 3.8) + (u.assists * 3.2) - (wastedShots * 0.35)) / gp + convBonus;
+  const attackScore = ((u.goals * 3.8) + (u.assists * 3.2) - (wastedShots * wastePenaltyWeight)) / gp + convBonus;
 
+  // 3. Playmaking & Ball Security (CDMs & Defenders get extra credit for high pass completion % out from the back)
   const passAtt = Math.max(u.passesMade, u.passAttempts || u.passesMade);
   const missedPasses = Math.max(0, passAtt - u.passesMade);
   const passPct = passAtt > 0 ? (u.passesMade / passAtt) * 100 : 75;
-  const passAccBonus = passAtt >= 5 * gp ? ((passPct - 76) * 0.14) : 0;
-  const playmakingScore = ((u.passesMade * 0.12) - (missedPasses * 0.22) + (u.skillMoves * 0.35)) / gp + passAccBonus;
+  const passAccWeight = isAnchor ? 0.20 : 0.14;
+  const passAccBonus = passAtt >= 5 * gp ? ((passPct - 75) * passAccWeight) : 0;
+  const playmakingScore = ((u.passesMade * 0.12) - (missedPasses * 0.22) + (u.skillMoves * 0.32)) / gp + passAccBonus;
+
+  // 4. Position-Weighted Defensive Grit (Interceptions, Blocks, Tackles & Run Covering)
+  // - DEF & CDM Anchors: Interceptions (+1.55), Blocks (+1.45), Tackles (+1.40) + Tackle Win-% bonus + Backline Lockdown bonus
+  // - Box-to-Box MID:    Interceptions (+0.95), Blocks (+0.90), Tackles (+1.10)
+  // - Strikers (FWD):    Interceptions (+0.40), Blocks (+0.45), Tackles (+0.65) -> prevents striker pressing from overshadowing real defenders
+  const intWeight   = isAnchor ? 1.55 : (normPos === 'MID' ? 0.95 : 0.40);
+  const blockWeight = isAnchor ? 1.45 : (normPos === 'MID' ? 0.90 : 0.45);
+  const tklWeight   = isAnchor ? 1.40 : (normPos === 'MID' ? 1.10 : 0.65);
 
   const tAtt = Math.max(u.tackles, u.tackleAttempts || u.tackles);
   const missedTackles = Math.max(0, tAtt - u.tackles);
-  const csWeight = (normPos === 'DEF' || normPos === 'GK') ? 3.2 : 1.5;
-  const defenseScore = ((u.tackles * 1.15) - (missedTackles * 0.25) + (u.blocks * 1.1) + (u.interceptions * 0.85) + (u.cleanSheets * csWeight)) / gp;
+  const tklWinPct = tAtt > 0 ? (u.tackles / tAtt) : 0.5;
+  const tklEfficiencyBonus = (isAnchor && u.tackles >= gp) ? Math.max(0, (tklWinPct - 0.35) * 3.0) : 0;
 
+  // Clean Sheets & Low-Concession Backline Lockdown Bonus (Rewards DEF/CDM when team concedes <= 1 goal/game even without a 0-goal CS)
+  const csWeight = (isAnchor || normPos === 'GK') ? 3.4 : 1.2;
+  const avgGoalsConceded = (u.goalsConceded || 0) / gp;
+  const lockdownBonus = isAnchor
+    ? (avgGoalsConceded <= 0.8 ? 2.4 : (avgGoalsConceded <= 1.25 ? 1.4 : (avgGoalsConceded <= 1.6 ? 0.6 : 0)))
+    : 0;
+
+  const defenseScore = (
+    (u.interceptions * intWeight) +
+    (u.blocks * blockWeight) +
+    (u.tackles * tklWeight) -
+    (missedTackles * 0.25) +
+    (u.cleanSheets * csWeight)
+  ) / gp + tklEfficiencyBonus + lockdownBonus;
+
+  // 5. Goalkeeping
   const gkShotsFaced = u.saves + (u.goalsConceded || 0);
   const savePctBonus = (u.saves > 0 && gkShotsFaced >= 2) ? (((u.saves / gkShotsFaced) - 0.65) * 4.0) : 0;
   const gkScore = ((u.saves * 1.35) / gp) + savePctBonus;
 
+  // 6. Discipline
   const disciplinePenalty = ((u.offsides * 0.65) + (u.yellows * 1.5) + (u.reds * 5.5)) / gp;
+
   return ratingScore + attackScore + playmakingScore + defenseScore + gkScore - disciplinePenalty;
 }
 
@@ -199,6 +258,7 @@ function formatHolisticPlayerSummary(u, isPassenger = false) {
   const passAtt = Math.max(u.passesMade, u.passAttempts || u.passesMade);
   const passPct = passAtt > 0 ? Math.round((u.passesMade / passAtt) * 100) : 0;
   const missedPasses = Math.max(0, passAtt - u.passesMade);
+  const isAnchor = isDefensiveAnchorRole(u.normPos, u.exactPos, u.tackles / Math.max(1, u.games), u.goals / Math.max(1, u.games));
 
   if (isPassenger) {
     const flaws = [];
@@ -214,13 +274,22 @@ function formatHolisticPlayerSummary(u, isPassenger = false) {
 
   const highlights = [];
   if (u.saves >= 3) highlights.push(`${u.saves} Saves`);
+  // For DEF/CDM anchors, showcase their Interceptions, Blocks & Tackles prominently!
+  if (isAnchor && (u.interceptions + u.blocks + u.tackles) >= 2 * u.games) {
+    highlights.push(`${u.interceptions}Int ${u.blocks}Blk ${u.tackles}Tkl`);
+    if (u.cleanSheets > 0) highlights.push(`${u.cleanSheets} CS`);
+    else if (u.goals + u.assists > 0) highlights.push(`${u.goals}G ${u.assists}A`);
+    else if (passAtt > 0) highlights.push(`${passPct}% Pass`);
+    return `${avg} AVG • ${highlights.slice(0, 2).join(' • ')} (${u.games}G)`;
+  }
+
   if (u.goals + u.assists > 0) {
     const convStr = u.shots >= 2 && u.goals > 0 ? ` (${Math.round((u.goals / u.shots) * 100)}%)` : '';
     highlights.push(`${u.goals}G ${u.assists}A${convStr}`);
   }
   const defTotal = u.tackles + u.blocks + u.interceptions;
   if (defTotal >= 2 * u.games) highlights.push(`${u.tackles}Tkl ${u.blocks + u.interceptions}Blk/Int`);
-  if (u.cleanSheets > 0 && (u.normPos === 'DEF' || u.normPos === 'GK' || highlights.length < 2)) highlights.push(`${u.cleanSheets} CS`);
+  if (u.cleanSheets > 0 && (isAnchor || u.normPos === 'GK' || highlights.length < 2)) highlights.push(`${u.cleanSheets} CS`);
   if (highlights.length < 2 && passAtt > 0) highlights.push(`${passPct}% Pass`);
   return `${avg} AVG • ${highlights.slice(0, 2).join(' • ')} (${u.games}G)`;
 }
@@ -230,9 +299,14 @@ function getPlayerFunTag(p) {
   const gpg = Number(p.goals ?? 0) / g, apg = Number(p.assists ?? 0) / g, tpg = Number(p.tacklesmade ?? p.tackles ?? 0) / g;
   const tPct = Number(p.tacklesuccessrate ?? p.tackleSuccessRate ?? 0), pPct = Number(p.passSuccessRate ?? p.passSuccess ?? 0);
   const rat = parseFloat(p.ratingAve || p.rating || 0), motm = Number(p.manOfTheMatch ?? p.motm ?? 0) / g, r10 = RECENT_10_STATS_MAP[name];
+  const exactPos = EA_PRO_POS_MAP[String(p.proPos ?? '')] || p._rawPos || '';
+  const isAnchor = isDefensiveAnchorRole(p._normalizedPos, exactPos, tpg, gpg);
 
   if (r10?.superSubGA >= 1) return { label: '🦸‍♂️ Super-Sub', cls: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/50' };
   if (r10?.woodwork >= 2) return { label: '🪵 Woodwork Merchant', cls: 'bg-yellow-600/20 text-yellow-300 border-yellow-500/50' };
+  if (isAnchor && (name === TOP_INTERCEPTOR_NAME || (r10?.games > 0 && r10.interceptions / r10.games >= 2.0))) {
+    return { label: '📡 The Interceptor', cls: 'bg-sky-500/20 text-sky-300 border-sky-400/50' };
+  }
   if (name === TOP_MEAT_WALL_NAME || (r10?.games > 0 && r10.blocks / r10.games >= 1.5)) return { label: '🥩 Meat Wall', cls: 'bg-orange-500/20 text-orange-300 border-orange-400/50' };
   if (name === TOP_FIDGET_SPINNER_NAME || (r10?.games > 0 && r10.skillMoves / r10.games >= 3.5)) return { label: '🌀 Fidget Spinner', cls: 'bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/40' };
   if (motm >= 0.28 && g >= 5) return { label: '👑 MoTM Merchant', cls: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/40' };
@@ -240,6 +314,7 @@ function getPlayerFunTag(p) {
   if (gpg >= 0.45 && apg <= gpg * 0.25) return { label: '🔫 Shoot on Sight', cls: 'bg-orange-500/15 text-orange-400 border-orange-500/40' };
   if (apg >= 0.5) return { label: '🎩 Chief Creator', cls: 'bg-purple-500/15 text-purple-400 border-purple-500/40' };
   if (pPct >= 84 && apg >= 0.25) return { label: '📐 Pass Master', cls: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/40' };
+  if (isAnchor && ['CDM','LDM','RDM'].includes(exactPos) && pPct >= 78) return { label: '🔒 CDM Anchor', cls: 'bg-teal-500/20 text-teal-300 border-teal-400/50' };
   if (tpg >= 1.8 && tPct >= 30) return { label: '🧱 Brick Wall', cls: 'bg-blue-500/15 text-blue-400 border-blue-500/40' };
   if (tpg >= 1.6 && tPct < 30) return { label: '🦵 Ankle Breaker', cls: 'bg-red-500/15 text-red-400 border-red-500/40' };
   if (gpg >= 0.35 && apg >= 0.35) return { label: '⚡ Double Threat', cls: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/40' };
@@ -253,11 +328,12 @@ function computeArchetypeAndPlaystyles(p) {
   const name = String(p.name || p.proName || 'Pro'), pos = p._normalizedPos || 'MID', rawPos = String(p._rawPos || '').toUpperCase();
   const g = Math.max(1, Number(p.gamesPlayed || 1)), gpg = Number(p.goals || 0) / g, apg = Number(p.assists || 0) / g, tpg = Number(p.tacklesmade || p.tackles || 0) / g;
   const tWin = Number(p.tacklesuccessrate || 25), pPct = Number(p.passSuccessRate || 75), rat = parseFloat(p.ratingAve || 7.2), h = parseInt(p.proHeight || 180, 10);
+  const isAnchor = isDefensiveAnchorRole(pos, rawPos, tpg, gpg);
   let seed = 0; for (let i = 0; i < name.length; i++) seed = (seed * 31 + name.charCodeAt(i)) % 1000;
   const jit = (idx) => ((seed + idx * 17) % 11) * 0.8;
 
   const archetype = pos === 'FWD' ? (h >= 188 ? 'Target' : gpg >= 0.65 ? 'Finisher' : apg >= 0.42 ? 'Creator' : h <= 175 ? 'Spark' : 'Hawk')
-    : pos === 'MID' ? (tpg >= 1.45 ? 'Destroyer' : pPct >= 83 && apg >= 0.35 ? 'Maestro' : gpg >= 0.38 ? 'Shadow Striker' : pPct >= 80 ? 'Architect' : 'Engine')
+    : pos === 'MID' ? (isAnchor || tpg >= 1.45 ? 'Destroyer' : pPct >= 83 && apg >= 0.35 ? 'Maestro' : gpg >= 0.38 ? 'Shadow Striker' : pPct >= 80 ? 'Architect' : 'Engine')
     : pos === 'DEF' ? (rawPos.includes('B') && !rawPos.includes('CB') ? 'Marauder' : h >= 188 ? 'Titan' : 'Guardian') : 'Sweeper Keeper';
 
   if (pos === 'GK') return { archetype, psPlus: { slug: 'footwork', name: 'Footwork', desc: 'Boosted close-range foot saves.' }, activePlaystyles: [{ slug: 'far_reach', name: 'Far Reach', desc: 'Extended reach on outside-box shots.' }, { slug: 'cross_claimer', name: 'Cross Claimer', desc: 'Intercepts high crosses cleanly.' }] };
@@ -279,10 +355,10 @@ function computeArchetypeAndPlaystyles(p) {
     { slug: 'trickster', name: 'Trickster', desc: 'Unique flicks and faster strafe dribbling.', score: (pos==='FWD'?25:12) + (name===TOP_FIDGET_SPINNER_NAME?35:0) + jit(14) },
     { slug: 'press_proven', name: 'Press Proven', desc: 'Shields ball effectively from pressers.', score: (pos==='MID'?30:15) + pPct*0.35 + tpg*10 + jit(15) },
     { slug: 'trivela', name: 'Trivela', desc: 'Outside-of-the-foot passes and shots.', score: apg*32 + gpg*26 + jit(16) },
-    { slug: 'anticipate', name: 'Anticipate', desc: 'Standing tackles stop ball directly at feet.', score: (pos==='DEF'?45:10) + tpg*24 + tWin*0.4 + jit(17) },
-    { slug: 'intercept', name: 'Intercept', desc: 'Increased reach and ball retention on interceptions.', score: (pos!=='FWD'?32:5) + tpg*26 + jit(18) },
-    { slug: 'jockey', name: 'Jockey', desc: 'Increased max speed of Sprint Jockey.', score: (pos==='DEF'?38:12) + tWin*0.45 + jit(19) },
-    { slug: 'block', name: 'Block', desc: 'Increased reach when performing blocks.', score: (pos==='DEF'?40:6) + (name===TOP_MEAT_WALL_NAME?35:0) + tpg*18 + jit(20) },
+    { slug: 'anticipate', name: 'Anticipate', desc: 'Standing tackles stop ball directly at feet.', score: (isAnchor?45:10) + tpg*24 + tWin*0.4 + jit(17) },
+    { slug: 'intercept', name: 'Intercept', desc: 'Increased reach and ball retention on interceptions.', score: (isAnchor?48:(pos!=='FWD'?28:4)) + (name===TOP_INTERCEPTOR_NAME?30:0) + tpg*26 + jit(18) },
+    { slug: 'jockey', name: 'Jockey', desc: 'Increased max speed of Sprint Jockey.', score: (isAnchor?38:12) + tWin*0.45 + jit(19) },
+    { slug: 'block', name: 'Block', desc: 'Increased reach when performing blocks.', score: (isAnchor?40:6) + (name===TOP_MEAT_WALL_NAME?35:0) + tpg*18 + jit(20) },
     { slug: 'bruiser', name: 'Bruiser', desc: 'Greater physical strength in tackles.', score: (h>=184?28:8) + tpg*22 + jit(22) },
     { slug: 'aerial_fortress', name: 'Aerial Fortress', desc: 'Higher jumps and aerial dominance.', score: (h>=187?52:4) + gpg*15 + jit(23) },
     { slug: 'relentless', name: 'Relentless', desc: 'Reduces fatigue loss and boosts stamina recovery.', score: (g>=25?28:14) + (tpg+apg)*14 + jit(24) }
@@ -303,7 +379,9 @@ function getChaosEmoji(myG, oppG, oppSR) {
 
 function getPlayerRadarMetrics(p) {
   const ovr = Number(p.proOverall || 85), games = Math.max(1, Number(p.gamesPlayed || 1)), g = Number(p.goals || 0), a = Number(p.assists || 0), t = Number(p.tacklesmade || p.tackles || 0), passPct = Number(p.passSuccessRate || 78), rat = parseFloat(p.ratingAve || 7.2), motm = Number(p.manOfTheMatch || 0);
-  const pac = Math.min(99, Math.max(60, Math.round(ovr + 3))), sho = Math.min(99, Math.max(55, Math.round(ovr - 4 + (g / games) * 14))), pas = Math.min(99, Math.max(58, Math.round(passPct + 6))), dri = Math.min(99, Math.max(62, Math.round(ovr + (rat - 7.0) * 5))), def = Math.min(99, Math.max(28, Math.round((p._normalizedPos === 'DEF' ? 82 : 42) + (t / games) * 15))), phy = Math.min(99, Math.max(58, Math.round(ovr - 3 + (t / games) * 6)));
+  const exactPos = EA_PRO_POS_MAP[String(p.proPos ?? '')] || p._rawPos || '';
+  const isAnchor = isDefensiveAnchorRole(p._normalizedPos, exactPos, t / games, g / games);
+  const pac = Math.min(99, Math.max(60, Math.round(ovr + 3))), sho = Math.min(99, Math.max(55, Math.round(ovr - 4 + (g / games) * 14))), pas = Math.min(99, Math.max(58, Math.round(passPct + 6))), dri = Math.min(99, Math.max(62, Math.round(ovr + (rat - 7.0) * 5))), def = Math.min(99, Math.max(28, Math.round((isAnchor ? 82 : 42) + (t / games) * 15))), phy = Math.min(99, Math.max(58, Math.round(ovr - 3 + (t / games) * 6)));
   const gpg = g / games, apg = a / games, tpg = t / games, mPct = Math.round((motm / games) * 100);
   return {
     attributes: [{ label:'PAC', val:pac, raw:pac }, { label:'SHO', val:sho, raw:sho }, { label:'PAS', val:pas, raw:pas }, { label:'DRI', val:dri, raw:dri }, { label:'DEF', val:def, raw:def }, { label:'PHY', val:phy, raw:phy }],
@@ -321,7 +399,7 @@ function buildRadarSvg(ax1, ax2) {
 
 function computeMatchIntelligence(clubId, matchesPayload) {
   RECENT_FORM_MAP = {}; RECENT_10_STATS_MAP = {}; MATCH_PLAYER_META = {};
-  TOP_FIDGET_SPINNER_NAME = null; TOP_MEAT_WALL_NAME = null;
+  TOP_FIDGET_SPINNER_NAME = null; TOP_MEAT_WALL_NAME = null; TOP_INTERCEPTOR_NAME = null;
   const ratingBuckets = {}, duoContributions = {}, opponentCounts = {}, shameMap = {}, sessionMatches = [];
   let highestSrOpp = null, prevTs = null;
   const matchArr = Array.isArray(matchesPayload) ? matchesPayload : (matchesPayload?.matches || []);
@@ -344,6 +422,10 @@ function computeMatchIntelligence(clubId, matchesPayload) {
     lobbyPlayers.forEach(p => {
       const pName = p.playername || p.name || 'Pro';
       const pKey = String(pName).toLowerCase().trim();
+      const memberMeta = findMemberMeta(pName);
+      const exactPos = EA_PRO_POS_MAP[String(memberMeta?.proPos ?? '')] || '';
+      const normPos = p.pos ? normalizePosition(p.pos) : normalizePosition(memberMeta?.favoritePosition || 'MID');
+
       if (!MATCH_PLAYER_META[pKey]) {
         MATCH_PLAYER_META[pKey] = {
           name: pName,
@@ -356,7 +438,7 @@ function computeMatchIntelligence(clubId, matchesPayload) {
       const r = parseFloat(p.rating || 0), g = Number(p.goals || 0), a = Number(p.assists || 0);
       const t = Number(p.tacklesmade || p.tackles || 0), tAtt = Number(p.tackleattempts || Math.max(t, t * 2)), shots = Number(p.shots || 0);
       const pMade = Number(p.passesmade || 0), pAtt = Number(p.passattempts || pMade), missedP = Math.max(0, pAtt - pMade);
-      const ev = parsePlayerMatchEvents(p), reds = ev.redCards, yellows = ev.yellowCards;
+      const ev = parsePlayerMatchEvents(p, exactPos), reds = ev.redCards, yellows = ev.yellowCards;
       const isSub = maxSecs > 600 && Number(p.secondsPlayed || maxSecs) <= maxSecs * 0.78 && reds === 0;
 
       if (idx < 5 && r > 0) { if (!ratingBuckets[pName]) ratingBuckets[pName] = []; ratingBuckets[pName].push(r); }
@@ -365,7 +447,7 @@ function computeMatchIntelligence(clubId, matchesPayload) {
       r10.games++; r10.goals += g; r10.assists += a; r10.shots += shots; r10.tackles += t; r10.totalRating += r; r10.skillMoves += ev.skillMoves; r10.blocks += ev.blocks; r10.interceptions += ev.interceptions; r10.woodwork += ev.woodwork; r10.yellows += yellows; r10.reds += reds;
       if (isSub) r10.subGames++; if (isSub && (g + a > 0)) r10.superSubGA += (g + a); if (oppG === 0) r10.recentCleanSheets++;
 
-      if (!shameMap[pName]) shameMap[pName] = { name: pName, games:0, missedPasses:0, skillMoves:0, dribblesCompleted:0, blocks:0, interceptions:0, woodwork:0, shots:0, goals:0, assists:0, yellows:0, reds:0, tackles:0, tackleAtt:0, superSubGA:0, subGames:0, cleanSheets:0 };
+      if (!shameMap[pName]) shameMap[pName] = { name: pName, normPos, exactPos, games:0, missedPasses:0, skillMoves:0, dribblesCompleted:0, blocks:0, interceptions:0, woodwork:0, shots:0, goals:0, assists:0, yellows:0, reds:0, tackles:0, tackleAtt:0, superSubGA:0, subGames:0, cleanSheets:0 };
       const sm = shameMap[pName];
       sm.games++; sm.missedPasses += missedP; sm.skillMoves += ev.skillMoves; sm.dribblesCompleted += ev.dribblesCompleted; sm.blocks += ev.blocks; sm.interceptions += ev.interceptions; sm.woodwork += ev.woodwork; sm.shots += shots; sm.goals += g; sm.assists += a; sm.yellows += yellows; sm.reds += reds; sm.tackles += t; sm.tackleAtt += tAtt;
       if (isSub) sm.subGames++; if (isSub && (g + a > 0)) sm.superSubGA += (g + a); if (oppG === 0) sm.cleanSheets++;
@@ -384,10 +466,15 @@ function computeMatchIntelligence(clubId, matchesPayload) {
   Object.keys(ratingBuckets).forEach(n => RECENT_FORM_MAP[n] = ratingBuckets[n].reduce((a, b) => a + b, 0) / ratingBuckets[n].length);
   SESSION_MATCHES_CACHE = sessionMatches;
   SHAME_LIST_CACHE = Object.values(shameMap);
+
   const topSkiller = [...SHAME_LIST_CACHE].sort((a, b) => b.skillMoves - a.skillMoves)[0];
   if (topSkiller?.skillMoves > 0) TOP_FIDGET_SPINNER_NAME = topSkiller.name;
   const topBlocker = [...SHAME_LIST_CACHE].sort((a, b) => b.blocks - a.blocks)[0];
   if (topBlocker?.blocks > 0) TOP_MEAT_WALL_NAME = topBlocker.name;
+  const topAnchorInterceptor = [...SHAME_LIST_CACHE]
+    .filter(x => isDefensiveAnchorRole(x.normPos, x.exactPos, x.tackles / Math.max(1, x.games), x.goals / Math.max(1, x.games)))
+    .sort((a, b) => b.interceptions - a.interceptions)[0];
+  if (topAnchorInterceptor?.interceptions > 0) TOP_INTERCEPTOR_NAME = topAnchorInterceptor.name;
 
   updateRecapMetricsDisplay(clubId, CURRENT_RECAP_MODE === 'session' ? sessionMatches : matchArr.slice(0, 10), CURRENT_RECAP_MODE);
   renderShameBoard(SHAME_LIST_CACHE);
