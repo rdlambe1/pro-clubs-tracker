@@ -405,6 +405,7 @@ function switchBanterMode(mode) {
   renderShameBoard(SHAME_LIST_CACHE);
 }
 
+// Renders Banter & Shame Board with Clean Cards + Floating Hover Tooltip for Descriptive Subtext
 function renderShameBoard(shameList = []) {
   const sec = document.getElementById('shameBoardSection');
   if (!shameList.length && !GLOBAL_MEMBERS.length) return sec.classList.add('hidden');
@@ -412,7 +413,7 @@ function renderShameBoard(shameList = []) {
 
   let cards = [];
   if (CURRENT_BANTER_MODE === 'allTime' && GLOBAL_MEMBERS.length) {
-    document.getElementById('shameBoardSubtext').innerText = 'All-Time Club Career Awards & Banter: The Interceptor, Meat Wall, Super-Sub, Woodwork Merchant, Fidget Spinner, Hospital Pass, Barn Door, Allergy to Passing, Bluetooth Tackler & Butcher';
+    document.getElementById('shameBoardSubtext').innerText = 'All-Time Club Career Awards & Banter • Hover over any award for details';
     const cList = GLOBAL_MEMBERS.map(m => {
       const name = m.name || m.proName || 'Pro', games = Math.max(1, Number(m.gamesPlayed ?? m.games ?? 1)), goals = Number(m.goals ?? 0), assists = Number(m.assists ?? 0);
       const pm = Number(m.passesMade ?? m.passesmade ?? 0), pPct = Math.max(1, Number(m.passSuccessRate ?? 75)), missedP = Math.max(0, Math.round(pm / (pPct / 100)) - pm);
@@ -456,7 +457,7 @@ function renderShameBoard(shameList = []) {
       { title: '🟥 All-Time Sunday League Butcher', w: byRed.name, st: byRed.reds > 0 ? `${byRed.reds} Career Red Cards` : `${byRed.tkl} Career Tackles`, sub: `Club enforcer across ${byRed.games} GP`, b: 'border-red-500/40', c: 'text-red-400' }
     ];
   } else if (shameList.length) {
-    document.getElementById('shameBoardSubtext').innerText = 'Last 10 Matches Awards & Banter: The Interceptor, Meat Wall, Super-Sub, Woodwork Merchant, Fidget Spinner, Hospital Pass, Barn Door, Allergy to Passing, Bluetooth Tackler & Butcher';
+    document.getElementById('shameBoardSubtext').innerText = 'Last 10 Matches Awards & Banter • Hover over any award for details';
     shameList.forEach(i => { i.missedTackles = Math.max(0, i.tackleAtt - i.tackles); i.tackleWinPct = i.tackleAtt > 0 ? Math.round((i.tackles / i.tackleAtt) * 100) : 0; });
     const nonFwds = shameList.filter(x => x.normPos !== 'FWD' && x.normPos !== 'GK');
     const byInt = (nonFwds.length ? nonFwds : [...shameList]).sort((a, b) => (b.interceptions * 10 + b.tackles) - (a.interceptions * 10 + a.tackles))[0];
@@ -485,7 +486,8 @@ function renderShameBoard(shameList = []) {
       { title: '🟥 Sunday League Butcher', w: byRed.name, st: (byRed.reds > 0 || byRed.yellows > 0) ? `${byRed.yellows}🟨 ${byRed.reds}🟥 Cards` : `${byRed.tackles} Tackles Won`, sub: 'Midfield enforcer in last 10', b: 'border-red-500/40', c: 'text-red-400' }
     ];
   }
-  document.getElementById('shameBoardGrid').innerHTML = cards.map(c => `<div class="bg-gray-900/60 border ${c.b} rounded-xl p-3.5 flex items-center justify-between"><div class="min-w-0 pr-2"><div class="text-[10px] font-black uppercase text-gray-400 truncate">${c.title}</div><div class="text-sm font-extrabold text-white mt-0.5 truncate">${c.w}</div><div class="text-xs font-bold ${c.c} mt-0.5">${c.st}</div><div class="text-[10px] text-gray-500 mt-0.5 truncate">${c.sub}</div></div>${renderAvatarWithFlagHtml(c.w, 'w-11 h-11', 'border-gray-700', 'w-4 h-3')}</div>`).join('');
+
+  document.getElementById('shameBoardGrid').innerHTML = cards.map(c => `<div title="${c.sub}" class="group relative bg-gray-900/60 border ${c.b} rounded-xl p-3.5 flex items-center justify-between hover:bg-gray-800/60 transition cursor-help"><div class="min-w-0 pr-2"><div class="text-[10px] font-black uppercase text-gray-400 truncate">${c.title}</div><div class="text-sm font-extrabold text-white mt-0.5 truncate">${c.w}</div><div class="text-xs font-bold ${c.c} mt-0.5">${c.st}</div></div>${renderAvatarWithFlagHtml(c.w, 'w-11 h-11', 'border-gray-700', 'w-4 h-3')}<div class="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 -translate-y-full hidden group-hover:block bg-gray-950 text-gray-200 border border-gray-700 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold shadow-2xl whitespace-nowrap z-30">${c.sub}</div></div>`).join('');
 }
 
 function renderCareerMilestones(members = []) {
@@ -752,7 +754,6 @@ function renderRecentMatches(clubId, matches) {
   formContainer.innerHTML = formList.join('');
 }
 
-// Respects the actual match bucket (mp.pos) first so a midfielder with a RW/ST build isn't misclassified as a match Forward!
 function getExactPlayerRole(m = {}, mp = {}) {
   const proRole = EA_PRO_POS_MAP[String(m.proPos ?? '')] || '';
   const matchBucket = mp.pos ? normalizePosition(mp.pos) : null;
@@ -782,7 +783,6 @@ function switchPitchMode(mode) {
   buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
 }
 
-// Accurately Auto-Detects Formation from Match Bucket Counts (FWD/MID/DEF) rather than stale Virtual Pro winger builds
 function buildDynamicPitchTactic(members = [], matches = []) {
   const rows = ['rowAttack','rowCAM','rowMidfield','rowDefense','rowGK'].map(id => { const el = document.getElementById(id); el.innerHTML = ''; return el; });
   if (!members.length) return;
@@ -820,11 +820,9 @@ function buildDynamicPitchTactic(members = [], matches = []) {
   if (savedOverride !== 'auto' && FORMATION_TEMPLATES[savedOverride]) {
     tpl = FORMATION_TEMPLATES[savedOverride];
   } else {
-    // Count how many players EA ACTUALLY placed in the "forward" match bucket in the latest match
     const rawMatchPlayers = Object.values(latestPlayersMap);
     const actualMatchFwds = rawMatchPlayers.filter(lp => normalizePosition(lp.pos) === 'FWD');
 
-    // Also check average max forwards across recent 5 matches in case 1 striker sat out a single game
     let maxFwdsRecent5 = actualMatchFwds.length;
     matches.slice(0, 5).forEach(m => {
       const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
@@ -834,13 +832,10 @@ function buildDynamicPitchTactic(members = [], matches = []) {
     });
 
     if (actualMatchFwds.length === 2) {
-      // Strictly a 2-striker formation (4-1-2-1-2) — NEVER 4-3-3 when 2 forwards played!
       tpl = FORMATION_TEMPLATES['4-1-2-1-2'];
     } else if (actualMatchFwds.length >= 3) {
-      // Only use 4-3-3 when 3 actual match forwards played in the fixture
       tpl = FORMATION_TEMPLATES['4-3-3 Attack'];
     } else if (actualMatchFwds.length === 1) {
-      // If 1 human forward played, check if the club regularly plays 2 forwards in recent matches or has 2+ career forwards
       const squadFwds = scored.filter(m => m._normalizedPos === 'FWD').length;
       tpl = (maxFwdsRecent5 === 2 || squadFwds >= 2) ? FORMATION_TEMPLATES['4-1-2-1-2'] : FORMATION_TEMPLATES['4-2-3-1 Narrow'];
     } else {
