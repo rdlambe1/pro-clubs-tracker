@@ -367,81 +367,125 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   }).join('');
 }
 
-// Generates Skill Rating Graph over Time (Last 10 Matches)
-function renderSkillRatingGraph(matches = []) {
-  const sec = document.getElementById('srGraphSection'), chartBox = document.getElementById('srChartContainer'), badge = document.getElementById('srTrendBadge');
-  if (!sec || !chartBox || !matches.length) { sec?.classList.add('hidden'); return; }
+// Reconstructs Match-by-Match Elo Skill Rating Trajectory Anchored to Current Club Skill Rating
+function renderSkillRatingGraph(clubId, clubData = {}, matches = []) {
+  const sec = document.getElementById('srGraphSection'), chartBox = document.getElementById('srChartContainer'), badge = document.getElementById('srTrendBadge'), metaEl = document.getElementById('srPeakLowMeta');
+  const matchArr = Array.isArray(matches) ? matches.slice(0, 10) : [];
+  if (!sec || !chartBox || !matchArr.length) { sec?.classList.add('hidden'); return; }
   sec.classList.remove('hidden');
 
-  const historyPoints = [];
-  [...matches].reverse().forEach((m, idx) => {
-    const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
-    const myId = cIds.find(id => String(id) === String(GLOBAL_CLUB_ID)) || cIds[0];
-    const myClub = clubs[myId] || {};
-    const sr = Number(myClub.skillRating ?? myClub.details?.skillRating ?? 0);
-    const myG = Number(myClub.goals ?? myClub.score ?? 0);
-    const oppId = cIds.find(id => String(id) !== String(myId)) || cIds[1];
-    const oppClub = clubs[oppId] || {};
-    const oppG = Number(oppClub.goals ?? oppClub.score ?? 0);
-    if (sr > 0) {
-      historyPoints.push({ matchIdx: idx + 1, sr, res: myG > oppG ? 'W' : (myG < oppG ? 'L' : 'D') });
-    }
-  });
+  const currentSr = Number(clubData?.overall?.skillRating ?? clubData?.overall?.rating ?? 1500) || 1500;
+  let runningSr = currentSr;
+  const reversedPoints = [];
 
-  if (historyPoints.length < 2) {
-    chartBox.innerHTML = `<span class="text-xs text-gray-500">Not enough historical skill rating points logged in recent matches yet.</span>`;
-    badge.className = 'px-2.5 py-0.5 rounded text-[11px] font-black bg-gray-800 text-gray-400';
-    badge.innerText = 'STABLE';
-    return;
+  // Walk backward from the most recent match (Match 0 = Current SR) to reconstruct historical SR before/after each match
+  for (let i = 0; i < matchArr.length; i++) {
+    const m = matchArr[i];
+    const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
+    const myId = cIds.find(id => String(id) === String(clubId)) || cIds[0];
+    const oppId = cIds.find(id => String(id) !== String(clubId)) || cIds[1];
+    const myClub = clubs[myId] || {}, oppClub = clubs[oppId] || {};
+    const myG = Number(myClub.goals ?? myClub.score ?? 0), oppG = Number(oppClub.goals ?? oppClub.score ?? 0);
+    const oppName = oppClub.details?.name || oppClub.name || 'Opponent';
+    const oppSr = Number(oppClub.skillRating || oppClub.details?.skillRating || runningSr);
+    const res = myG > oppG ? 'W' : (myG < oppG ? 'L' : 'D');
+    const gd = Math.abs(myG - oppG);
+
+    // Elo delta model: accounts for Opponent SR difference + Goal Margin
+    const srDiff = Math.max(-350, Math.min(350, oppSr - runningSr));
+    const expected = 1 / (1 + Math.pow(10, srDiff / 400));
+    const actual = res === 'W' ? 1 : (res === 'D' ? 0.5 : 0);
+    const gdMult = gd >= 3 ? 1.25 : (gd === 2 ? 1.12 : 1.0);
+    let delta = Math.round(28 * gdMult * (actual - expected));
+    if (res === 'W' && delta < 8) delta = 12;
+    if (res === 'L' && delta > -8) delta = -12;
+
+    const postMatchSr = Math.round(runningSr);
+    reversedPoints.push({
+      sr: postMatchSr,
+      delta,
+      res,
+      score: `${myG}-${oppG}`,
+      oppName,
+      oppSr: oppSr || '--',
+      isLatest: i === 0
+    });
+    runningSr = Math.max(800, runningSr - delta);
   }
 
-  const srs = historyPoints.map(p => p.sr);
-  const minSr = Math.floor(Math.min(...srs) / 25) * 25 - 25;
-  const maxSr = Math.ceil(Math.max(...srs) / 25) * 25 + 25;
-  const range = Math.max(50, maxSr - minSr);
-
-  const startSr = historyPoints[0].sr, endSr = historyPoints[historyPoints.length - 1].sr, diff = endSr - startSr;
-  badge.className = diff > 0 ? 'px-2.5 py-0.5 rounded text-[11px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : diff < 0 ? 'px-2.5 py-0.5 rounded text-[11px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40' : 'px-2.5 py-0.5 rounded text-[11px] font-black bg-gray-800 text-gray-400';
-  badge.innerText = diff > 0 ? `▲ +${diff} SR Trend` : (diff < 0 ? `▼ ${diff} SR Trend` : '⚖️ Flat Trend');
-
-  const w = 650, h = 210, padX = 45, padY = 25;
-  const plotW = w - padX * 2, plotH = h - padY * 2;
-
-  const pts = historyPoints.map((pt, i) => {
-    const x = padX + (i / (historyPoints.length - 1)) * plotW;
-    const y = padY + plotH - ((pt.sr - minSr) / range) * plotH;
-    return { x, y, ...pt };
+  // Add the starting baseline point prior to the 10-match window
+  reversedPoints.push({
+    sr: Math.round(runningSr),
+    delta: 0,
+    res: 'START',
+    score: 'Baseline',
+    oppName: '10 Games Ago',
+    oppSr: '--',
+    isBaseline: true
   });
 
-  const pathD = pts.reduce((acc, p, i) => i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`, '');
-  const areaD = `${pathD} L ${pts[pts.length - 1].x} ${padY + plotH} L ${pts[0].x} ${padY + plotH} Z`;
+  const ptsChrono = reversedPoints.reverse();
+  const srs = ptsChrono.map(p => p.sr);
+  const peakSr = Math.max(...srs), lowSr = Math.min(...srs);
+  const minSr = Math.floor((lowSr - 18) / 20) * 20;
+  const maxSr = Math.ceil((peakSr + 18) / 20) * 20;
+  const range = Math.max(40, maxSr - minSr);
 
-  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(ratio => {
-    const val = Math.round(minSr + range * (1 - ratio));
-    const y = padY + plotH * ratio;
-    return `<line x1="${padX}" y1="${y}" x2="${w - padX}" y2="${y}" stroke="#1f2937" stroke-dasharray="3 3"/><text x="${padX - 8}" y="${y + 4}" fill="#64748b" font-size="10" font-family="monospace" text-anchor="end">${val}</text>`;
+  const netChange = ptsChrono[ptsChrono.length - 1].sr - ptsChrono[0].sr;
+  if (metaEl) metaEl.innerText = `Low: ${lowSr} • Peak: ${peakSr} • Now: ${currentSr}`;
+  badge.className = netChange > 0
+    ? 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+    : netChange < 0
+    ? 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40'
+    : 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-gray-800 text-gray-300 border border-gray-700';
+  badge.innerText = netChange > 0 ? `▲ +${netChange} SR (Last ${matchArr.length}G)` : (netChange < 0 ? `▼ ${netChange} SR (Last ${matchArr.length}G)` : `⚖️ +0 SR (Last ${matchArr.length}G)`);
+
+  const w = 720, h = 225, padL = 48, padR = 26, padT = 26, padB = 34;
+  const plotW = w - padL - padR, plotH = h - padT - padB;
+
+  const coords = ptsChrono.map((pt, i) => {
+    const x = +(padL + (i / Math.max(1, ptsChrono.length - 1)) * plotW).toFixed(1);
+    const y = +(padT + plotH - ((pt.sr - minSr) / range) * plotH).toFixed(1);
+    return { x, y, idx: i, ...pt };
+  });
+
+  const pathD = coords.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const areaD = `${pathD} L ${coords[coords.length - 1].x} ${padT + plotH} L ${coords[0].x} ${padT + plotH} Z`;
+
+  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(r => {
+    const val = Math.round(maxSr - range * r);
+    const y = +(padT + plotH * r).toFixed(1);
+    return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="#1f2937" stroke-width="1" stroke-dasharray="3 3"/><text x="${padL - 8}" y="${y + 3.5}" fill="#64748b" font-size="10" font-family="monospace" font-weight="700" text-anchor="end">${val}</text>`;
   }).join('');
 
-  const circles = pts.map(p => {
-    const col = p.res === 'W' ? '#10b981' : (p.res === 'L' ? '#f43f5e' : '#f59e0b');
+  const nodesHtml = coords.map((p, i) => {
+    const col = p.isBaseline ? '#94a3b8' : (p.res === 'W' ? '#10b981' : (p.res === 'L' ? '#f43f5e' : '#f59e0b'));
+    const dStr = p.delta > 0 ? `+${p.delta}` : `${p.delta}`;
+    const shortOpp = p.isBaseline ? 'Start' : (p.isLatest ? 'NOW' : `M${i}`);
+    const tip = p.isBaseline
+      ? `Baseline (10 Games Ago): ${p.sr} SR`
+      : `Match ${i} vs ${p.oppName} (${p.res} ${p.score}) • ${p.sr} SR (${dStr})`;
+
     return `<g class="group cursor-pointer">
-      <circle cx="${p.x}" cy="${p.y}" r="5" fill="${col}" stroke="#0b0f19" stroke-width="2"/>
-      <circle cx="${p.x}" cy="${p.y}" r="9" fill="${col}" opacity="0.25"/>
-      <title>Match #${p.matchIdx}: ${p.sr} SR (${p.res})</title>
+      <title>${tip}</title>
+      <circle cx="${p.x}" cy="${p.y}" r="${p.isLatest ? 10 : 8}" fill="${col}" opacity="0.22"/>
+      <circle cx="${p.x}" cy="${p.y}" r="${p.isLatest ? 5.5 : 4.5}" fill="${col}" stroke="#0b0f19" stroke-width="2"/>
+      <text x="${p.x}" y="${p.y - 10}" fill="${p.isLatest ? '#34d399' : '#cbd5e1'}" font-size="${p.isLatest ? '11' : '9.5'}" font-family="monospace" font-weight="800" text-anchor="middle">${p.sr}</text>
+      <text x="${p.x}" y="${padT + plotH + 18}" fill="${p.isLatest ? '#10b981' : '#64748b'}" font-size="9.5" font-family="sans-serif" font-weight="${p.isLatest ? '900' : '700'}" text-anchor="middle">${shortOpp}</text>
     </g>`;
   }).join('');
 
-  chartBox.innerHTML = `<svg viewBox="0 0 ${w} ${h}" class="w-full h-full overflow-visible">
+  chartBox.innerHTML = `<svg viewBox="0 0 ${w} ${h}" class="w-full h-full overflow-visible select-none">
     <defs>
-      <linearGradient id="srGlow" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="#10b981" stop-opacity="0.35"/>
+      <linearGradient id="srAreaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#10b981" stop-opacity="0.32"/>
         <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
       </linearGradient>
     </defs>
     ${gridLines}
-    <path d="${areaD}" fill="url(#srGlow)"/>
-    <path d="${pathD}" fill="none" stroke="#10b981" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
-    ${circles}
+    <path d="${areaD}" fill="url(#srAreaGrad)"/>
+    <path d="${pathD}" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    ${nodesHtml}
   </svg>`;
 }
 
@@ -541,7 +585,7 @@ function renderShameBoard(shameList = []) {
     const [bySub, byMeat, byWood, bySkill, byPass, byBarn, byAllergy, byBluetooth, byRed] = [
       [...shameList].sort((a, b) => (b.superSubGA * 10 + b.subGames) - (a.superSubGA * 10 + a.subGames))[0],
       [...shameList].sort((a, b) => (b.blocks * 10 + b.tackles) - (a.blocks * 10 + a.tackles))[0],
-      [...shameList].sort((a, b) => (b.woodwork * 15 + (b.shots - b.goals)) - (a.woodwork * 15 + (b.shots - b.goals)))[0],
+      [...shameList].sort((a, b) => (b.woodwork * 15 + (b.shots - b.goals)) - (a.woodwork * 15 + (a.shots - a.goals)))[0],
       [...shameList].sort((a, b) => b.skillMoves - a.skillMoves)[0],
       [...shameList].sort((a, b) => b.missedPasses - a.missedPasses)[0],
       [...shameList].sort((a, b) => (b.shots - b.goals) - (a.shots - a.goals))[0],
@@ -616,13 +660,13 @@ async function loadClub(clubId, platform = 'common-gen5', updateHistory = true) 
     const shameList = computeMatchIntelligence(clubId, GLOBAL_MATCHES);
     const membersList = renderMembers(GLOBAL_MEMBERS);
     renderClub(clubId, combined, platform, membersList, GLOBAL_MATCHES, updateHistory);
+    renderSkillRatingGraph(clubId, combined, GLOBAL_MATCHES);
     renderClubReviewReport(combined, membersList, GLOBAL_MATCHES, shameList);
     renderSeasonsHistory(combined.seasonsHistory, combined.trophies);
     renderCareerMilestones(membersList);
     buildDynamicPitchTactic(membersList, GLOBAL_MATCHES);
     initRadarComparison(membersList);
     renderRecentMatches(clubId, GLOBAL_MATCHES);
-    renderSkillRatingGraph(GLOBAL_MATCHES);
     setStatus('');
   } catch (e) { setStatus(`Error loading stats: ${e.message}`, true); }
 }
@@ -687,3 +731,323 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
   document.getElementById('skillRating').innerText = rating;
   document.getElementById('goalStats').innerHTML = `${goals}/${conceded} <span class="text-xs text-gray-400 font-normal">(${gDiff>=0?`+${gDiff}`:gDiff})</span>`;
 }
+
+function renderMembers(data) {
+  const tbody = document.getElementById('membersTable'), list = Array.isArray(data) ? data : [];
+  const firstTh = tbody?.closest('table')?.querySelector('thead th:first-child');
+  if (firstTh) firstTh.innerText = 'Player & Loyalty';
+
+  if (!list.length) { tbody.innerHTML = '<tr><td colspan="11" class="py-6 text-center text-gray-500">No member records returned.</td></tr>'; return []; }
+
+  tbody.innerHTML = list.map(m => {
+    const name = m.name || m.proName || 'Unknown', ovr = Number(m.proOverall || 85), tierInfo = getCardTierTheme(ovr);
+    const normPos = normalizePosition(m.favoritePosition || m.pos || 'MID'), exactPos = EA_PRO_POS_MAP[String(m.proPos ?? '')] || normPos;
+    const games = Number(m.gamesPlayed ?? 0), goals = Number(m.goals ?? 0), assists = Number(m.assists ?? 0);
+    const careerRat = parseFloat(m.ratingAve || m.rating || 0), pass = m.passSuccessRate ?? 0, motm = m.manOfTheMatch ?? 0;
+
+    const r10 = RECENT_10_STATS_MAP[name];
+    const sm = SHAME_LIST_CACHE.find(x => x.name === name);
+    const tackles = Number(m.tacklesMade ?? m.tacklesmade ?? m.tackles ?? r10?.tackles ?? 0);
+    const r10TklWin = (sm && sm.tackleAtt > 0) ? Math.round((sm.tackles / sm.tackleAtt) * 100) : 0;
+    const tWin = Number(m.tackleSuccessRate ?? m.tacklesuccessrate ?? r10TklWin ?? 0);
+
+    const gaPg = games > 0 ? ((goals + assists) / games).toFixed(2) : '0.00';
+    const r10Conv = r10?.shots > 0 ? Math.round((r10.goals / r10.shots) * 100) : null;
+    const shotConv = Number(m.shotConvRate || 0) > 0 ? Number(m.shotConvRate) : (r10Conv ?? '--');
+
+    const totalCS = Math.max(Number(m.totalCleanSheets ?? m.cleanSheetsDef ?? 0), Number(r10?.recentCleanSheets || 0));
+    const csBadge = totalCS > 0
+      ? `<span class="ml-1.5 px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold" title="${totalCS} Clean Sheets">${totalCS} CS</span>`
+      : '';
+
+    const otherG = Number(m.otherClubGames ?? 0);
+    const loyaltyBadge = otherG === 0
+      ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">🛡️ One-Club</span>`
+      : `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">💼 ${otherG}g Elsewhere</span>`;
+    const recentAvg = RECENT_FORM_MAP[name];
+    const formArr = (recentAvg !== undefined && careerRat > 0) ? (recentAvg - careerRat >= 0.15 ? '<span class="text-emerald-400 font-black ml-1">▲</span>' : recentAvg - careerRat <= -0.15 ? '<span class="text-rose-400 font-black ml-1">▼</span>' : '<span class="text-gray-500 ml-1">•</span>') : '';
+
+    m._normalizedPos = normPos; m._rawPos = exactPos;
+    const bCol = normPos === 'FWD' ? 'text-rose-400 bg-rose-500/10' : normPos === 'MID' ? 'text-amber-400 bg-amber-500/10' : normPos === 'DEF' ? 'text-blue-400 bg-blue-500/10' : 'text-purple-400 bg-purple-500/10';
+
+    return `<tr onclick="openFutModal('${name.replace(/'/g, "\\'")}')" class="hover:bg-gray-800/50 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-2">${renderAvatarWithFlagHtml(name, 'w-8 h-8 sm:w-9 sm:h-9', 'border-emerald-500/40', 'w-3.5 h-2.5')}<span class="hover:text-yellow-400 font-bold">${name}</span>${loyaltyBadge}</div></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded border font-black text-xs ${tierInfo.badgeClass}">${ovr}</span></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${bCol}">${exactPos}</span></td><td class="py-2.5 px-2 text-center text-gray-300">${games}</td><td class="py-2.5 px-2 text-center font-bold text-emerald-400">${goals} ${shotConv!=='--'?`<span class="text-[10px] text-gray-400 font-mono">(${shotConv}%)</span>`:''}</td><td class="py-2.5 px-2 text-center text-gray-300">${assists}</td><td class="py-2.5 px-2 text-center text-emerald-300 font-mono">${gaPg}</td><td class="py-2.5 px-2 text-center text-sky-400 font-medium" title="${tackles} Tackles Won (${tWin}% Success Rate)">${tackles} <span class="text-xs text-gray-400">(${tWin}%)</span>${csBadge}</td><td class="py-2.5 px-2 text-center text-yellow-400 font-semibold">${careerRat.toFixed(1)}${formArr}</td><td class="py-2.5 px-2 text-center text-gray-300">${pass}%</td><td class="py-2.5 px-2 text-center text-purple-400">${motm}</td></tr>`;
+  }).join('');
+  return list;
+}
+
+function initRadarComparison(members = []) {
+  const sec = document.getElementById('radarSection');
+  if (!members.length) return sec.classList.add('hidden');
+  sec.classList.remove('hidden');
+  const sorted = [...members].sort((a, b) => Number(b.gamesPlayed || 0) - Number(a.gamesPlayed || 0));
+  const opts = sorted.map(m => `<option value="${m.name||m.proName}" class="bg-gray-900 text-white">${m.name||m.proName} (${m.proOverall||85} OVR)</option>`).join('');
+  const s1 = document.getElementById('radarSelectP1'), s2 = document.getElementById('radarSelectP2');
+  s1.innerHTML = opts; s2.innerHTML = opts; if (sorted.length >= 2) s2.selectedIndex = 1;
+  updateRadarCharts();
+}
+
+function updateRadarCharts() {
+  const p1 = GLOBAL_MEMBERS.find(m => (m.name||m.proName) === document.getElementById('radarSelectP1').value) || GLOBAL_MEMBERS[0];
+  const p2 = GLOBAL_MEMBERS.find(m => (m.name||m.proName) === document.getElementById('radarSelectP2').value) || GLOBAL_MEMBERS[0];
+  if (!p1 || !p2) return;
+  const m1 = getPlayerRadarMetrics(p1), m2 = getPlayerRadarMetrics(p2);
+  document.getElementById('radarChartAttributes').innerHTML = buildRadarSvg(m1.attributes, m2.attributes);
+  document.getElementById('radarChartStats').innerHTML = buildRadarSvg(m1.stats, m2.stats);
+  document.getElementById('radarLegendAttr').innerHTML = m1.attributes.map((a, i) => `<div class="flex flex-col items-center"><span class="text-[9px] text-gray-400 font-bold">${a.label}</span><div><span class="text-emerald-400 font-bold">${a.raw}</span>/<span class="text-sky-400 font-bold">${m2.attributes[i].raw}</span></div></div>`).join('');
+  document.getElementById('radarLegendStats').innerHTML = m1.stats.map((s, i) => `<div class="flex flex-col items-center"><span class="text-[9px] text-gray-400 font-bold">${s.label}</span><div><span class="text-emerald-400 font-bold">${s.raw}</span>/<span class="text-sky-400 font-bold">${m2.stats[i].raw}</span></div></div>`).join('');
+}
+
+function openFutModal(playerName) {
+  const p = GLOBAL_MEMBERS.find(m => (m.name || m.proName || m.gamertag) === playerName);
+  if (!p) return;
+  ACTIVE_MODAL_PLAYER = playerName;
+  const name = p.name || p.proName || 'Player', ovr = Number(p.proOverall || 85), pos = EA_PRO_POS_MAP[String(p.proPos ?? '')] || (p._rawPos?.length <= 4 ? p._rawPos.toUpperCase() : p._normalizedPos);
+  const metrics = getPlayerRadarMetrics(p), buildInfo = computeArchetypeAndPlaystyles(p), theme = getCardTierTheme(ovr);
+
+  ['1','2','3','4','5'].forEach((n, i) => document.getElementById(`stopBase${n}`).setAttribute('stop-color', theme.baseStops[i]));
+  ['1','2','3'].forEach((n, i) => document.getElementById(`stopPlate${n}`).setAttribute('stop-color', theme.plateStops[i]));
+  ['1','2','3','4'].forEach((n, i) => document.getElementById(`stopRim${n}`).setAttribute('stop-color', theme.rimStops[i]));
+  document.getElementById('futTopLeftText').style.color = theme.textColor;
+  document.getElementById('futLowerTextContainer').style.color = theme.textColor;
+
+  document.getElementById('futArchetypeBadge').innerHTML = `<i class="fa-solid fa-crown text-[8px]"></i> ${buildInfo.archetype}`;
+  document.getElementById('futLeftPlaystylesStack').innerHTML = [renderPlaystyleDiamondHtml(buildInfo.psPlus, true), ...buildInfo.activePlaystyles.map(ps => renderPlaystyleDiamondHtml(ps, false))].join('');
+  document.getElementById('futOvr').innerText = ovr; document.getElementById('futPos').innerText = pos;
+  document.getElementById('futAvatar').src = getPlayerAvatarUrl(name, true);
+  document.getElementById('futName').innerText = name;
+  ['Pac','Sho','Pas','Dri','Def','Phy'].forEach((k, i) => document.getElementById(`fut${k}`).innerText = metrics.attributes[i].raw);
+
+  const fUrl = resolvePlayerFlagUrl(p), fEl = document.getElementById('futFlag');
+  if (fUrl) { fEl.src = fUrl; fEl.classList.remove('hidden'); } else { fEl.classList.add('hidden'); }
+  document.getElementById('futClubCrest').src = CURRENT_CLUB_CREST_URL || `${API_BASE}/crest/0?name=FC`;
+
+  const m = document.getElementById('futModal'); m.classList.remove('hidden'); m.classList.add('flex');
+}
+
+function closeFutModal() { const m = document.getElementById('futModal'); m.classList.add('hidden'); m.classList.remove('flex'); }
+
+function renderRecentMatches(clubId, matches) {
+  const tbody = document.getElementById('recentMatchesTable'), formContainer = document.getElementById('formBadges');
+  const matchArr = Array.isArray(matches) ? matches : (matches?.matches || []);
+  if (!matchArr.length) { tbody.innerHTML = '<tr><td colspan="10" class="py-6 text-center text-gray-500">No recent matches found.</td></tr>'; return; }
+
+  const formList = [];
+  tbody.innerHTML = matchArr.slice(0, 10).map((m, idx) => {
+    const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
+    const thisId = cIds.find(id => String(id) === String(clubId)) || cIds[0], oppId = cIds.find(id => String(id) !== String(clubId)) || cIds[1];
+    const myClub = clubs[thisId] || {}, oppClub = clubs[oppId] || {}, myG = Number(myClub.goals ?? myClub.score ?? 0), oppG = Number(oppClub.goals ?? oppClub.score ?? 0);
+    const oppName = oppClub.details?.name || oppClub.name || 'Opponent FC', oppSR = oppClub.skillRating || oppClub.details?.skillRating || null;
+    const oppCnt = Object.keys(m.players?.[oppId] || {}).length, playerStats = Object.values(m.players?.[thisId] || {});
+    const maxSecs = playerStats.reduce((mx, p) => Math.max(mx, Number(p.secondsPlayed || 0)), 0);
+    const isRageQuit = (myG > oppG) && ((maxSecs > 0 && maxSecs < 4100) || (myG - oppG >= 4 && maxSecs < 4800) || Number(oppClub.winnerByDnf || myClub.winnerByDnf || 0) === 1);
+    const rqBadge = isRageQuit ? `<span class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[9px] font-black">💨 RAGE QUIT</span>` : '';
+
+    const chaos = getChaosEmoji(myG, oppG, oppSR);
+    const [resLbl, resCls, fChar, fCol] = myG > oppG ? ['WIN', 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', 'W', 'emerald'] : myG < oppG ? ['LOSS', 'bg-rose-500/10 text-rose-400 border-rose-500/20', 'L', 'rose'] : ['DRAW', 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20', 'D', 'yellow'];
+    if (formList.length < 5) formList.push(`<span class="w-5 h-5 rounded-full bg-${fCol}-500/20 border border-${fCol}-500/40 text-${fCol}-400 text-[10px] font-black flex items-center justify-center">${fChar}</span>`);
+
+    const ts = Number(m.timestamp || 0), dHours = ts > 0 ? Math.round((Date.now() - ts * 1000) / 3600000) : -1;
+    const dateText = (dHours >= 0 && dHours < 24) ? `${Math.max(1, dHours)}h ago` : (ts > 0 ? new Date(ts * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Recent');
+    const mg = computeMatchGradeAndUnitRatings(myG, oppG, playerStats);
+
+    let bestMvp = null, hiScore = -Infinity, matchYellows = 0, matchReds = 0;
+    playerStats.forEach(p => {
+      const pName = p.playername || p.name || 'Pro', made = Number(p.passesmade || 0), att = Number(p.passattempts || made);
+      const tkl = Number(p.tacklesmade || p.tackles || 0), tAtt = Number(p.tackleattempts || tkl), memberMeta = findMemberMeta(pName);
+      const exactPos = EA_PRO_POS_MAP[String(memberMeta?.proPos ?? '')] || '';
+      const normPos = p.pos ? normalizePosition(p.pos) : normalizePosition(memberMeta?.favoritePosition || 'MID');
+
+      p._passPct = att > 0 ? Math.round((made / att) * 100) : Number(p.passsuccessrate || 0);
+      p._made = made; p._att = att; p._ev = parsePlayerMatchEvents(p, exactPos);
+      matchYellows += p._ev.yellowCards; matchReds += p._ev.redCards;
+
+      p._inf = computePlayerImpactScore({
+        games: 1, normPos, exactPos, ratingSum: parseFloat(p.rating || 7.0),
+        goals: Number(p.goals || 0), assists: Number(p.assists || 0), shots: Number(p.shots || 0),
+        passesMade: made, passAttempts: att, tackles: tkl, tackleAttempts: tAtt,
+        blocks: p._ev.blocks, interceptions: p._ev.interceptions, skillMoves: p._ev.skillMoves,
+        saves: p._ev.saves, goalsConceded: p._ev.goalsConceded || oppG,
+        offsides: p._ev.offsides, yellows: p._ev.yellowCards, reds: p._ev.redCards, cleanSheets: oppG === 0 ? 1 : 0
+      });
+      if (p._inf > hiScore) { hiScore = p._inf; bestMvp = pName; }
+    });
+
+    matchYellows = Math.max(matchYellows, Number(myClub.yellowcards ?? myClub.yellowCards ?? m.aggregate?.[thisId]?.yellowcards ?? 0));
+    matchReds = Math.max(matchReds, Number(myClub.redcards ?? myClub.redCards ?? m.aggregate?.[thisId]?.redcards ?? 0));
+
+    playerStats.sort((a, b) => b._inf - a._inf);
+    let crownGiven = false;
+    const rowsHtml = playerStats.map(p => {
+      const pName = p.playername || p.name || 'Pro', goals = Number(p.goals || 0), assists = Number(p.assists || 0), shots = Number(p.shots || 0);
+      const subbed = maxSecs > 600 && Number(p.secondsPlayed || maxSecs) <= maxSecs * 0.78 && p._ev.redCards === 0;
+      const subBadge = (subbed && (goals + assists > 0)) ? `<span class="ml-1 px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-400/50 text-[9px] font-black">🦸‍♂️ SUPER-SUB</span>` : (subbed ? `<span class="ml-1 text-[9px] text-gray-400">🔄 Sub</span>` : '');
+      let mvpBadge = '--';
+      if (!crownGiven && pName === bestMvp && hiScore > -Infinity) { mvpBadge = `<span class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-[10px] font-black">👑 MVP</span>`; crownGiven = true; }
+      return `<tr class="border-b border-gray-800/60"><td class="py-2 px-2 font-semibold text-white"><div class="flex items-center gap-2">${renderAvatarWithFlagHtml(pName, 'w-6 h-6', 'border-gray-700', 'w-2.5 h-2')}<span>${pName}</span>${subBadge}</div></td><td class="py-2 px-2 text-center font-black text-yellow-400">${parseFloat(p.rating||0).toFixed(1)}</td><td class="py-2 px-2 text-center font-bold text-emerald-400">${goals}</td><td class="py-2 px-2 text-center font-bold text-sky-400">${assists}</td><td class="py-2 px-2 text-center font-mono">${shots} <span class="text-[10px] text-emerald-400">(${shots>0?`${Math.round((goals/shots)*100)}%`:'--'})</span></td><td class="py-2 px-2 text-center font-mono text-cyan-400">${p._att>0?`${p._made}/${p._att} (${p._passPct}%)`:`${p._passPct}%`}</td><td class="py-2 px-2 text-center font-mono text-amber-400">${Math.max(0,p._att-p._made)}</td><td class="py-2 px-2 text-center font-mono text-fuchsia-400">${p._ev.skillMoves}</td><td class="py-2 px-2 text-center text-sky-400" title="${p.tacklesmade||0} Tackles • ${p._ev.blocks} Blocks • ${p._ev.interceptions} Interceptions">${p.tacklesmade||0} <span class="text-[10px] text-gray-400">(${p._ev.blocks+p._ev.interceptions} B/I)</span></td><td class="py-2 px-2 text-center">${renderCardBadgesHtml(p._ev.yellowCards, p._ev.redCards)}</td><td class="py-2 px-2 text-right">${mvpBadge}</td></tr>`;
+    }).join('');
+
+    return `<tr onclick="document.getElementById('boxScore_${idx}').classList.toggle('hidden')" class="hover:bg-gray-800/40 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2"><span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-800 text-gray-300 border border-gray-700">${m._inferredCategory||'League'}</span></td><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-1.5">${renderCrestHtml(oppName, oppClub.crestId||oppClub.TEAM||oppClub.details?.crestAssetId, 'w-6 h-6 sm:w-7 sm:h-7', oppId)}<span>${oppName}</span>${oppCnt>0?`<span class="text-[10px] text-gray-400 font-mono">(${oppCnt}p)</span>`:''}${rqBadge}<i class="fa-solid fa-chevron-down text-[9px] text-gray-500"></i></div></td><td class="py-2.5 px-2 text-center" title="${chaos.label}">${chaos.emoji}</td><td class="py-2.5 px-2 text-center">${renderDivisionShieldHtml(oppClub.division||'Div 5','sm')}</td><td class="py-2.5 px-2 text-center">${oppSR?`<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">${oppSR}</span>`:'--'}</td><td class="py-2.5 px-2 text-center font-bold text-white">${myG} - ${oppG}</td><td class="py-2.5 px-2 text-center"><div class="inline-flex items-center gap-1.5"><span class="w-6 h-5 rounded flex items-center justify-center text-[11px] font-black border ${mg.gradeCls}">${mg.grade}</span><span class="text-[10px] font-mono text-emerald-400">A:${mg.atk}</span><span class="text-[10px] font-mono text-sky-400">D:${mg.def}</span></div></td><td class="py-2.5 px-2 text-center">${renderCardBadgesHtml(matchYellows, matchReds)}</td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-bold border ${resCls}">${resLbl}</span></td><td class="py-2.5 px-2 text-right text-gray-400 text-xs">${dateText}</td></tr><tr id="boxScore_${idx}" class="hidden bg-gray-900/60 border-b border-gray-800"><td colspan="10" class="p-3"><div class="overflow-x-auto touch-scroll rounded border border-gray-800 bg-gray-950/80"><table class="w-full text-left text-xs whitespace-nowrap"><thead class="bg-gray-900 text-gray-400 uppercase text-[10px]"><tr><th class="py-1.5 px-2">Player</th><th class="py-1.5 px-2 text-center">Rat</th><th class="py-1.5 px-2 text-center">G</th><th class="py-1.5 px-2 text-center">A</th><th class="py-1.5 px-2 text-center">Shots (Conv%)</th><th class="py-1.5 px-2 text-center">Passes</th><th class="py-1.5 px-2 text-center">Missed</th><th class="py-1.5 px-2 text-center">Skills</th><th class="py-1.5 px-2 text-center">Tkl (Blk/Int)</th><th class="py-1.5 px-2 text-center">Cards</th><th class="py-1.5 px-2 text-right">Award</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></td></tr>`;
+  }).join('');
+  formContainer.innerHTML = formList.join('');
+}
+
+function getExactPlayerRole(m = {}, mp = {}) {
+  const proRole = EA_PRO_POS_MAP[String(m.proPos ?? '')] || '';
+  const matchBucket = mp.pos ? normalizePosition(mp.pos) : null;
+
+  if (matchBucket === 'FWD') {
+    return ['ST','LS','RS','CF','LW','RW','LF','RF'].includes(proRole) ? proRole : 'ST';
+  }
+  if (matchBucket === 'MID') {
+    return ['CAM','LAM','RAM','CM','LCM','RCM','CDM','LDM','RDM','LM','RM'].includes(proRole) ? proRole : 'CAM';
+  }
+  if (matchBucket === 'DEF') {
+    return ['CB','LCB','RCB','LB','RB','LWB','RWB'].includes(proRole) ? proRole : 'CB';
+  }
+  if (matchBucket === 'GK') return 'GK';
+
+  if (proRole) return proRole;
+  const raw = String(m.favoritePosition || 'MID').toLowerCase();
+  return raw === 'forward' ? 'ST' : raw === 'midfielder' ? 'CAM' : raw === 'defender' ? 'CB' : raw === 'goalkeeper' ? 'GK' : raw.toUpperCase();
+}
+
+function handleFormationOverride(val) { localStorage.setItem(`clubFormation_${GLOBAL_CLUB_ID || 'default'}`, val); buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES); }
+
+function switchPitchMode(mode) {
+  CURRENT_PITCH_MODE = mode;
+  document.getElementById('btnModeLastMatch').className = mode === 'lastMatch' ? 'flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition shadow' : 'flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition';
+  document.getElementById('btnModeSuggested').className = mode === 'suggestedXI' ? 'flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition shadow' : 'flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition';
+  buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
+}
+
+function buildDynamicPitchTactic(members = [], matches = []) {
+  const rows = ['rowAttack','rowCAM','rowMidfield','rowDefense','rowGK'].map(id => { const el = document.getElementById(id); el.innerHTML = ''; return el; });
+  if (!members.length) return;
+
+  const latestMatch = matches[0] || null;
+  let latestPlayersMap = {}, latestOpp = 'Opponent';
+  if (latestMatch) {
+    const clubs = latestMatch.clubs || latestMatch.aggregate || {}, cIds = Object.keys(clubs);
+    const myId = cIds.find(id => String(id) === String(GLOBAL_CLUB_ID)) || cIds[0], oppId = cIds.find(id => String(id) !== String(GLOBAL_CLUB_ID)) || cIds[1];
+    latestPlayersMap = latestMatch.players?.[myId] || {};
+    latestOpp = clubs[oppId]?.details?.name || clubs[oppId]?.name || 'Opponent';
+  }
+
+  const scored = members.map(m => {
+    const name = m.name || 'Player';
+    const lm = Object.values(latestPlayersMap).find(lp => String(lp.playername || lp.name || '').toLowerCase().trim() === String(name).toLowerCase().trim());
+    const matchNormPos = lm?.pos ? normalizePosition(lm.pos) : null;
+    return {
+      ...m, _displayName: name, _proNickname: m.proName && m.proName !== name ? `"${m.proName}"` : '',
+      _matchNormPos: matchNormPos,
+      _exactRole: getExactPlayerRole(m, lm || {}),
+      _activeNormPos: CURRENT_PITCH_MODE === 'lastMatch' && matchNormPos ? matchNormPos : m._normalizedPos,
+      _buildScore: Number(m.proOverall || 85) * 4 + parseFloat(m.ratingAve || 7.0) * 12,
+      _archetype: computeArchetypeAndPlaystyles(m).archetype,
+      _lmScore: lm ? 1000 + parseFloat(lm.rating || 0) * 20 : -1,
+      _lmRat: lm ? parseFloat(lm.rating || 0) : null,
+      _lmGA: lm ? Number(lm.goals || 0) + Number(lm.assists || 0) : 0
+    };
+  });
+
+  const savedOverride = localStorage.getItem(`clubFormation_${GLOBAL_CLUB_ID || 'default'}}`) || localStorage.getItem(`clubFormation_${GLOBAL_CLUB_ID || 'default'}`) || 'auto';
+  const selectEl = document.getElementById('formationOverrideSelect'); if (selectEl) selectEl.value = savedOverride;
+
+  let tpl = FORMATION_TEMPLATES['4-1-2-1-2'];
+  if (savedOverride !== 'auto' && FORMATION_TEMPLATES[savedOverride]) {
+    tpl = FORMATION_TEMPLATES[savedOverride];
+  } else {
+    const rawMatchPlayers = Object.values(latestPlayersMap);
+    const actualMatchFwds = rawMatchPlayers.filter(lp => normalizePosition(lp.pos) === 'FWD');
+
+    let maxFwdsRecent5 = actualMatchFwds.length;
+    matches.slice(0, 5).forEach(m => {
+      const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
+      const myId = cIds.find(id => String(id) === String(GLOBAL_CLUB_ID)) || cIds[0];
+      const fCnt = Object.values(m.players?.[myId] || {}).filter(lp => normalizePosition(lp.pos) === 'FWD').length;
+      if (fCnt > maxFwdsRecent5) maxFwdsRecent5 = fCnt;
+    });
+
+    if (actualMatchFwds.length === 2) {
+      tpl = FORMATION_TEMPLATES['4-1-2-1-2'];
+    } else if (actualMatchFwds.length >= 3) {
+      tpl = FORMATION_TEMPLATES['4-3-3 Attack'];
+    } else if (actualMatchFwds.length === 1) {
+      const squadFwds = scored.filter(m => m._normalizedPos === 'FWD').length;
+      tpl = (maxFwdsRecent5 === 2 || squadFwds >= 2) ? FORMATION_TEMPLATES['4-1-2-1-2'] : FORMATION_TEMPLATES['4-2-3-1 Narrow'];
+    } else {
+      tpl = FORMATION_TEMPLATES['4-1-2-1-2'];
+    }
+  }
+
+  document.getElementById('formationBadge').innerText = tpl.name;
+  document.getElementById('formationSubtitle').innerText = CURRENT_PITCH_MODE === 'lastMatch' ? `Active Lineup from your most recent match vs ${latestOpp} (${Object.keys(latestPlayersMap).length} Human Pros)` : `Suggested Best XI based on Pro OVR, Exact Position (proPos) & Build Attributes`;
+
+  const pool = CURRENT_PITCH_MODE === 'lastMatch' ? scored.filter(m => m._lmScore > 0).sort((a, b) => b._lmScore - a._lmScore) : [...scored].sort((a, b) => b._buildScore - a._buildScore);
+  const used = new Set(), assigned = [];
+
+  const claim = (groupPos, slotLabel, fb = true) => {
+    let i = pool.findIndex(p => !used.has(p._displayName) && p._activeNormPos === groupPos && p._exactRole === slotLabel);
+    if (i === -1) i = pool.findIndex(p => !used.has(p._displayName) && p._activeNormPos === groupPos);
+    if (i === -1 && fb && groupPos !== 'GK') i = pool.findIndex(p => !used.has(p._displayName));
+    if (i !== -1) { used.add(pool[i]._displayName); return pool[i]; }
+    return null;
+  };
+
+  const nodeHtml = (p, slot) => {
+    if (!p) return `<div class="flex flex-col items-center opacity-35 select-none w-16 sm:w-24"><div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full border-2 border-dashed border-gray-400 bg-gray-950/70 flex items-center justify-center text-[9px] text-gray-300 font-black">AI</div><span class="text-[9px] font-bold text-gray-300 mt-1">CPU</span><span class="text-[8px] text-gray-400 uppercase font-extrabold">${slot}</span></div>`;
+    assigned.push(p);
+    const name = p._displayName, ovr = Number(p.proOverall || 85), tier = getCardTierTheme(ovr);
+    const rat = (CURRENT_PITCH_MODE === 'lastMatch' && p._lmRat !== null ? p._lmRat : parseFloat(p.ratingAve || 7.0)).toFixed(1);
+    const pill = CURRENT_PITCH_MODE === 'lastMatch' && p._lmRat !== null ? `${p._lmGA} G+A` : p._archetype;
+    const shirt = getShirtLabel(name);
+    const flagUrl = resolvePlayerFlagUrl(p);
+    const flagNode = flagUrl ? `<img src="${flagUrl}" class="absolute -top-0.5 -right-1 w-3.5 h-2.5 sm:w-4 sm:h-3 object-cover rounded-[2px] border border-gray-950 shadow-md z-10" alt="Nation">` : '';
+
+    return `<div onclick="openFutModal('${name.replace(/'/g,"\\'")}')" class="flex flex-col items-center hover:scale-105 transition cursor-pointer group w-[74px] sm:w-24"><div class="relative"><img src="${getPlayerAvatarUrl(name)}" class="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-full avatar-circle border-2 border-emerald-400 bg-gray-900 object-cover shadow-xl"><span class="absolute -top-1 -left-1.5 bg-gray-950 ${tier.badgeClass} border font-black text-[8px] sm:text-[9px] px-1 rounded z-10">${ovr}</span>${flagNode}<span class="absolute -bottom-1 -left-1.5 bg-yellow-500 text-black font-black text-[8px] sm:text-[9px] px-1 rounded-sm z-10">${rat}</span></div><span class="text-[10px] sm:text-xs font-extrabold text-white mt-1 drop-shadow max-w-[70px] sm:max-w-[96px] truncate" title="${p._proNickname || shirt}">${name}</span><div class="flex items-center gap-0.5 mt-0.5"><span class="text-[8px] sm:text-[9px] bg-black/60 text-emerald-300 px-1 rounded uppercase font-black">${slot || p._exactRole}</span><span class="hidden sm:inline text-[9px] bg-black/60 text-gray-200 px-1 rounded font-semibold truncate max-w-[60px]">${pill}</span></div></div>`;
+  };
+
+  tpl.atk.forEach(s => rows[0].innerHTML += nodeHtml(claim('FWD', s, true), s));
+  rows[1].classList.toggle('hidden', !tpl.cam.length);
+  tpl.cam.forEach(s => rows[1].innerHTML += nodeHtml(claim('MID', s, true), s));
+  tpl.mid.forEach(s => rows[2].innerHTML += nodeHtml(claim('MID', s, true), s));
+  tpl.def.forEach(s => rows[3].innerHTML += nodeHtml(claim('DEF', s, true), s));
+  rows[4].innerHTML = nodeHtml(claim('GK', 'GK', false), 'GK');
+
+  const hCnt = assigned.length;
+  document.getElementById('pitchMetricHumans').innerText = `${hCnt} / 11 Pros`;
+  document.getElementById('pitchMetricOvr').innerText = hCnt ? `${Math.round(assigned.reduce((a,b)=>a+Number(b.proOverall||85),0)/hCnt)} OVR` : '--';
+  document.getElementById('pitchMetricRating').innerText = hCnt ? (assigned.reduce((a,b)=>a+parseFloat(b.ratingAve||7.0),0)/hCnt).toFixed(2) : '--';
+  document.getElementById('pitchMetricZone').innerText = 'Midfield Engine';
+}
+
+function checkInitialUrlRoute() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('platform')) syncPlatformSelectors(params.get('platform'));
+  const rawPath = decodeURIComponent(window.location.pathname || '').replace(/^\/+|\/+$/g, '');
+
+  if (!rawPath || rawPath === 'index.html' || rawPath.startsWith('api/')) {
+    goHome(false);
+    loadTop10ClubsLeaderboard(CURRENT_LEADERBOARD_MODE);
+    return;
+  }
+
+  const plat = document.getElementById('platformSelect')?.value || 'common-gen5';
+  if (/^\d+$/.test(rawPath)) {
+    loadClub(rawPath, plat, false);
+  } else {
+    handleSearch(rawPath.replace(/-/g, ' ').trim(), true);
+  }
+}
+
+window.addEventListener('popstate', (e) => {
+  if (e.state?.clubId) loadClub(e.state.clubId, e.state.platform || 'common-gen5', false);
+  else checkInitialUrlRoute();
+});
+
+window.onload = () => {
+  applyStoredTheme();
+  renderRecentClubsChips();
+  loadTop10ClubsLeaderboard('season');
+  checkInitialUrlRoute();
+};
