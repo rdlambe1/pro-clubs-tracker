@@ -121,7 +121,7 @@ async function loadTop10ClubsLeaderboard(mode = 'season') {
         <td class="py-2.5 px-2 text-center font-mono text-gray-200">${c.wins}-${c.ties}-${c.losses}</td>
         <td class="py-2.5 px-2 text-center font-bold text-sky-400">${c.winPct}%</td>
         <td class="py-2.5 px-2 text-center text-gray-300 font-mono">${c.goals}/${c.goalsAgainst} <span class="text-[10px] text-gray-400">(${gd>=0?`+${gd}`:gd})</span></td>
-        <td class="py-2.5 px-2 text-right font-black text-yellow-400"><i class="fa-solid fa-trophy text-[10px] mr-1"></i>${c.titlesWon}</td>
+        <td class="py-2.5 px-2 text-right font-black text-emerald-400"><i class="fa-solid fa-angles-up text-[10px] mr-1"></i>${c.promotions ?? 0}</td>
       </tr>`;
     }).join('');
   } catch (_) {
@@ -402,7 +402,11 @@ async function loadClub(clubId, platform = 'common-gen5', updateHistory = true) 
 
 function renderClub(clubId, data, platform, membersList = [], matchesPayload = [], updateHistory = true) {
   const infoObj = data.info || {}, statObj = data.overall || {}, name = infoObj.name || infoObj.clubName || statObj.name || 'Unknown Club';
-  const wins = statObj.wins ?? statObj.overallWins ?? 0, ties = statObj.ties ?? statObj.overallTies ?? 0, losses = statObj.losses ?? statObj.overallLosses ?? 0;
+  const wins = Number(statObj.wins ?? statObj.overallWins ?? 0);
+  const ties = Number(statObj.ties ?? statObj.overallTies ?? 0);
+  const losses = Number(statObj.losses ?? statObj.overallLosses ?? 0);
+  const totalGames = wins + ties + losses;
+  const winPct = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
   const goals = statObj.goals ?? statObj.overallGoals ?? 0, conceded = statObj.goalsAgainst ?? statObj.overallGoalsAgainst ?? 0, rating = statObj.skillRating ?? statObj.rating ?? '--';
 
   const gDiff = Number(goals) - Number(conceded), myMatchClub = matchesPayload[0]?.clubs?.[clubId];
@@ -436,7 +440,6 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
   document.getElementById('clubRegionName').innerText = reg.name;
   document.getElementById('clubStadiumName').innerText = data.stadiumName || 'Pro Clubs Arena';
 
-  // Single unified Fan & Reputation badge in the top identity bar (no duplicate lower box)
   const rep = data.clubRep || { formattedFans: '~6.6M', level: 5, tierTitle: 'Up and Coming' };
   document.getElementById('clubLevelBadgeText').innerText = `Lvl ${rep.level} • ${rep.formattedFans} Fans (${rep.tierTitle})`;
 
@@ -446,8 +449,10 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
 
   if (data.trophies) {
     document.getElementById('trophyBar').classList.remove('hidden');
-    document.getElementById('trophyTitles').innerText = data.trophies.titlesWon ?? 0;
-    document.getElementById('trophyLeagues').innerText = data.trophies.leaguesWon ?? 0;
+    const gpEl = document.getElementById('heroTotalMatches');
+    const wpEl = document.getElementById('heroWinPct');
+    if (gpEl) gpEl.innerText = totalGames;
+    if (wpEl) wpEl.innerText = `${winPct}% Win`;
     document.getElementById('trophyPromos').innerText = data.trophies.promotions ?? 0;
     document.getElementById('trophyRelegs').innerText = data.trophies.relegations ?? 0;
     const pk = data.trophies.bestDivision || data.division || 'Div 5';
