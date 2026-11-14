@@ -436,8 +436,9 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
   document.getElementById('clubRegionName').innerText = reg.name;
   document.getElementById('clubStadiumName').innerText = data.stadiumName || 'Pro Clubs Arena';
 
+  // Single unified Fan & Reputation badge in the top identity bar (no duplicate lower box)
   const rep = data.clubRep || { formattedFans: '~6.6M', level: 5, tierTitle: 'Up and Coming' };
-  document.getElementById('clubLevelBadgeText').innerText = `Lvl ${rep.level} • ${rep.formattedFans} Fans`;
+  document.getElementById('clubLevelBadgeText').innerText = `Lvl ${rep.level} • ${rep.formattedFans} Fans (${rep.tierTitle})`;
 
   const kits = data.kits || { home: ['#10b981','#ffffff','#064e3b'], away: ['#1e293b','#38bdf8','#0f172a'], third: ['#f59e0b','#111827','#ffffff'] };
   document.getElementById('clubKitsContainer').innerHTML = `${renderMiniJerseySvg(kits.home,'Home')}<span class="text-gray-700">|</span>${renderMiniJerseySvg(kits.away,'Away')}<span class="text-gray-700">|</span>${renderMiniJerseySvg(kits.third,'3rd')}`;
@@ -449,10 +450,8 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
     document.getElementById('trophyLeagues').innerText = data.trophies.leaguesWon ?? 0;
     document.getElementById('trophyPromos').innerText = data.trophies.promotions ?? 0;
     document.getElementById('trophyRelegs').innerText = data.trophies.relegations ?? 0;
-    document.getElementById('trophyFansText').innerText = `${rep.formattedFans} Fans`;
-    document.getElementById('trophyRepSubtext').innerText = `Lvl ${rep.level} • ${rep.tierTitle}`;
     const pk = data.trophies.bestDivision || data.division || 'Div 5';
-    document.getElementById('trophyPeakDivShield').innerHTML = renderDivisionShieldHtml(data.trophies.bestDivisionNum ?? pk, 'md');
+    document.getElementById('trophyPeakDivShield').innerHTML = renderDivisionShieldHtml(data.trophies.bestDivisionNum ?? pk, 'sm');
   }
 
   document.getElementById('clubMeta').innerText = `Club ID: ${clubId} | ${platform.includes('gen5')?'PC / PS5 / XBOX SERIES X|S':platform.toUpperCase()}`;
