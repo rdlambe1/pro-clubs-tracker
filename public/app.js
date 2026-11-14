@@ -1,4 +1,5 @@
 let CURRENT_LEADERBOARD_MODE = 'season';
+let CURRENT_MATCH_FILTER = 'ALL';
 
 function applyStoredTheme() {
   const isLight = (localStorage.getItem('proClubsTheme') || 'dark') === 'light';
@@ -289,6 +290,7 @@ function switchRecapMode(mode) {
   updateRecapMetricsDisplay(GLOBAL_CLUB_ID, mode === 'session' ? SESSION_MATCHES_CACHE : GLOBAL_MATCHES.slice(0, 10), mode);
 }
 
+// Unified Lobby Size Card (Merges Own Party Win % and Opponent Lobby Win % into 1 compact card)
 function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const sec = document.getElementById('sessionRecapSection');
   if (!fixtures.length) return sec.classList.add('hidden');
@@ -297,7 +299,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   let sW = 0, sD = 0, sL = 0, sGF = 0, sGA = 0;
   const pMap = {};
   const ownBuckets = { 2:{label:'2 Pros',w:0,total:0}, 3:{label:'3 Pros',w:0,total:0}, 4:{label:'4 Pros',w:0,total:0}, 5:{label:'5+ Pros',w:0,total:0} };
-  const oppBuckets = { 2:{label:'vs. 2-Man',w:0,d:0,l:0,total:0}, 3:{label:'vs. 3-Man',w:0,d:0,l:0,total:0}, 4:{label:'vs. 4-Man',w:0,d:0,l:0,total:0}, 5:{label:'vs. 5+ Man',w:0,d:0,l:0,total:0} };
+  const oppBuckets = { 2:{label:'vs 2p',w:0,total:0}, 3:{label:'vs 3p',w:0,total:0}, 4:{label:'vs 4p',w:0,total:0}, 5:{label:'vs 5+p',w:0,total:0} };
 
   fixtures.forEach(m => {
     const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
@@ -309,7 +311,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     const myPlayers = Object.values(m.players?.[myId] || {});
     const oppCnt = Object.keys(m.players?.[oppId] || {}).length;
     if (myPlayers.length > 0) { const obk = myPlayers.length <= 2 ? 2 : myPlayers.length === 3 ? 3 : myPlayers.length === 4 ? 4 : 5; ownBuckets[obk].total++; if (isWin) ownBuckets[obk].w++; }
-    if (oppCnt > 0) { const bk = oppCnt <= 2 ? 2 : oppCnt === 3 ? 3 : oppCnt === 4 ? 4 : 5; oppBuckets[bk].total++; if (isWin) oppBuckets[bk].w++; else if (isLoss) oppBuckets[bk].l++; else oppBuckets[bk].d++; }
+    if (oppCnt > 0) { const bk = oppCnt <= 2 ? 2 : oppCnt === 3 ? 3 : oppCnt === 4 ? 4 : 5; oppBuckets[bk].total++; if (isWin) oppBuckets[bk].w++; }
 
     myPlayers.forEach(p => {
       const n = p.playername || p.name || 'Pro', memberMeta = findMemberMeta(n);
@@ -327,7 +329,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     });
   });
 
-  const gd = sGF - sGA, pfx = mode === 'session' ? 'Session' : 'Last 10', windowName = mode === 'session' ? 'Latest Session' : `Last ${fixtures.length} Matches`;
+  const gd = sGF - sGA, pfx = mode === 'session' ? 'Session' : 'Last 10';
   document.getElementById('recapRecordTitle').innerText = `${pfx} Record`;
   document.getElementById('recapMvpTitle').innerText = `👑 ${pfx} MVP`;
   document.getElementById('recapLiabilityTitle').innerText = `⚓ ${pfx} Passenger`;
@@ -350,21 +352,20 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     document.getElementById('sessionLiabilityAvatarBox').innerHTML = renderAvatarWithFlagHtml(liab.name, 'w-11 h-11', 'border-rose-400', 'w-4 h-3');
   }
 
+  const bestOwn = [2, 3, 4, 5].map(k => ownBuckets[k]).filter(b => b.total > 0).sort((a, b) => (b.w / b.total) - (a.w / a.total));
+  const bestOpp = [2, 3, 4, 5].map(k => oppBuckets[k]).filter(b => b.total > 0).sort((a, b) => (b.w / b.total) - (a.w / a.total));
+
   document.getElementById('ownPartyModeBadge').innerText = pfx;
   document.getElementById('ownPartySizeGrid').innerHTML = [2, 3, 4, 5].map(k => {
-    const b = ownBuckets[k], wp = b.total > 0 ? Math.round((b.w / b.total) * 100) : null;
-    const col = wp === null ? 'text-gray-500' : (wp >= 50 ? 'text-emerald-400' : 'text-rose-400');
-    return `<div class="flex items-center justify-between text-[11px] bg-gray-950/50 border border-gray-800/80 rounded px-1.5 py-0.5"><span class="text-gray-300 font-bold">${b.label}:</span><span class="font-mono font-black ${col}">${wp !== null ? `${wp}% (${b.w}/${b.total})` : '--'}</span></div>`;
+    const ob = ownBuckets[k], op = oppBuckets[k];
+    const owp = ob.total > 0 ? `${Math.round((ob.w / ob.total) * 100)}%` : '--';
+    const pwp = op.total > 0 ? `${Math.round((op.w / op.total) * 100)}%` : '--';
+    return `<div class="flex items-center justify-between text-[10px] bg-gray-950/50 border border-gray-800/80 rounded px-1.5 py-0.5"><span class="text-gray-300 font-bold">${k===5?'5+p':`${k}p`}:</span><span class="font-mono"><b class="text-emerald-400" title="Our Party Size Win %">${owp}</b> <span class="text-gray-600">|</span> <b class="text-sky-400" title="vs Opponent Size Win %">${pwp}</b></span></div>`;
   }).join('');
 
-  const activeParty = [2, 3, 4, 5].map(k => ownBuckets[k]).filter(b => b.total > 0).sort((a, b) => (b.w / b.total) - (a.w / a.total));
-  document.getElementById('squadFactorVerdict').innerText = activeParty.length ? `Best synergy: ${activeParty[0].label} (${Math.round((activeParty[0].w / activeParty[0].total) * 100)}% Win)` : 'Balanced squad chemistry';
-
-  document.getElementById('vsOpponentHeaderTitle').innerHTML = `<i class="fa-solid fa-people-arrows text-emerald-400"></i> Performance vs. Opponent Lobby Sizes (${windowName})`;
-  document.getElementById('vsOpponentSizeGrid').innerHTML = [2, 3, 4, 5].map(k => {
-    const b = oppBuckets[k], wp = b.total > 0 ? Math.round((b.w / b.total) * 100) : null;
-    return `<div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 space-y-1"><div class="flex items-center justify-between"><span class="text-[10px] font-black uppercase text-gray-300">${b.label}</span><span class="text-xs font-black ${wp!==null&&wp>=50?'text-emerald-400':'text-gray-300'}">${wp!==null?`${wp}% Win`:'0 GP'}</span></div><div class="w-full h-1.5 bg-gray-800 rounded-full overflow-hidden"><div class="h-full ${wp!==null&&wp>=50?'bg-emerald-500':'bg-rose-500'} rounded-full" style="width:${wp!==null?Math.max(8,wp):0}%"></div></div><div class="text-[10px] font-mono text-gray-400">Record: <b class="text-white">${b.w}W-${b.d}D-${b.l}L</b></div></div>`;
-  }).join('');
+  const ownTxt = bestOwn.length ? `Best party: ${bestOwn[0].label} (${Math.round((bestOwn[0].w / bestOwn[0].total) * 100)}%)` : '';
+  const oppTxt = bestOpp.length ? `Best vs: ${bestOpp[0].label} (${Math.round((bestOpp[0].w / bestOpp[0].total) * 100)}%)` : '';
+  document.getElementById('squadFactorVerdict').innerText = [ownTxt, oppTxt].filter(Boolean).join(' • ') || 'Balanced lobby record';
 }
 
 async function loadClub(clubId, platform = 'common-gen5', updateHistory = true) {
@@ -391,10 +392,10 @@ async function loadClub(clubId, platform = 'common-gen5', updateHistory = true) 
     renderClub(clubId, combined, platform, membersList, GLOBAL_MATCHES, updateHistory);
     renderSkillRatingGraph(clubId, combined, GLOBAL_MATCHES);
     renderClubReviewReport(combined, membersList, GLOBAL_MATCHES, shameList);
-    renderSeasonsHistory(combined.seasonsHistory, combined.trophies);
     renderCareerMilestones(membersList);
     buildDynamicPitchTactic(membersList, GLOBAL_MATCHES);
     initRadarComparison(membersList);
+    CURRENT_MATCH_FILTER = 'ALL';
     renderRecentMatches(clubId, GLOBAL_MATCHES);
     setStatus('');
   } catch (e) { setStatus(`Error loading stats: ${e.message}`, true); }
@@ -407,9 +408,11 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
   const losses = Number(statObj.losses ?? statObj.overallLosses ?? 0);
   const totalGames = wins + ties + losses;
   const winPct = totalGames > 0 ? Math.round((wins / totalGames) * 100) : 0;
-  const goals = statObj.goals ?? statObj.overallGoals ?? 0, conceded = statObj.goalsAgainst ?? statObj.overallGoalsAgainst ?? 0, rating = statObj.skillRating ?? statObj.rating ?? '--';
+  const goals = Number(statObj.goals ?? statObj.overallGoals ?? 0);
+  const conceded = Number(statObj.goalsAgainst ?? statObj.overallGoalsAgainst ?? 0);
+  const rating = statObj.skillRating ?? statObj.rating ?? '--';
 
-  const gDiff = Number(goals) - Number(conceded), myMatchClub = matchesPayload[0]?.clubs?.[clubId];
+  const gDiff = goals - conceded, myMatchClub = matchesPayload[0]?.clubs?.[clubId];
   const crestId = data.crestId || myMatchClub?.crestId || infoObj.customKit?.crestAssetId || infoObj.teamId || '0';
 
   saveRecentClub(clubId, name, crestId, platform);
@@ -449,10 +452,6 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
 
   if (data.trophies) {
     document.getElementById('trophyBar').classList.remove('hidden');
-    const gpEl = document.getElementById('heroTotalMatches');
-    const wpEl = document.getElementById('heroWinPct');
-    if (gpEl) gpEl.innerText = totalGames;
-    if (wpEl) wpEl.innerText = `${winPct}% Win`;
     document.getElementById('trophyPromos').innerText = data.trophies.promotions ?? 0;
     document.getElementById('trophyRelegs').innerText = data.trophies.relegations ?? 0;
     const pk = data.trophies.bestDivision || data.division || 'Div 5';
@@ -461,17 +460,48 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
 
   document.getElementById('clubMeta').innerText = `Club ID: ${clubId} | ${platform.includes('gen5')?'PC / PS5 / XBOX SERIES X|S':platform.toUpperCase()}`;
   document.getElementById('clubRecord').innerText = `${wins} - ${ties} - ${losses}`;
+  const wpSub = document.getElementById('clubWinPctSub');
+  if (wpSub) wpSub.innerText = `${winPct}% Win • ${totalGames} GP`;
   document.getElementById('skillRating').innerText = rating;
   document.getElementById('goalStats').innerHTML = `${goals}/${conceded} <span class="text-xs text-gray-400 font-normal">(${gDiff>=0?`+${gDiff}`:gDiff})</span>`;
+  const gpgSub = document.getElementById('goalPerGameSub');
+  if (gpgSub) gpgSub.innerText = `${totalGames > 0 ? (goals / totalGames).toFixed(1) : '0.0'} GF/g • ${totalGames > 0 ? (conceded / totalGames).toFixed(1) : '0.0'} GA/g`;
+}
+
+function filterRecentMatches(category) {
+  CURRENT_MATCH_FILTER = category;
+  ['All','League','Playoff'].forEach(k => {
+    const btn = document.getElementById(`btnFilter${k}`);
+    if (!btn) return;
+    const isAct = (k === 'All' && category === 'ALL') || k === category;
+    btn.className = isAct ? 'px-2.5 py-1 rounded text-xs font-black bg-emerald-500 text-black transition shadow' : 'px-2.5 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
+  });
+  renderRecentMatches(GLOBAL_CLUB_ID, GLOBAL_MATCHES);
 }
 
 function renderRecentMatches(clubId, matches) {
   const tbody = document.getElementById('recentMatchesTable'), formContainer = document.getElementById('formBadges');
-  const matchArr = Array.isArray(matches) ? matches : (matches?.matches || []);
-  if (!matchArr.length) { tbody.innerHTML = '<tr><td colspan="10" class="py-6 text-center text-gray-500">No recent matches found.</td></tr>'; return; }
+  const rawArr = Array.isArray(matches) ? matches : (matches?.matches || []);
+  const matchArr = CURRENT_MATCH_FILTER === 'ALL'
+    ? rawArr.slice(0, 10)
+    : rawArr.filter(m => String(m._inferredCategory || 'League').toLowerCase() === CURRENT_MATCH_FILTER.toLowerCase()).slice(0, 10);
+
+  if (!matchArr.length) {
+    tbody.innerHTML = `<tr><td colspan="10" class="py-6 text-center text-gray-500">No recent ${CURRENT_MATCH_FILTER === 'ALL' ? '' : CURRENT_MATCH_FILTER} matches found.</td></tr>`;
+    return;
+  }
 
   const formList = [];
-  tbody.innerHTML = matchArr.slice(0, 10).map((m, idx) => {
+  rawArr.slice(0, 5).forEach(m => {
+    const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
+    const thisId = cIds.find(id => String(id) === String(clubId)) || cIds[0], oppId = cIds.find(id => String(id) !== String(clubId)) || cIds[1];
+    const myG = Number(clubs[thisId]?.goals ?? clubs[thisId]?.score ?? 0), oppG = Number(clubs[oppId]?.goals ?? clubs[oppId]?.score ?? 0);
+    const [fChar, fCol] = myG > oppG ? ['W', 'emerald'] : myG < oppG ? ['L', 'rose'] : ['D', 'yellow'];
+    formList.push(`<span class="w-5 h-5 rounded-full bg-${fCol}-500/20 border border-${fCol}-500/40 text-${fCol}-400 text-[10px] font-black flex items-center justify-center">${fChar}</span>`);
+  });
+  if (formContainer) formContainer.innerHTML = formList.join('');
+
+  tbody.innerHTML = matchArr.map((m, idx) => {
     const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
     const thisId = cIds.find(id => String(id) === String(clubId)) || cIds[0], oppId = cIds.find(id => String(id) !== String(clubId)) || cIds[1];
     const myClub = clubs[thisId] || {}, oppClub = clubs[oppId] || {}, myG = Number(myClub.goals ?? myClub.score ?? 0), oppG = Number(oppClub.goals ?? oppClub.score ?? 0);
@@ -482,8 +512,7 @@ function renderRecentMatches(clubId, matches) {
     const rqBadge = isRageQuit ? `<span class="px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[9px] font-black">💨 RAGE QUIT</span>` : '';
 
     const chaos = getChaosEmoji(myG, oppG, oppSR);
-    const [resLbl, resCls, fChar, fCol] = myG > oppG ? ['WIN', 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20', 'W', 'emerald'] : myG < oppG ? ['LOSS', 'bg-rose-500/10 text-rose-400 border-rose-500/20', 'L', 'rose'] : ['DRAW', 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20', 'D', 'yellow'];
-    if (formList.length < 5) formList.push(`<span class="w-5 h-5 rounded-full bg-${fCol}-500/20 border border-${fCol}-500/40 text-${fCol}-400 text-[10px] font-black flex items-center justify-center">${fChar}</span>`);
+    const [resLbl, resCls] = myG > oppG ? ['WIN', 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'] : myG < oppG ? ['LOSS', 'bg-rose-500/10 text-rose-400 border-rose-500/20'] : ['DRAW', 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20'];
 
     const ts = Number(m.timestamp || 0), dHours = ts > 0 ? Math.round((Date.now() - ts * 1000) / 3600000) : -1;
     const dateText = (dHours >= 0 && dHours < 24) ? `${Math.max(1, dHours)}h ago` : (ts > 0 ? new Date(ts * 1000).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'Recent');
@@ -527,7 +556,6 @@ function renderRecentMatches(clubId, matches) {
 
     return `<tr onclick="document.getElementById('boxScore_${idx}').classList.toggle('hidden')" class="hover:bg-gray-800/40 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2"><span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-800 text-gray-300 border border-gray-700">${m._inferredCategory||'League'}</span></td><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-1.5">${renderCrestHtml(oppName, oppClub.crestId||oppClub.TEAM||oppClub.details?.crestAssetId, 'w-6 h-6 sm:w-7 sm:h-7', oppId)}<span>${oppName}</span>${oppCnt>0?`<span class="text-[10px] text-gray-400 font-mono">(${oppCnt}p)</span>`:''}${rqBadge}<i class="fa-solid fa-chevron-down text-[9px] text-gray-500"></i></div></td><td class="py-2.5 px-2 text-center" title="${chaos.label}">${chaos.emoji}</td><td class="py-2.5 px-2 text-center">${renderDivisionShieldHtml(oppClub.division||'Div 5','sm')}</td><td class="py-2.5 px-2 text-center">${oppSR?`<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">${oppSR}</span>`:'--'}</td><td class="py-2.5 px-2 text-center font-bold text-white">${myG} - ${oppG}</td><td class="py-2.5 px-2 text-center"><div class="inline-flex items-center gap-1.5"><span class="w-6 h-5 rounded flex items-center justify-center text-[11px] font-black border ${mg.gradeCls}">${mg.grade}</span><span class="text-[10px] font-mono text-emerald-400">A:${mg.atk}</span><span class="text-[10px] font-mono text-sky-400">D:${mg.def}</span></div></td><td class="py-2.5 px-2 text-center">${renderCardBadgesHtml(matchYellows, matchReds)}</td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-bold border ${resCls}">${resLbl}</span></td><td class="py-2.5 px-2 text-right text-gray-400 text-xs">${dateText}</td></tr><tr id="boxScore_${idx}" class="hidden bg-gray-900/60 border-b border-gray-800"><td colspan="10" class="p-3"><div class="overflow-x-auto touch-scroll rounded border border-gray-800 bg-gray-950/80"><table class="w-full text-left text-xs whitespace-nowrap"><thead class="bg-gray-900 text-gray-400 uppercase text-[10px]"><tr><th class="py-1.5 px-2">Player</th><th class="py-1.5 px-2 text-center">Rat</th><th class="py-1.5 px-2 text-center">G</th><th class="py-1.5 px-2 text-center">A</th><th class="py-1.5 px-2 text-center">Shots (Conv%)</th><th class="py-1.5 px-2 text-center">Passes</th><th class="py-1.5 px-2 text-center">Missed</th><th class="py-1.5 px-2 text-center">Skills</th><th class="py-1.5 px-2 text-center">Tkl (Blk/Int)</th><th class="py-1.5 px-2 text-center">Cards</th><th class="py-1.5 px-2 text-right">Award</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></td></tr>`;
   }).join('');
-  formContainer.innerHTML = formList.join('');
 }
 
 function getExactPlayerRole(m = {}, mp = {}) {
