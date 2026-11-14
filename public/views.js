@@ -1,3 +1,7 @@
+let SQUAD_SORT_COL = 'games';
+let SQUAD_SORT_ASC = false;
+let NEXT_RADAR_SLOT = 1;
+
 // Compact Hero Sparkline Renderer for Skill Rating Progression (Fits neatly inside the Hero Card)
 function renderSkillRatingGraph(clubId, clubData = {}, matches = []) {
   const sec = document.getElementById('srGraphSection'), chartBox = document.getElementById('srChartContainer'), badge = document.getElementById('srTrendBadge'), metaEl = document.getElementById('srPeakLowMeta');
@@ -64,7 +68,7 @@ function renderSkillRatingGraph(clubId, clubData = {}, matches = []) {
     : 'px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black bg-gray-800 text-gray-300 border border-gray-700';
   badge.innerText = netChange > 0 ? `▲ +${netChange} SR` : (netChange < 0 ? `▼ ${netChange} SR` : `⚖️ 0 SR`);
 
-  const w = 520, h = 92, padL = 18, padR = 22, padT = 18, padB = 14;
+  const w = 520, h = 88, padL = 18, padR = 22, padT = 18, padB = 12;
   const plotW = w - padL - padR, plotH = h - padT - padB;
 
   const coords = ptsChrono.map((pt, i) => {
@@ -111,6 +115,7 @@ function renderSkillRatingGraph(clubId, clubData = {}, matches = []) {
   </svg>`;
 }
 
+// 3-Pillar Focused Tactical Scouting Report (Strengths, Weaknesses, Tactical Fixes)
 function renderClubReviewReport(clubData = {}, members = [], matches = [], shameList = []) {
   const sec = document.getElementById('clubReviewSection');
   if (!members.length) return sec.classList.add('hidden');
@@ -118,26 +123,26 @@ function renderClubReviewReport(clubData = {}, members = [], matches = [], shame
 
   const st = clubData.overall || {}, w = Number(st.wins ?? st.overallWins ?? 0), d = Number(st.ties ?? st.overallTies ?? 0), l = Number(st.losses ?? st.overallLosses ?? 0);
   const tot = Math.max(1, w + d + l), winPct = Math.round((w / tot) * 100), gpg = (Number(st.goals ?? 0) / tot).toFixed(2), gapg = (Number(st.goalsAgainst ?? 0) / tot).toFixed(2);
-  let rW = 0, rL = 0, rGF = 0, rGA = 0;
+  let rW = 0, rL = 0;
   matches.slice(0, 10).forEach(m => {
     const c = m.clubs || m.aggregate || {}, ids = Object.keys(c);
     const myId = ids.find(id => String(id) === String(GLOBAL_CLUB_ID)) || ids[0], oppId = ids.find(id => String(id) !== String(GLOBAL_CLUB_ID)) || ids[1];
     const mG = Number(c[myId]?.goals ?? 0), oG = Number(c[oppId]?.goals ?? 0);
-    rGF += mG; rGA += oG; if (mG > oG) rW++; else if (mG < oG) rL++;
+    if (mG > oG) rW++; else if (mG < oG) rL++;
   });
 
   const avgPass = Math.round(members.reduce((a, b) => a + Number(b.passSuccessRate || 75), 0) / members.length);
   const missedP = shameList.reduce((a, b) => a + (b.missedPasses || 0), 0), missedS = shameList.reduce((a, b) => a + Math.max(0, (b.shots || 0) - (b.goals || 0)), 0);
   const hb = document.getElementById('clubReviewGradeBadge');
   hb.className = winPct >= 52 && rW >= rL ? 'px-3 py-1 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'px-3 py-1 rounded-full text-[11px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40';
-  hb.innerText = winPct >= 52 && rW >= rL ? 'CLUB STATUS: PROMOTION CONTENDERS (A)' : 'CLUB STATUS: COMPETITIVE BATTLERS (B+)';
+  hb.innerText = winPct >= 52 && rW >= rL ? 'SCOUT GRADE: PROMOTION CONTENDERS (A)' : 'SCOUT GRADE: COMPETITIVE BATTLERS (B+)';
 
   const topScorer = [...members].sort((a, b) => Number(b.goals || 0) - Number(a.goals || 0))[0];
+  const topPlaymaker = [...members].sort((a, b) => Number(b.assists || 0) - Number(a.assists || 0))[0];
   const pillars = [
-    { title: '📊 Current Status', icon: 'fa-signal text-sky-400', border: 'border-sky-500/30', items: [`Competing in <b>${clubData.division||'Div 5'}</b> (${st.skillRating||1500} SR • ${clubData.globalRank?.label||'Top 10%'}).`, `All-time win rate: <b>${winPct}%</b> (${w}W-${d}D-${l}L), averaging <b>${gpg} GF/g</b>.`, `Last 10 momentum: <b>${rW}W-${10-rW-rL}D-${rL}L</b> (${rGF} GF / ${rGA} GA).`] },
-    { title: '💪 Key Strengths', icon: 'fa-dumbbell text-emerald-400', border: 'border-emerald-500/30', items: [Number(gpg)>=2.0?`<b>Attacking Threat:</b> Averaging ${gpg} goals/game.`:`<b>Balanced Scoring:</b> Shared goal contributions.`, `<b>Ball Retention:</b> ${avgPass}% squad pass accuracy.`, topScorer?`<b>Focal Point:</b> ${topScorer.name||topScorer.proName} leads with ${topScorer.goals} goals.`:''] },
-    { title: '⚠️ Weaknesses', icon: 'fa-triangle-exclamation text-rose-400', border: 'border-rose-500/30', items: [Number(gapg)>=2.0?`<b>Defensive Leakage:</b> Conceding ${gapg} goals/game.`:`<b>Tight Margins:</b> Narrow 1-goal defeats.`, `<b>Turnovers:</b> ${missedP} missed passes in the last 10 games.`, `<b>Finishing:</b> ${missedS} unconverted shots in recent fixtures.`] },
-    { title: '🎯 Areas to Address', icon: 'fa-bullseye text-amber-400', border: 'border-amber-500/30', items: [`<b>Anchor the Midfield:</b> Keep one CDM behind the ball during wide attacks.`, `<b>Cut Out Hospital Passes:</b> Play short triangles before forcing through-balls.`, `<b>Extra Pass in Box:</b> Look for high-percentage cutbacks.`] }
+    { title: '💪 Key Strengths', icon: 'fa-dumbbell text-emerald-400', border: 'border-emerald-500/30', items: [Number(gpg)>=2.0?`<b>Attacking Output:</b> Averaging ${gpg} goals/game across ${tot} fixtures.`:`<b>Balanced Scoring:</b> Shared goal threat across the front line.`, `<b>Ball Retention:</b> ${avgPass}% squad pass completion rate.`, topScorer?`<b>Clinical Finisher:</b> ${topScorer.name||topScorer.proName} leads with ${topScorer.goals}G (${topPlaymaker?.name||'Pro'}: ${topPlaymaker?.assists||0}A).`:''] },
+    { title: '⚠️ Vulnerabilities', icon: 'fa-triangle-exclamation text-rose-400', border: 'border-rose-500/30', items: [Number(gapg)>=2.0?`<b>Defensive Exposure:</b> Conceding ${gapg} goals/game on counter-attacks.`:`<b>Fine Margins:</b> Dropping points in tight 1-goal games.`, `<b>Midfield Turnovers:</b> ${missedP} misplaced passes in the last 10 matches.`, `<b>Box Efficiency:</b> ${missedS} unconverted shots in the recent 10-game window.`] },
+    { title: '🎯 Tactical Fixes', icon: 'fa-bullseye text-amber-400', border: 'border-amber-500/30', items: [`<b>Rest-Defense Discipline:</b> Keep 1 CDM/CM holding central space when fullbacks push.`, `<b>Eliminate Hospital Passes:</b> Work short triangles before forcing contested through-balls.`, `<b>Extra Pass in the Box:</b> Look for high-percentage cutbacks rather than tight-angle shots.`] }
   ];
   document.getElementById('clubReviewGrid').innerHTML = pillars.map(p => `<div class="bg-gray-900/60 border ${p.border} rounded-xl p-3.5 space-y-2"><div class="text-xs font-black uppercase text-white flex items-center gap-2 border-b border-gray-800 pb-1.5"><i class="fa-solid ${p.icon}"></i>${p.title}</div><ul class="space-y-1.5 text-xs text-gray-300">${p.items.filter(Boolean).map(i => `<li class="flex items-start gap-1.5"><span class="text-emerald-400 font-bold">•</span><span>${i}</span></li>`).join('')}</ul></div>`).join('');
 }
@@ -248,26 +253,67 @@ function renderCareerMilestones(members = []) {
   document.getElementById('milestonesGrid').innerHTML = items.sort((a, b) => b.pct - a.pct).slice(0, 4).map(i => `<div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3.5 space-y-2"><div class="flex items-center justify-between"><div class="flex items-center gap-2 min-w-0">${renderAvatarWithFlagHtml(i.name, 'w-8 h-8', 'border-gray-700', 'w-3 h-2')}<div class="min-w-0"><div class="text-xs font-extrabold text-white truncate">${i.name}</div><div class="text-[10px] font-bold text-gray-400"><i class="fa-solid ${i.ic} mr-1"></i>${i.cat}</div></div></div><span class="text-xs font-black text-white font-mono">${i.cur}/${i.target}</span></div><div class="w-full h-2 bg-gray-800 rounded-full overflow-hidden"><div class="h-full ${i.bg} rounded-full" style="width:${Math.min(100,i.pct)}%"></div></div><div class="text-[10px] text-gray-400">Only <b class="text-white">${i.rem}</b> away from <b class="text-emerald-400">${i.target}</b>!</div></div>`).join('');
 }
 
-function renderSeasonsHistory(seasonsHistory = [], trophies = {}) {
-  const sec = document.getElementById('seasonsSection');
-  if (!seasonsHistory.length) return sec.classList.add('hidden');
-  sec.classList.remove('hidden');
-  document.getElementById('seasonsSummaryMeta').innerText = `${seasonsHistory.length} FC 27 Seasons • ${trophies.promotions||0} Promos • ${trophies.relegations||0} Relegs`;
-  document.getElementById('seasonsHistoryTable').innerHTML = seasonsHistory.map(s => {
-    const tot = Math.max(1, s.wins + s.draws + s.losses), wp = Math.round((s.wins / tot) * 100), gd = s.goalsFor - s.goalsAgainst;
-    const badge = s.badgeType === 'title' ? `<span class="px-2 py-0.5 rounded text-xs font-black bg-yellow-500/20 text-yellow-300 border border-yellow-500/40">🏆 ${s.outcome}</span>` : s.badgeType === 'promo' ? `<span class="px-2 py-0.5 rounded text-xs font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">⬆️ ${s.outcome}</span>` : s.badgeType === 'active' ? `<span class="px-2 py-0.5 rounded text-xs font-black bg-sky-500/15 text-sky-300 border border-sky-500/30">▶️ ${s.outcome}</span>` : `<span class="px-2 py-0.5 rounded text-xs font-bold bg-gray-800 text-gray-300 border border-gray-700">${s.outcome}</span>`;
-    return `<tr class="${s.isCurrent?'bg-emerald-950/15 font-semibold':'hover:bg-gray-800/40'} border-b border-gray-800/60"><td class="py-2.5 px-2 font-bold text-white">${s.label}</td><td class="py-2.5 px-2 text-center">${renderDivisionShieldHtml(s.divisionNum??s.division,'sm')}</td><td class="py-2.5 px-2 text-center font-mono text-white">${s.wins}-${s.draws}-${s.losses}</td><td class="py-2.5 px-2 text-center text-gray-300">${wp}%</td><td class="py-2.5 px-2 text-center text-gray-300">${s.goalsFor}/${s.goalsAgainst} (${gd>=0?`+${gd}`:gd})</td><td class="py-2.5 px-2 text-center font-black text-emerald-400">${s.points} pts</td><td class="py-2.5 px-2 text-right">${badge}</td></tr>`;
-  }).join('');
+function sortSquadBy(col) {
+  if (SQUAD_SORT_COL === col) {
+    SQUAD_SORT_ASC = !SQUAD_SORT_ASC;
+  } else {
+    SQUAD_SORT_COL = col;
+    SQUAD_SORT_ASC = col === 'name';
+  }
+  renderMembers(GLOBAL_MEMBERS);
+}
+
+function quickComparePlayer(playerName, ev) {
+  if (ev) ev.stopPropagation();
+  const s1 = document.getElementById('radarSelectP1'), s2 = document.getElementById('radarSelectP2');
+  if (!s1 || !s2) return;
+  if (NEXT_RADAR_SLOT === 1) {
+    s1.value = playerName;
+    NEXT_RADAR_SLOT = 2;
+  } else {
+    s2.value = playerName;
+    NEXT_RADAR_SLOT = 1;
+  }
+  updateRadarCharts();
+  document.getElementById('radarSection')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function renderMembers(data) {
-  const tbody = document.getElementById('membersTable'), list = Array.isArray(data) ? data : [];
-  const firstTh = tbody?.closest('table')?.querySelector('thead th:first-child');
-  if (firstTh) firstTh.innerText = 'Player & Loyalty';
+  const tbody = document.getElementById('membersTable'), rawList = Array.isArray(data) ? [...data] : [];
+  if (!rawList.length) { tbody.innerHTML = '<tr><td colspan="11" class="py-6 text-center text-gray-500">No member records returned.</td></tr>'; return []; }
 
-  if (!list.length) { tbody.innerHTML = '<tr><td colspan="11" class="py-6 text-center text-gray-500">No member records returned.</td></tr>'; return []; }
+  const getVal = (m, c) => {
+    const g = Math.max(1, Number(m.gamesPlayed ?? 0)), gl = Number(m.goals ?? 0), as = Number(m.assists ?? 0);
+    const n = m.name || m.proName || '';
+    const r10 = RECENT_10_STATS_MAP[n];
+    if (c === 'name') return n.toLowerCase();
+    if (c === 'ovr') return Number(m.proOverall || 85);
+    if (c === 'games') return Number(m.gamesPlayed ?? 0);
+    if (c === 'goals') return gl;
+    if (c === 'assists') return as;
+    if (c === 'gapg') return (gl + as) / g;
+    if (c === 'tackles') return Number(m.tacklesMade ?? m.tacklesmade ?? m.tackles ?? r10?.tackles ?? 0);
+    if (c === 'rating') return parseFloat(m.ratingAve || m.rating || 0);
+    if (c === 'pass') return Number(m.passSuccessRate ?? 0);
+    if (c === 'motm') return Number(m.manOfTheMatch ?? 0);
+    return 0;
+  };
 
-  tbody.innerHTML = list.map(m => {
+  rawList.sort((a, b) => {
+    const vA = getVal(a, SQUAD_SORT_COL), vB = getVal(b, SQUAD_SORT_COL);
+    if (typeof vA === 'string') return SQUAD_SORT_ASC ? vA.localeCompare(vB) : vB.localeCompare(vA);
+    return SQUAD_SORT_ASC ? vA - vB : vB - vA;
+  });
+
+  ['name','ovr','games','goals','assists','gapg','tackles','rating','pass','motm'].forEach(col => {
+    const el = document.getElementById(`sortIcon_${col}`);
+    if (el) {
+      el.innerText = SQUAD_SORT_COL === col ? (SQUAD_SORT_ASC ? '▲' : '▼') : '';
+      el.className = SQUAD_SORT_COL === col ? 'text-[9px] text-emerald-400 ml-0.5' : 'text-[9px] text-gray-600';
+    }
+  });
+
+  tbody.innerHTML = rawList.map(m => {
     const name = m.name || m.proName || 'Unknown', ovr = Number(m.proOverall || 85), tierInfo = getCardTierTheme(ovr);
     const normPos = normalizePosition(m.favoritePosition || m.pos || 'MID'), exactPos = EA_PRO_POS_MAP[String(m.proPos ?? '')] || normPos;
     const games = Number(m.gamesPlayed ?? 0), goals = Number(m.goals ?? 0), assists = Number(m.assists ?? 0);
@@ -297,10 +343,11 @@ function renderMembers(data) {
 
     m._normalizedPos = normPos; m._rawPos = exactPos;
     const bCol = normPos === 'FWD' ? 'text-rose-400 bg-rose-500/10' : normPos === 'MID' ? 'text-amber-400 bg-amber-500/10' : normPos === 'DEF' ? 'text-blue-400 bg-blue-500/10' : 'text-purple-400 bg-purple-500/10';
+    const escName = name.replace(/'/g, "\\'");
 
-    return `<tr onclick="openFutModal('${name.replace(/'/g, "\\'")}')" class="hover:bg-gray-800/50 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-2">${renderAvatarWithFlagHtml(name, 'w-8 h-8 sm:w-9 sm:h-9', 'border-emerald-500/40', 'w-3.5 h-2.5')}<span class="hover:text-yellow-400 font-bold">${name}</span>${loyaltyBadge}</div></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded border font-black text-xs ${tierInfo.badgeClass}">${ovr}</span></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${bCol}">${exactPos}</span></td><td class="py-2.5 px-2 text-center text-gray-300">${games}</td><td class="py-2.5 px-2 text-center font-bold text-emerald-400">${goals} ${shotConv!=='--'?`<span class="text-[10px] text-gray-400 font-mono">(${shotConv}%)</span>`:''}</td><td class="py-2.5 px-2 text-center text-gray-300">${assists}</td><td class="py-2.5 px-2 text-center text-emerald-300 font-mono">${gaPg}</td><td class="py-2.5 px-2 text-center text-sky-400 font-medium" title="${tackles} Tackles Won (${tWin}% Success Rate)">${tackles} <span class="text-xs text-gray-400">(${tWin}%)</span>${csBadge}</td><td class="py-2.5 px-2 text-center text-yellow-400 font-semibold">${careerRat.toFixed(1)}${formArr}</td><td class="py-2.5 px-2 text-center text-gray-300">${pass}%</td><td class="py-2.5 px-2 text-center text-purple-400">${motm}</td></tr>`;
+    return `<tr onclick="openFutModal('${escName}')" class="hover:bg-gray-800/50 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center justify-between gap-2"><div class="flex items-center gap-2">${renderAvatarWithFlagHtml(name, 'w-8 h-8 sm:w-9 sm:h-9', 'border-emerald-500/40', 'w-3.5 h-2.5')}<span class="hover:text-yellow-400 font-bold">${name}</span>${loyaltyBadge}</div><button onclick="quickComparePlayer('${escName}', event)" class="text-[11px] bg-gray-800 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-gray-700 hover:border-sky-500/40 px-1.5 py-0.5 rounded transition" title="Compare in Radar Chart">⚖️</button></div></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded border font-black text-xs ${tierInfo.badgeClass}">${ovr}</span></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${bCol}">${exactPos}</span></td><td class="py-2.5 px-2 text-center text-gray-300">${games}</td><td class="py-2.5 px-2 text-center font-bold text-emerald-400">${goals} ${shotConv!=='--'?`<span class="text-[10px] text-gray-400 font-mono">(${shotConv}%)</span>`:''}</td><td class="py-2.5 px-2 text-center text-gray-300">${assists}</td><td class="py-2.5 px-2 text-center text-emerald-300 font-mono">${gaPg}</td><td class="py-2.5 px-2 text-center text-sky-400 font-medium" title="${tackles} Tackles Won (${tWin}% Success Rate)">${tackles} <span class="text-xs text-gray-400">(${tWin}%)</span>${csBadge}</td><td class="py-2.5 px-2 text-center text-yellow-400 font-semibold">${careerRat.toFixed(1)}${formArr}</td><td class="py-2.5 px-2 text-center text-gray-300">${pass}%</td><td class="py-2.5 px-2 text-center text-purple-400">${motm}</td></tr>`;
   }).join('');
-  return list;
+  return rawList;
 }
 
 function initRadarComparison(members = []) {
