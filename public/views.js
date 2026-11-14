@@ -1,4 +1,4 @@
-// Reconstructs Match-by-Match Elo Skill Rating Trajectory Anchored to Current Club Skill Rating
+// Compact Hero Sparkline Renderer for Skill Rating Progression (Fits neatly inside the Hero Card)
 function renderSkillRatingGraph(clubId, clubData = {}, matches = []) {
   const sec = document.getElementById('srGraphSection'), chartBox = document.getElementById('srChartContainer'), badge = document.getElementById('srTrendBadge'), metaEl = document.getElementById('srPeakLowMeta');
   const matchArr = Array.isArray(matches) ? matches.slice(0, 10) : [];
@@ -29,14 +29,12 @@ function renderSkillRatingGraph(clubId, clubData = {}, matches = []) {
     if (res === 'W' && delta < 8) delta = 12;
     if (res === 'L' && delta > -8) delta = -12;
 
-    const postMatchSr = Math.round(runningSr);
     reversedPoints.push({
-      sr: postMatchSr,
+      sr: Math.round(runningSr),
       delta,
       res,
       score: `${myG}-${oppG}`,
       oppName,
-      oppSr: oppSr || '--',
       isLatest: i === 0
     });
     runningSr = Math.max(800, runningSr - delta);
@@ -46,29 +44,27 @@ function renderSkillRatingGraph(clubId, clubData = {}, matches = []) {
     sr: Math.round(runningSr),
     delta: 0,
     res: 'START',
-    score: 'Baseline',
-    oppName: `${matchArr.length} Games Ago`,
-    oppSr: '--',
+    score: 'Start',
+    oppName: `${matchArr.length}G Ago`,
     isBaseline: true
   });
 
   const ptsChrono = reversedPoints.reverse();
   const srs = ptsChrono.map(p => p.sr);
   const peakSr = Math.max(...srs), lowSr = Math.min(...srs);
-  const minSr = Math.floor((lowSr - 18) / 20) * 20;
-  const maxSr = Math.ceil((peakSr + 18) / 20) * 20;
-  const range = Math.max(40, maxSr - minSr);
+  const minSr = lowSr - 12, maxSr = peakSr + 12;
+  const range = Math.max(24, maxSr - minSr);
 
   const netChange = ptsChrono[ptsChrono.length - 1].sr - ptsChrono[0].sr;
-  if (metaEl) metaEl.innerText = `Low: ${lowSr} • Peak: ${peakSr} • Now: ${currentSr}`;
+  if (metaEl) metaEl.innerText = `Low: ${lowSr} • Peak: ${peakSr}`;
   badge.className = netChange > 0
-    ? 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+    ? 'px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
     : netChange < 0
-    ? 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40'
-    : 'px-2.5 py-0.5 rounded-full text-[11px] font-black bg-gray-800 text-gray-300 border border-gray-700';
-  badge.innerText = netChange > 0 ? `▲ +${netChange} SR (Last ${matchArr.length}G)` : (netChange < 0 ? `▼ ${netChange} SR (Last ${matchArr.length}G)` : `⚖️ +0 SR (Last ${matchArr.length}G)`);
+    ? 'px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40'
+    : 'px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black bg-gray-800 text-gray-300 border border-gray-700';
+  badge.innerText = netChange > 0 ? `▲ +${netChange} SR` : (netChange < 0 ? `▼ ${netChange} SR` : `⚖️ 0 SR`);
 
-  const w = 720, h = 225, padL = 48, padR = 26, padT = 26, padB = 34;
+  const w = 520, h = 92, padL = 18, padR = 22, padT = 18, padB = 14;
   const plotW = w - padL - padR, plotH = h - padT - padB;
 
   const coords = ptsChrono.map((pt, i) => {
@@ -79,40 +75,38 @@ function renderSkillRatingGraph(clubId, clubData = {}, matches = []) {
 
   const pathD = coords.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
   const areaD = `${pathD} L ${coords[coords.length - 1].x} ${padT + plotH} L ${coords[0].x} ${padT + plotH} Z`;
-
-  const gridLines = [0, 0.25, 0.5, 0.75, 1].map(r => {
-    const val = Math.round(maxSr - range * r);
-    const y = +(padT + plotH * r).toFixed(1);
-    return `<line x1="${padL}" y1="${y}" x2="${w - padR}" y2="${y}" stroke="#1f2937" stroke-width="1" stroke-dasharray="3 3"/><text x="${padL - 8}" y="${y + 3.5}" fill="#64748b" font-size="10" font-family="monospace" font-weight="700" text-anchor="end">${val}</text>`;
-  }).join('');
+  const midY = +(padT + plotH * 0.5).toFixed(1);
 
   const nodesHtml = coords.map((p, i) => {
-    const col = p.isBaseline ? '#94a3b8' : (p.res === 'W' ? '#10b981' : (p.res === 'L' ? '#f43f5e' : '#f59e0b'));
+    const col = p.isBaseline ? '#64748b' : (p.res === 'W' ? '#10b981' : (p.res === 'L' ? '#f43f5e' : '#f59e0b'));
     const dStr = p.delta > 0 ? `+${p.delta}` : `${p.delta}`;
-    const shortOpp = p.isBaseline ? 'Start' : (p.isLatest ? 'NOW' : `M${i}`);
     const tip = p.isBaseline
-      ? `Baseline (${matchArr.length} Games Ago): ${p.sr} SR`
-      : `Match ${i} vs ${p.oppName} (${p.res} ${p.score}) • ${p.sr} SR (${dStr})`;
+      ? `Start (${matchArr.length} Games Ago): ${p.sr} SR`
+      : `M${i} vs ${p.oppName} (${p.res} ${p.score}) • ${p.sr} SR (${dStr})`;
+
+    const showLabel = p.isBaseline || p.isLatest || p.sr === peakSr || p.sr === lowSr;
+    const lblHtml = showLabel
+      ? `<text x="${p.x}" y="${p.y - 7}" fill="${p.isLatest ? '#34d399' : '#94a3b8'}" font-size="9.5" font-family="monospace" font-weight="800" text-anchor="middle">${p.sr}</text>`
+      : '';
 
     return `<g class="group cursor-pointer">
       <title>${tip}</title>
-      <circle cx="${p.x}" cy="${p.y}" r="${p.isLatest ? 10 : 8}" fill="${col}" opacity="0.22"/>
-      <circle cx="${p.x}" cy="${p.y}" r="${p.isLatest ? 5.5 : 4.5}" fill="${col}" stroke="#0b0f19" stroke-width="2"/>
-      <text x="${p.x}" y="${p.y - 10}" fill="${p.isLatest ? '#34d399' : '#cbd5e1'}" font-size="${p.isLatest ? '11' : '9.5'}" font-family="monospace" font-weight="800" text-anchor="middle">${p.sr}</text>
-      <text x="${p.x}" y="${padT + plotH + 18}" fill="${p.isLatest ? '#10b981' : '#64748b'}" font-size="9.5" font-family="sans-serif" font-weight="${p.isLatest ? '900' : '700'}" text-anchor="middle">${shortOpp}</text>
+      <circle cx="${p.x}" cy="${p.y}" r="${p.isLatest ? 7 : 5}" fill="${col}" opacity="0.22"/>
+      <circle cx="${p.x}" cy="${p.y}" r="${p.isLatest ? 4 : 3}" fill="${col}" stroke="#0b0f19" stroke-width="1.5"/>
+      ${lblHtml}
     </g>`;
   }).join('');
 
   chartBox.innerHTML = `<svg viewBox="0 0 ${w} ${h}" class="w-full h-full overflow-visible select-none" shape-rendering="geometricPrecision">
     <defs>
       <linearGradient id="srAreaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="#10b981" stop-opacity="0.32"/>
+        <stop offset="0%" stop-color="#10b981" stop-opacity="0.28"/>
         <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
       </linearGradient>
     </defs>
-    ${gridLines}
+    <line x1="${padL}" y1="${midY}" x2="${w - padR}" y2="${midY}" stroke="#1f2937" stroke-width="1" stroke-dasharray="3 3"/>
     <path d="${areaD}" fill="url(#srAreaGrad)"/>
-    <path d="${pathD}" fill="none" stroke="#10b981" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${pathD}" fill="none" stroke="#10b981" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
     ${nodesHtml}
   </svg>`;
 }
