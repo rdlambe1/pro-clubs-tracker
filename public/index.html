@@ -140,7 +140,7 @@
                 <th class="py-2.5 px-2 text-center">Record (W-D-L)</th>
                 <th class="py-2.5 px-2 text-center">Win %</th>
                 <th class="py-2.5 px-2 text-center">Goals (GD)</th>
-                <th class="py-2.5 px-2 text-right">Titles</th>
+                <th class="py-2.5 px-2 text-right">Promos</th>
               </tr>
             </thead>
             <tbody id="top10ClubsTable" class="divide-y border-gray-800">
@@ -179,15 +179,15 @@
           </div>
         </div>
 
-        <!-- Unified Honours Strip + Embedded Skill Rating Sparkline -->
+        <!-- Unified Progression Strip (Matches & Win%, Promos/Relegs, Peak Div) + Embedded Skill Rating Sparkline -->
         <div id="trophyBar" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-3 pt-3.5 border-t border-gray-800/80 items-stretch">
-          <!-- Left: Compact Combined Club Honours (Titles, Promos/Relegs, Peak Div) -->
+          <!-- Left: Compact Combined Club Progression Strip -->
           <div class="lg:col-span-5 bg-gray-900/60 border border-gray-800 rounded-xl p-3 flex items-center justify-between divide-x divide-gray-800/90">
             <div class="flex items-center gap-2.5 pr-2 sm:pr-3 flex-1 justify-center">
-              <i class="fa-solid fa-trophy text-yellow-400 text-base sm:text-lg"></i>
+              <i class="fa-solid fa-futbol text-sky-400 text-base sm:text-lg"></i>
               <div>
-                <div class="text-[9px] uppercase text-gray-400 font-bold tracking-wider">Trophies</div>
-                <div class="text-xs sm:text-sm font-black text-white whitespace-nowrap"><span id="trophyTitles">0</span> <span class="text-[10px] text-gray-400 font-semibold">Titles</span> • <span id="trophyLeagues" class="text-amber-300">0</span> <span class="text-[10px] text-gray-400 font-semibold">Lge</span></div>
+                <div class="text-[9px] uppercase text-gray-400 font-bold tracking-wider">Matches & Win %</div>
+                <div class="text-xs sm:text-sm font-black text-white whitespace-nowrap"><span id="heroTotalMatches">0</span> <span class="text-[10px] text-gray-400 font-semibold">GP</span> • <span id="heroWinPct" class="text-sky-400">0%</span></div>
               </div>
             </div>
             <div class="flex items-center gap-3 px-2 sm:px-3 flex-1 justify-center">
