@@ -173,43 +173,48 @@
             </div>
           </div>
           <div class="grid grid-cols-3 gap-2 sm:gap-6 text-center border-t lg:border-t-0 lg:border-l border-gray-800 pt-4 lg:pt-0 lg:pl-8 w-full lg:w-auto">
-            <div><div class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider">Record (W-D-L)</div><div id="clubRecord" class="text-base sm:text-xl font-bold text-white mt-1 whitespace-nowrap">--</div></div>
-            <div class="flex flex-col items-center"><div class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider">Skill Rating</div><div id="skillRating" class="text-base sm:text-xl font-bold text-emerald-400 mt-1">--</div><span id="globalRankBadge" class="hidden mt-1 px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">🌍 Top --%</span></div>
-            <div><div class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider">Goals (Diff)</div><div id="goalStats" class="text-base sm:text-xl font-bold text-white mt-1 whitespace-nowrap">--</div></div>
+            <div class="flex flex-col items-center">
+              <div class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider">Record (W-D-L)</div>
+              <div id="clubRecord" class="text-base sm:text-xl font-bold text-white mt-1 whitespace-nowrap">--</div>
+              <span id="clubWinPctSub" class="mt-1 px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black bg-sky-500/15 text-sky-300 border border-sky-500/30 whitespace-nowrap">--% Win • -- GP</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider">Skill Rating</div>
+              <div id="skillRating" class="text-base sm:text-xl font-bold text-emerald-400 mt-1">--</div>
+              <span id="globalRankBadge" class="hidden mt-1 px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 whitespace-nowrap">🌍 Top --%</span>
+            </div>
+            <div class="flex flex-col items-center">
+              <div class="text-gray-400 text-[10px] sm:text-xs uppercase tracking-wider">Goals (Diff)</div>
+              <div id="goalStats" class="text-base sm:text-xl font-bold text-white mt-1 whitespace-nowrap">--</div>
+              <span id="goalPerGameSub" class="mt-1 px-1.5 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-gray-800 text-gray-300 border border-gray-700 whitespace-nowrap">-- GF/g • -- GA/g</span>
+            </div>
           </div>
         </div>
 
-        <!-- Unified Progression Strip (Matches & Win%, Promos/Relegs, Peak Div) + Embedded Skill Rating Sparkline -->
+        <!-- Clean Honours Strip (Promos, Relegs, Peak Div Only) + Embedded Skill Rating Sparkline -->
         <div id="trophyBar" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-3 pt-3.5 border-t border-gray-800/80 items-stretch">
-          <!-- Left: Compact Combined Club Progression Strip -->
-          <div class="lg:col-span-5 bg-gray-900/60 border border-gray-800 rounded-xl p-3 flex items-center justify-between divide-x divide-gray-800/90">
-            <div class="flex items-center gap-2.5 pr-2 sm:pr-3 flex-1 justify-center">
-              <i class="fa-solid fa-futbol text-sky-400 text-base sm:text-lg"></i>
+          <div class="lg:col-span-4 bg-gray-900/60 border border-gray-800 rounded-xl p-3 flex items-center justify-around divide-x divide-gray-800/90">
+            <div class="flex items-center gap-2 pr-3 flex-1 justify-center">
+              <div class="w-8 h-8 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400"><i class="fa-solid fa-angles-up text-sm"></i></div>
               <div>
-                <div class="text-[9px] uppercase text-gray-400 font-bold tracking-wider">Matches & Win %</div>
-                <div class="text-xs sm:text-sm font-black text-white whitespace-nowrap"><span id="heroTotalMatches">0</span> <span class="text-[10px] text-gray-400 font-semibold">GP</span> • <span id="heroWinPct" class="text-sky-400">0%</span></div>
+                <div class="text-[9px] uppercase text-gray-400 font-bold tracking-wider">Promos</div>
+                <div id="trophyPromos" class="text-sm sm:text-base font-black text-emerald-400">0</div>
               </div>
             </div>
-            <div class="flex items-center gap-3 px-2 sm:px-3 flex-1 justify-center">
-              <div class="text-center">
-                <div class="text-[9px] uppercase text-gray-400 font-bold">Promos</div>
-                <div class="text-xs sm:text-sm font-black text-emerald-400 flex items-center justify-center gap-0.5"><i class="fa-solid fa-angles-up text-[10px]"></i><span id="trophyPromos">0</span></div>
-              </div>
-              <div class="text-center">
-                <div class="text-[9px] uppercase text-gray-400 font-bold">Relegs</div>
-                <div class="text-xs sm:text-sm font-black text-rose-400 flex items-center justify-center gap-0.5"><i class="fa-solid fa-angles-down text-[10px]"></i><span id="trophyRelegs">0</span></div>
+            <div class="flex items-center gap-2 px-3 flex-1 justify-center">
+              <div class="w-8 h-8 rounded-lg bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400"><i class="fa-solid fa-angles-down text-sm"></i></div>
+              <div>
+                <div class="text-[9px] uppercase text-gray-400 font-bold tracking-wider">Relegs</div>
+                <div id="trophyRelegs" class="text-sm sm:text-base font-black text-rose-400">0</div>
               </div>
             </div>
-            <div class="flex items-center gap-2 pl-2 sm:pl-3 flex-1 justify-center">
-              <div>
-                <div class="text-[9px] uppercase text-gray-400 font-bold leading-tight">Peak<br>Div</div>
-              </div>
+            <div class="flex items-center gap-2.5 pl-3 flex-1 justify-center">
+              <div><div class="text-[9px] uppercase text-gray-400 font-bold leading-tight">Peak<br>Div</div></div>
               <div id="trophyPeakDivShield" class="flex-shrink-0"></div>
             </div>
           </div>
 
-          <!-- Right: Neater Embedded Skill Rating Progression Sparkline -->
-          <div id="srGraphSection" class="lg:col-span-7 bg-gray-900/60 border border-gray-800 rounded-xl px-3.5 py-2.5 flex flex-col justify-between">
+          <div id="srGraphSection" class="lg:col-span-8 bg-gray-900/60 border border-gray-800 rounded-xl px-3.5 py-2.5 flex flex-col justify-between">
             <div class="flex items-center justify-between gap-2 mb-1">
               <div class="flex items-center gap-1.5">
                 <i class="fa-solid fa-chart-line text-emerald-400 text-xs"></i>
@@ -220,7 +225,7 @@
                 <span id="srTrendBadge" class="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black">--</span>
               </div>
             </div>
-            <div id="srChartContainer" class="w-full h-[92px] sm:h-[100px] flex items-center justify-center"></div>
+            <div id="srChartContainer" class="w-full h-[88px] sm:h-[96px] flex items-center justify-center"></div>
           </div>
         </div>
       </section>
@@ -263,20 +268,20 @@
             <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center justify-between"><div class="min-w-0 pr-2"><div id="recapMvpTitle" class="text-[10px] uppercase font-bold text-emerald-400">👑 Session MVP</div><div id="sessionMvpName" class="text-sm font-black text-white mt-0.5 truncate">--</div><div id="sessionMvpStats" class="text-[11px] text-gray-400">--</div></div><div id="sessionMvpAvatarBox" class="flex-shrink-0"></div></div>
             <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex items-center justify-between"><div class="min-w-0 pr-2"><div id="recapLiabilityTitle" class="text-[10px] uppercase font-bold text-rose-400">⚓ Session Passenger</div><div id="sessionLiabilityName" class="text-sm font-black text-white mt-0.5 truncate">--</div><div id="sessionLiabilityStats" class="text-[11px] text-gray-400">--</div></div><div id="sessionLiabilityAvatarBox" class="flex-shrink-0"></div></div>
             <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-3 flex flex-col justify-between">
-              <div class="text-[10px] uppercase font-bold text-sky-400 flex items-center justify-between"><span class="flex items-center gap-1"><i class="fa-solid fa-users-viewfinder"></i> Own Party Win %</span><span id="ownPartyModeBadge" class="text-[9px] text-gray-500 font-mono">Session</span></div>
-              <div id="ownPartySizeGrid" class="grid grid-cols-2 gap-x-2.5 gap-y-1 mt-1.5"></div>
+              <div class="text-[10px] uppercase font-bold text-sky-400 flex items-center justify-between"><span class="flex items-center gap-1"><i class="fa-solid fa-people-arrows"></i> Lobby Size Win %</span><span id="ownPartyModeBadge" class="text-[9px] text-gray-500 font-mono">Our Pros vs Opp</span></div>
+              <div id="ownPartySizeGrid" class="grid grid-cols-2 gap-1.5 mt-1.5"></div>
               <div id="squadFactorVerdict" class="text-[10px] text-gray-400 mt-1 italic truncate">--</div>
             </div>
           </div>
-          <div class="pt-3 border-t border-gray-800/80"><div id="vsOpponentHeaderTitle" class="text-[11px] font-black uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-people-arrows text-emerald-400"></i> Performance vs. Opponent Lobby Sizes (Latest Session)</div><div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5" id="vsOpponentSizeGrid"></div></div>
         </section>
 
+        <!-- 3-Column Focused Tactical Review (No Redundant Status Pillar) -->
         <section id="clubReviewSection" class="hidden card p-4 sm:p-6 space-y-4">
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-800 pb-3">
-            <div><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-clipboard-check text-emerald-400"></i> Club Tactical Review & Scouting Report</h3><p class="text-xs text-gray-400 mt-0.5">Automated diagnostic of club status, strengths, vulnerabilities & fixes</p></div>
+            <div><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-clipboard-check text-emerald-400"></i> Club Tactical Scouting Report</h3><p class="text-xs text-gray-400 mt-0.5">Automated diagnostic of squad strengths, vulnerabilities & tactical fixes</p></div>
             <span id="clubReviewGradeBadge" class="px-3 py-1 rounded-full text-[11px] font-black bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">--</span>
           </div>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5" id="clubReviewGrid"></div>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5" id="clubReviewGrid"></div>
         </section>
 
         <section id="intelSection" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -284,13 +289,19 @@
           <div class="card p-4 flex items-center justify-between border-l-4 border-l-rose-500"><div class="space-y-1 min-w-0 pr-2"><div id="nemesisTitle" class="text-[10px] font-black uppercase tracking-widest text-rose-400 flex items-center gap-1.5"><i class="fa-solid fa-skull"></i> Toughest Opponent</div><div id="nemesisName" class="text-sm sm:text-base font-extrabold text-white truncate">--</div><div id="nemesisMeta" class="text-xs text-gray-400">--</div></div><div id="nemesisCrest" class="flex-shrink-0"></div></div>
         </section>
 
-        <section id="seasonsSection" class="hidden card p-4 sm:p-6 space-y-4">
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1"><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-layer-group text-emerald-400"></i> FC 27 Club Seasons History</h3><span id="seasonsSummaryMeta" class="text-xs text-gray-400">Synced with official FC 27 seasons</span></div>
-          <div class="overflow-x-auto touch-scroll"><table class="w-full text-left text-xs sm:text-sm whitespace-nowrap"><thead class="border-b border-gray-800 text-gray-400 uppercase text-[10px] sm:text-xs"><tr><th class="py-2.5 px-2">Season</th><th class="py-2.5 px-2 text-center">Div</th><th class="py-2.5 px-2 text-center">Record</th><th class="py-2.5 px-2 text-center">Win %</th><th class="py-2.5 px-2 text-center">Goals</th><th class="py-2.5 px-2 text-center">Pts</th><th class="py-2.5 px-2 text-right">Status</th></tr></thead><tbody id="seasonsHistoryTable" class="divide-y border-gray-800"></tbody></table></div>
-        </section>
-
+        <!-- Recent 10 Matches with All / League / Playoff Filter Pills -->
         <section class="card p-4 sm:p-6 space-y-4">
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1"><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches</h3><span class="text-xs text-gray-400">Tap any row for full player box-score, Super-Subs, Cards & Shot Conv %</span></div>
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5">
+            <div>
+              <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches</h3>
+              <span class="text-xs text-gray-400">Tap any row for full player box-score, Super-Subs, Cards & Shot Conv %</span>
+            </div>
+            <div class="flex items-center bg-gray-900 p-1 rounded-lg border border-gray-800">
+              <button id="btnFilterAll" onclick="filterRecentMatches('ALL')" class="px-2.5 py-1 rounded text-xs font-black bg-emerald-500 text-black transition shadow">All</button>
+              <button id="btnFilterLeague" onclick="filterRecentMatches('League')" class="px-2.5 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition">League</button>
+              <button id="btnFilterPlayoff" onclick="filterRecentMatches('Playoff')" class="px-2.5 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition">Playoffs</button>
+            </div>
+          </div>
           <div class="overflow-x-auto touch-scroll"><table class="w-full text-left text-xs sm:text-sm whitespace-nowrap"><thead class="border-b border-gray-800 text-gray-400 uppercase text-[10px] sm:text-xs"><tr><th class="py-2.5 px-2">Type</th><th class="py-2.5 px-2">Matchup</th><th class="py-2.5 px-2 text-center">Vibe</th><th class="py-2.5 px-2 text-center">Opp Div</th><th class="py-2.5 px-2 text-center">Opp SR</th><th class="py-2.5 px-2 text-center">Score</th><th class="py-2.5 px-2 text-center">Grade (ATK/DEF)</th><th class="py-2.5 px-2 text-center">Cards</th><th class="py-2.5 px-2 text-center">Result</th><th class="py-2.5 px-2 text-right">Date</th></tr></thead><tbody id="recentMatchesTable" class="divide-y border-gray-800"></tbody></table></div>
         </section>
       </div>
@@ -308,9 +319,22 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5" id="shameBoardGrid"></div>
         </section>
 
+        <!-- Sortable Full Squad Table with Click-to-Compare Radar Action -->
         <section class="card p-4 sm:p-6 space-y-4">
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1"><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance</h3><span class="text-xs text-gray-400">Tap any player row to open & share their <b class="text-yellow-400">FC27 UT Card</b></span></div>
-          <div class="overflow-x-auto touch-scroll"><table class="w-full text-left text-xs sm:text-sm whitespace-nowrap"><thead class="border-b border-gray-800 text-gray-400 uppercase text-[10px] sm:text-xs"><tr><th class="py-2.5 px-2">Player & Loyalty</th><th class="py-2.5 px-2 text-center">OVR</th><th class="py-2.5 px-2 text-center">Pos</th><th class="py-2.5 px-2 text-center">GP</th><th class="py-2.5 px-2 text-center">Goals (Conv%)</th><th class="py-2.5 px-2 text-center">Assists</th><th class="py-2.5 px-2 text-center">G+A/G</th><th class="py-2.5 px-2 text-center">Tackles / CS</th><th class="py-2.5 px-2 text-center">Rating</th><th class="py-2.5 px-2 text-center">Pass %</th><th class="py-2.5 px-2 text-center">MoTM</th></tr></thead><tbody id="membersTable" class="divide-y border-gray-800"></tbody></table></div>
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1"><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance</h3><span class="text-xs text-gray-400">Tap any column header to sort • Tap a player for their <b class="text-yellow-400">FC27 Card</b> or <b class="text-sky-400">⚖️</b> to compare</span></div>
+          <div class="overflow-x-auto touch-scroll"><table class="w-full text-left text-xs sm:text-sm whitespace-nowrap"><thead class="border-b border-gray-800 text-gray-400 uppercase text-[10px] sm:text-xs select-none"><tr>
+            <th onclick="sortSquadBy('name')" class="py-2.5 px-2 cursor-pointer hover:text-white transition">Player & Loyalty <span id="sortIcon_name" class="text-[9px] text-gray-600"></span></th>
+            <th onclick="sortSquadBy('ovr')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">OVR <span id="sortIcon_ovr" class="text-[9px] text-gray-600"></span></th>
+            <th class="py-2.5 px-2 text-center">Pos</th>
+            <th onclick="sortSquadBy('games')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">GP <span id="sortIcon_games" class="text-[9px] text-emerald-400">▼</span></th>
+            <th onclick="sortSquadBy('goals')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Goals (Conv%) <span id="sortIcon_goals" class="text-[9px] text-gray-600"></span></th>
+            <th onclick="sortSquadBy('assists')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Assists <span id="sortIcon_assists" class="text-[9px] text-gray-600"></span></th>
+            <th onclick="sortSquadBy('gapg')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">G+A/G <span id="sortIcon_gapg" class="text-[9px] text-gray-600"></span></th>
+            <th onclick="sortSquadBy('tackles')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Tackles / CS <span id="sortIcon_tackles" class="text-[9px] text-gray-600"></span></th>
+            <th onclick="sortSquadBy('rating')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Rating <span id="sortIcon_rating" class="text-[9px] text-gray-600"></span></th>
+            <th onclick="sortSquadBy('pass')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Pass % <span id="sortIcon_pass" class="text-[9px] text-gray-600"></span></th>
+            <th onclick="sortSquadBy('motm')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">MoTM <span id="sortIcon_motm" class="text-[9px] text-gray-600"></span></th>
+          </tr></thead><tbody id="membersTable" class="divide-y border-gray-800"></tbody></table></div>
         </section>
 
         <section id="radarSection" class="hidden card p-4 sm:p-6 space-y-5">
