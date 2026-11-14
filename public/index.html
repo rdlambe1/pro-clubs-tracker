@@ -153,7 +153,7 @@
 
     <!-- VIEW 2: FULL CLUB DASHBOARD -->
     <div id="clubDashboardView" class="hidden space-y-5">
-      <section class="card p-4 sm:p-6 space-y-5">
+      <section class="card p-4 sm:p-6 space-y-4">
         <div class="flex flex-col lg:flex-row justify-between items-center gap-5">
           <div class="flex flex-col sm:flex-row items-center text-center sm:text-left gap-4 w-full lg:w-auto">
             <div id="heroCrestBox" class="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gray-900 border border-gray-800 flex items-center justify-center p-1.5 shadow-lg flex-shrink-0"><i class="fa-solid fa-shield text-gray-600 text-3xl"></i></div>
@@ -162,14 +162,14 @@
                 <h2 id="clubName" class="text-2xl sm:text-3xl font-extrabold text-white truncate max-w-[260px] sm:max-w-none">--</h2>
                 <div id="clubDivShieldContainer" class="hidden flex items-center"></div>
               </div>
-              <p id="clubMeta" class="text-gray-400 text-xs sm:text-sm mt-1">--</p>
-              <div id="clubIdentityBar" class="hidden flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2.5 pt-2 border-t border-gray-800/70 w-full">
+              <p id="clubMeta" class="text-gray-400 text-xs sm:text-sm mt-0.5">--</p>
+              <div id="clubIdentityBar" class="hidden flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2 pt-2 border-t border-gray-800/70 w-full">
                 <div class="flex items-center gap-1.5 bg-gray-900/80 border border-gray-800 px-2 py-1 rounded text-[11px]"><img id="clubRegionFlag" src="" class="w-4 h-3 object-cover rounded-[2px]" alt="Region"><span id="clubRegionName" class="font-bold text-gray-200">--</span></div>
                 <div class="flex items-center gap-1.5 bg-gray-900/80 border border-gray-800 px-2 py-1 rounded text-[11px]"><i class="fa-solid fa-landmark-dome text-emerald-400 text-[10px]"></i><span id="clubStadiumName" class="font-bold text-gray-200 truncate max-w-[140px] sm:max-w-none">--</span></div>
-                <div class="flex items-center gap-1.5 bg-purple-500/15 border border-purple-500/30 px-2 py-1 rounded text-[11px]" title="Club Reputation Level & Fanbase"><i class="fa-solid fa-star text-purple-400 text-[10px]"></i><span id="clubLevelBadgeText" class="font-black text-purple-300">Lvl --</span></div>
+                <div class="flex items-center gap-1.5 bg-purple-500/15 border border-purple-500/30 px-2.5 py-1 rounded text-[11px]" title="Club Reputation Level, Tier & Fanbase"><i class="fa-solid fa-star text-purple-400 text-[10px]"></i><span id="clubLevelBadgeText" class="font-black text-purple-300">Lvl --</span></div>
                 <div id="clubKitsContainer" class="flex items-center gap-1.5 bg-gray-900/80 border border-gray-800 px-2 py-1 rounded text-[11px]"></div>
               </div>
-              <div class="flex items-center gap-2 mt-3"><span class="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">Form:</span><div id="formBadges" class="flex items-center gap-1.5"><span class="text-xs text-gray-500 font-mono">--</span></div></div>
+              <div class="flex items-center gap-2 mt-2.5"><span class="text-[11px] text-gray-400 uppercase tracking-wider font-semibold">Form:</span><div id="formBadges" class="flex items-center gap-1.5"><span class="text-xs text-gray-500 font-mono">--</span></div></div>
             </div>
           </div>
           <div class="grid grid-cols-3 gap-2 sm:gap-6 text-center border-t lg:border-t-0 lg:border-l border-gray-800 pt-4 lg:pt-0 lg:pl-8 w-full lg:w-auto">
@@ -179,16 +179,49 @@
           </div>
         </div>
 
-        <div id="trophyBar" class="hidden grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 sm:gap-3 pt-4 border-t border-gray-800/80">
-          <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center gap-2.5"><i class="fa-solid fa-trophy text-yellow-400 text-lg sm:text-xl"></i><div><div class="text-[10px] uppercase text-gray-400 font-semibold">Titles Won</div><div id="trophyTitles" class="text-sm font-black text-white">0</div></div></div>
-          <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center gap-2.5"><i class="fa-solid fa-medal text-amber-400 text-lg sm:text-xl"></i><div><div class="text-[10px] uppercase text-gray-400 font-semibold">League Titles</div><div id="trophyLeagues" class="text-sm font-black text-white">0</div></div></div>
-          <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center justify-around">
-            <div class="flex items-center gap-1.5"><i class="fa-solid fa-angles-up text-emerald-400 text-base"></i><div><div class="text-[9px] uppercase text-gray-400 font-semibold">Promos</div><div id="trophyPromos" class="text-sm font-black text-emerald-400">0</div></div></div>
-            <div class="h-6 w-[1px] bg-gray-800"></div>
-            <div class="flex items-center gap-1.5"><i class="fa-solid fa-angles-down text-rose-400 text-base"></i><div><div class="text-[9px] uppercase text-gray-400 font-semibold">Relegs</div><div id="trophyRelegs" class="text-sm font-black text-rose-400">0</div></div></div>
+        <!-- Unified Honours Strip + Embedded Skill Rating Sparkline -->
+        <div id="trophyBar" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-3 pt-3.5 border-t border-gray-800/80 items-stretch">
+          <!-- Left: Compact Combined Club Honours (Titles, Promos/Relegs, Peak Div) -->
+          <div class="lg:col-span-5 bg-gray-900/60 border border-gray-800 rounded-xl p-3 flex items-center justify-between divide-x divide-gray-800/90">
+            <div class="flex items-center gap-2.5 pr-2 sm:pr-3 flex-1 justify-center">
+              <i class="fa-solid fa-trophy text-yellow-400 text-base sm:text-lg"></i>
+              <div>
+                <div class="text-[9px] uppercase text-gray-400 font-bold tracking-wider">Trophies</div>
+                <div class="text-xs sm:text-sm font-black text-white whitespace-nowrap"><span id="trophyTitles">0</span> <span class="text-[10px] text-gray-400 font-semibold">Titles</span> • <span id="trophyLeagues" class="text-amber-300">0</span> <span class="text-[10px] text-gray-400 font-semibold">Lge</span></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 px-2 sm:px-3 flex-1 justify-center">
+              <div class="text-center">
+                <div class="text-[9px] uppercase text-gray-400 font-bold">Promos</div>
+                <div class="text-xs sm:text-sm font-black text-emerald-400 flex items-center justify-center gap-0.5"><i class="fa-solid fa-angles-up text-[10px]"></i><span id="trophyPromos">0</span></div>
+              </div>
+              <div class="text-center">
+                <div class="text-[9px] uppercase text-gray-400 font-bold">Relegs</div>
+                <div class="text-xs sm:text-sm font-black text-rose-400 flex items-center justify-center gap-0.5"><i class="fa-solid fa-angles-down text-[10px]"></i><span id="trophyRelegs">0</span></div>
+              </div>
+            </div>
+            <div class="flex items-center gap-2 pl-2 sm:pl-3 flex-1 justify-center">
+              <div>
+                <div class="text-[9px] uppercase text-gray-400 font-bold leading-tight">Peak<br>Div</div>
+              </div>
+              <div id="trophyPeakDivShield" class="flex-shrink-0"></div>
+            </div>
           </div>
-          <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center gap-2.5"><i class="fa-solid fa-users-rays text-purple-400 text-lg sm:text-xl"></i><div class="min-w-0"><div class="text-[10px] uppercase text-gray-400 font-semibold">Fans & Club Rep</div><div id="trophyFansText" class="text-sm font-black text-white truncate">--</div><div id="trophyRepSubtext" class="text-[9px] font-bold text-purple-400 truncate">Lvl --</div></div></div>
-          <div class="bg-gray-900/60 border border-gray-800 rounded-lg p-2.5 sm:p-3 flex items-center justify-between col-span-2 sm:col-span-1"><div class="text-[10px] uppercase text-gray-400 font-semibold">Peak Div</div><div id="trophyPeakDivShield"></div></div>
+
+          <!-- Right: Neater Embedded Skill Rating Progression Sparkline -->
+          <div id="srGraphSection" class="lg:col-span-7 bg-gray-900/60 border border-gray-800 rounded-xl px-3.5 py-2.5 flex flex-col justify-between">
+            <div class="flex items-center justify-between gap-2 mb-1">
+              <div class="flex items-center gap-1.5">
+                <i class="fa-solid fa-chart-line text-emerald-400 text-xs"></i>
+                <span class="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-gray-300">Skill Rating Trajectory (Last 10)</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <span id="srPeakLowMeta" class="text-[10px] font-mono text-gray-400 hidden sm:inline">--</span>
+                <span id="srTrendBadge" class="px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-black">--</span>
+              </div>
+            </div>
+            <div id="srChartContainer" class="w-full h-[92px] sm:h-[100px] flex items-center justify-center"></div>
+          </div>
         </div>
       </section>
 
@@ -238,23 +271,6 @@
           <div class="pt-3 border-t border-gray-800/80"><div id="vsOpponentHeaderTitle" class="text-[11px] font-black uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-1.5"><i class="fa-solid fa-people-arrows text-emerald-400"></i> Performance vs. Opponent Lobby Sizes (Latest Session)</div><div class="grid grid-cols-2 lg:grid-cols-4 gap-2.5" id="vsOpponentSizeGrid"></div></div>
         </section>
 
-        <!-- Skill Rating History Graph Over Time -->
-        <section id="srGraphSection" class="hidden card p-4 sm:p-6 space-y-3">
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-800 pb-3">
-            <div>
-              <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-chart-line text-emerald-400"></i> Skill Rating Progression Over Time</h3>
-              <p class="text-xs text-gray-400 mt-0.5">Match-by-match Elo trajectory across your last 10 fixtures • Hover over any node for match details</p>
-            </div>
-            <div class="flex items-center gap-2">
-              <span id="srPeakLowMeta" class="text-[11px] font-mono text-gray-400 hidden sm:inline">--</span>
-              <span id="srTrendBadge" class="px-2.5 py-0.5 rounded-full text-[11px] font-black">--</span>
-            </div>
-          </div>
-          <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3 sm:p-4 flex flex-col items-center">
-            <div id="srChartContainer" class="w-full h-[210px] sm:h-[240px] flex items-center justify-center"></div>
-          </div>
-        </section>
-
         <section id="clubReviewSection" class="hidden card p-4 sm:p-6 space-y-4">
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-800 pb-3">
             <div><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-clipboard-check text-emerald-400"></i> Club Tactical Review & Scouting Report</h3><p class="text-xs text-gray-400 mt-0.5">Automated diagnostic of club status, strengths, vulnerabilities & fixes</p></div>
@@ -286,7 +302,7 @@
             <div><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-masks-theater text-rose-400"></i> Dressing Room Banter & Shame Board</h3><p id="shameBoardSubtext" class="text-xs text-gray-400 mt-0.5">Hover over any award card for details</p></div>
             <div class="flex items-center bg-gray-900 p-1 rounded-lg border border-gray-800">
               <button id="btnBanterLast10" onclick="switchBanterMode('last10')" class="px-3 py-1 rounded text-xs font-black bg-rose-500 text-white transition shadow"><i class="fa-solid fa-fire-flame-curved mr-1"></i>Last 10 Matches</button>
-              <button id="btnBanterAllTime" onclick="switchBanterMode('allTime')" class="px-3 py-1 rounded text-xs font-black text-gray-300 hover:text-white transition"><i class="fa-solid fa-infinity mr-1"></i>All-Time Career</button>
+              <button id="btnBanterAllTime" onclick="switchBanterMode('allTime')" class="px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition"><i class="fa-solid fa-infinity mr-1"></i>All-Time Career</button>
             </div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5" id="shameBoardGrid"></div>
