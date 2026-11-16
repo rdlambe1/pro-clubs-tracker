@@ -275,7 +275,7 @@
           </div>
         </section>
 
-        <!-- 3-Column Focused Tactical Review (No Redundant Status Pillar) -->
+        <!-- 3-Column Focused Tactical Review -->
         <section id="clubReviewSection" class="hidden card p-4 sm:p-6 space-y-4">
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-800 pb-3">
             <div><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-clipboard-check text-emerald-400"></i> Club Tactical Scouting Report</h3><p class="text-xs text-gray-400 mt-0.5">Automated diagnostic of squad strengths, vulnerabilities & tactical fixes</p></div>
@@ -319,19 +319,19 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5" id="shameBoardGrid"></div>
         </section>
 
-        <!-- Sortable Full Squad Table with Click-to-Compare Radar Action -->
+        <!-- Clean, Streamlined Full Squad Performance Table with Inline Rating Trend Sparklines -->
         <section class="card p-4 sm:p-6 space-y-4">
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1"><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance</h3><span class="text-xs text-gray-400">Tap any column header to sort • Tap a player for their <b class="text-yellow-400">FC27 Card</b> or <b class="text-sky-400">⚖️</b> to compare</span></div>
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1"><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance</h3><span class="text-xs text-gray-400">Tap any column header to sort • Tap any player row for their <b class="text-yellow-400">FC27 UT Card</b></span></div>
           <div class="overflow-x-auto touch-scroll"><table class="w-full text-left text-xs sm:text-sm whitespace-nowrap"><thead class="border-b border-gray-800 text-gray-400 uppercase text-[10px] sm:text-xs select-none"><tr>
-            <th onclick="sortSquadBy('name')" class="py-2.5 px-2 cursor-pointer hover:text-white transition">Player & Loyalty <span id="sortIcon_name" class="text-[9px] text-gray-600"></span></th>
+            <th onclick="sortSquadBy('name')" class="py-2.5 px-2 cursor-pointer hover:text-white transition">Player <span id="sortIcon_name" class="text-[9px] text-gray-600"></span></th>
             <th onclick="sortSquadBy('ovr')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">OVR <span id="sortIcon_ovr" class="text-[9px] text-gray-600"></span></th>
             <th class="py-2.5 px-2 text-center">Pos</th>
             <th onclick="sortSquadBy('games')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">GP <span id="sortIcon_games" class="text-[9px] text-emerald-400">▼</span></th>
-            <th onclick="sortSquadBy('goals')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Goals (Conv%) <span id="sortIcon_goals" class="text-[9px] text-gray-600"></span></th>
+            <th onclick="sortSquadBy('goals')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Goals <span id="sortIcon_goals" class="text-[9px] text-gray-600"></span></th>
             <th onclick="sortSquadBy('assists')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Assists <span id="sortIcon_assists" class="text-[9px] text-gray-600"></span></th>
             <th onclick="sortSquadBy('gapg')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">G+A/G <span id="sortIcon_gapg" class="text-[9px] text-gray-600"></span></th>
-            <th onclick="sortSquadBy('tackles')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Tackles / CS <span id="sortIcon_tackles" class="text-[9px] text-gray-600"></span></th>
-            <th onclick="sortSquadBy('rating')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Rating <span id="sortIcon_rating" class="text-[9px] text-gray-600"></span></th>
+            <th onclick="sortSquadBy('tackles')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Tackles <span id="sortIcon_tackles" class="text-[9px] text-gray-600"></span></th>
+            <th onclick="sortSquadBy('rating')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Rating & Form Trend <span id="sortIcon_rating" class="text-[9px] text-gray-600"></span></th>
             <th onclick="sortSquadBy('pass')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Pass % <span id="sortIcon_pass" class="text-[9px] text-gray-600"></span></th>
             <th onclick="sortSquadBy('motm')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">MoTM <span id="sortIcon_motm" class="text-[9px] text-gray-600"></span></th>
           </tr></thead><tbody id="membersTable" class="divide-y border-gray-800"></tbody></table></div>
