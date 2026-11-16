@@ -1,6 +1,5 @@
 let SQUAD_SORT_COL = 'games';
 let SQUAD_SORT_ASC = false;
-let NEXT_RADAR_SLOT = 1;
 
 // Compact Hero Sparkline Renderer for Skill Rating Progression (Fits neatly inside the Hero Card)
 function renderSkillRatingGraph(clubId, clubData = {}, matches = []) {
@@ -154,6 +153,7 @@ function switchBanterMode(mode) {
   renderShameBoard(SHAME_LIST_CACHE);
 }
 
+// Dressing Room Banter Board (Now includes GK-only Golden Glove Clean Sheets Card if a GK exists)
 function renderShameBoard(shameList = []) {
   const sec = document.getElementById('shameBoardSection');
   if (!shameList.length && !GLOBAL_MEMBERS.length) return sec.classList.add('hidden');
@@ -167,7 +167,8 @@ function renderShameBoard(shameList = []) {
       const pm = Number(m.passesMade ?? m.passesmade ?? 0), pPct = Math.max(1, Number(m.passSuccessRate ?? 75)), missedP = Math.max(0, Math.round(pm / (pPct / 100)) - pm);
       const sConv = Math.max(5, Number(m.shotConvRate ?? m.shotSuccessRate ?? 25)), estShots = goals > 0 ? Math.round(goals / (sConv / 100)) : games * 2, missedS = Math.max(0, estShots - goals);
       const tkl = Number(m.tacklesMade ?? m.tacklesmade ?? m.tackles ?? 0), tPct = Math.max(10, Number(m.tackleSuccessRate ?? m.tacklesuccessrate ?? 25)), estTAtt = Math.round(tkl / (tPct / 100));
-      const missedTackles = Math.max(0, estTAtt - tkl), reds = Number(m.redCards ?? m.redcards ?? 0), cs = Number(m.totalCleanSheets ?? 0), r10 = RECENT_10_STATS_MAP[name] || {};
+      const missedTackles = Math.max(0, estTAtt - tkl), reds = Number(m.redCards ?? m.redcards ?? 0), cs = Number(m.totalCleanSheets ?? 0);
+      const gkCs = Number(m.cleanSheetsGK ?? 0), r10 = RECENT_10_STATS_MAP[name] || {};
       const skills = Math.max(r10.skillMoves || 0, Math.round((r10.games > 0 ? r10.skillMoves / r10.games : ((goals + assists) / games) * 2.2) * games));
       const normPos = normalizePosition(m.favoritePosition || m.pos);
       const exactPos = EA_PRO_POS_MAP[String(m.proPos ?? '')] || '';
@@ -175,9 +176,10 @@ function renderShameBoard(shameList = []) {
       const careerBlocks = Math.max(r10.blocks || 0, Math.round(r10.games > 0 ? (r10.blocks / r10.games) * games : tkl * (isAnchor ? 0.68 : 0.35) + cs * 0.8));
       const careerInterceptions = Math.max(r10.interceptions || 0, Math.round(r10.games > 0 ? (r10.interceptions / r10.games) * games : tkl * (isAnchor ? 0.85 : 0.40) + cs * 0.6));
       const careerWoodwork = Math.max(r10.woodwork || 0, Math.round(r10.games > 0 && r10.woodwork > 0 ? (r10.woodwork / r10.games) * games : missedS * 0.11));
-      return { name, normPos, isAnchor, games, goals, assists, missedP, estShots, missedS, sConv, tkl, tPct, missedTackles, reds, skills, careerBlocks, careerInterceptions, careerWoodwork, allergyScore: estShots - assists * 2.5, superSubGA: r10.superSubGA || 0 };
+      return { name, normPos, exactPos, isAnchor, games, goals, assists, missedP, estShots, missedS, sConv, tkl, tPct, missedTackles, reds, skills, careerBlocks, careerInterceptions, careerWoodwork, allergyScore: estShots - assists * 2.5, superSubGA: r10.superSubGA || 0, gkCs };
     });
 
+    const gks = cList.filter(x => x.normPos === 'GK' || x.exactPos === 'GK' || x.gkCs > 0).sort((a, b) => b.gkCs - a.gkCs);
     const nonFwds = cList.filter(x => x.normPos !== 'FWD' && x.normPos !== 'GK');
     const byInt = (nonFwds.length ? nonFwds : [...cList]).sort((a, b) => b.careerInterceptions - a.careerInterceptions)[0];
     const [bySub, byMeat, byWood, bySkill, byPass, byBarn, byAllergy, byBluetooth, byRed] = [
@@ -204,9 +206,13 @@ function renderShameBoard(shameList = []) {
       { title: '💨 All-Time Bluetooth Tackler', w: byBluetooth.name, st: `${byBluetooth.missedTackles} Missed Tackles`, sub: `Lunging at thin air (${byBluetooth.tPct}% tackle win rate)`, b: 'border-indigo-500/40', c: 'text-indigo-400' },
       { title: '🟥 All-Time Sunday League Butcher', w: byRed.name, st: byRed.reds > 0 ? `${byRed.reds} Career Red Cards` : `${byRed.tkl} Career Tackles`, sub: `Club enforcer across ${byRed.games} GP`, b: 'border-red-500/40', c: 'text-red-400' }
     ];
+    if (gks.length) {
+      cards.unshift({ title: '🧤 Golden Glove (GK Clean Sheets)', w: gks[0].name, st: `${gks[0].gkCs} GK Clean Sheets`, sub: `Shot-stopper shutouts across ${gks[0].games} career appearances`, b: 'border-teal-500/40', c: 'text-teal-400' });
+    }
   } else if (shameList.length) {
     document.getElementById('shameBoardSubtext').innerText = 'Last 10 Matches Awards & Banter • Hover over any award for details';
     shameList.forEach(i => { i.missedTackles = Math.max(0, i.tackleAtt - i.tackles); i.tackleWinPct = i.tackleAtt > 0 ? Math.round((i.tackles / i.tackleAtt) * 100) : 0; });
+    const gks = shameList.filter(x => x.normPos === 'GK' || x.exactPos === 'GK' || x.saves > 0).sort((a, b) => (b.recentCleanSheets * 10 + b.saves) - (a.recentCleanSheets * 10 + a.saves));
     const nonFwds = shameList.filter(x => x.normPos !== 'FWD' && x.normPos !== 'GK');
     const byInt = (nonFwds.length ? nonFwds : [...shameList]).sort((a, b) => (b.interceptions * 10 + b.tackles) - (a.interceptions * 10 + a.tackles))[0];
     const [bySub, byMeat, byWood, bySkill, byPass, byBarn, byAllergy, byBluetooth, byRed] = [
@@ -233,6 +239,9 @@ function renderShameBoard(shameList = []) {
       { title: '💨 The Bluetooth Tackler Award', w: byBluetooth.name, st: `${byBluetooth.missedTackles} Missed Tackles`, sub: `Lunging at thin air (${byBluetooth.tackleWinPct}% tackle win rate)`, b: 'border-indigo-500/40', c: 'text-indigo-400' },
       { title: '🟥 Sunday League Butcher', w: byRed.name, st: (byRed.reds > 0 || byRed.yellows > 0) ? `${byRed.yellows}🟨 ${byRed.reds}🟥 Cards` : `${byRed.tackles} Tackles Won`, sub: 'Midfield enforcer in last 10', b: 'border-red-500/40', c: 'text-red-400' }
     ];
+    if (gks.length) {
+      cards.unshift({ title: '🧤 Golden Glove (GK Clean Sheets)', w: gks[0].name, st: `${gks[0].recentCleanSheets} CS • ${gks[0].saves} Saves`, sub: `Goalkeeper shutouts & saves in the last 10 matches`, b: 'border-teal-500/40', c: 'text-teal-400' });
+    }
   }
 
   document.getElementById('shameBoardGrid').innerHTML = cards.map(c => `<div title="${c.sub}" class="group relative bg-gray-900/60 border ${c.b} rounded-xl p-3.5 flex items-center justify-between hover:bg-gray-800/60 transition cursor-help"><div class="min-w-0 pr-2"><div class="text-[10px] font-black uppercase text-gray-400 truncate">${c.title}</div><div class="text-sm font-extrabold text-white mt-0.5 truncate">${c.w}</div><div class="text-xs font-bold ${c.c} mt-0.5">${c.st}</div></div>${renderAvatarWithFlagHtml(c.w, 'w-11 h-11', 'border-gray-700', 'w-4 h-3')}<div class="pointer-events-none absolute -top-2 left-1/2 -translate-x-1/2 -translate-y-full hidden group-hover:block bg-gray-950 text-gray-200 border border-gray-700 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold shadow-2xl whitespace-nowrap z-30">${c.sub}</div></div>`).join('');
@@ -263,19 +272,51 @@ function sortSquadBy(col) {
   renderMembers(GLOBAL_MEMBERS);
 }
 
-function quickComparePlayer(playerName, ev) {
-  if (ev) ev.stopPropagation();
-  const s1 = document.getElementById('radarSelectP1'), s2 = document.getElementById('radarSelectP2');
-  if (!s1 || !s2) return;
-  if (NEXT_RADAR_SLOT === 1) {
-    s1.value = playerName;
-    NEXT_RADAR_SLOT = 2;
-  } else {
-    s2.value = playerName;
-    NEXT_RADAR_SLOT = 1;
+// Inline SVG Sparkline Generator for Player Match Rating Trends
+function buildPlayerRatingSparkline(playerName, careerRat) {
+  let pts = [];
+  if (Array.isArray(GLOBAL_MATCHES) && GLOBAL_MATCHES.length) {
+    for (let i = GLOBAL_MATCHES.length - 1; i >= 0; i--) {
+      const m = GLOBAL_MATCHES[i];
+      const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
+      const myId = cIds.find(id => String(id) === String(GLOBAL_CLUB_ID)) || cIds[0];
+      const pList = Object.values(m.players?.[myId] || {});
+      const hit = pList.find(p => String(p.playername || p.name || '').toLowerCase().trim() === String(playerName).toLowerCase().trim());
+      if (hit && hit.rating) pts.push(parseFloat(hit.rating));
+    }
   }
-  updateRadarCharts();
-  document.getElementById('radarSection')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  const rAvg = RECENT_FORM_MAP[playerName];
+  if (pts.length < 2) {
+    if (rAvg !== undefined && careerRat > 0) {
+      pts = [careerRat, +(careerRat * 0.6 + rAvg * 0.4).toFixed(2), +(careerRat * 0.3 + rAvg * 0.7).toFixed(2), rAvg];
+    } else {
+      return `<span class="text-[10px] text-gray-600 font-mono ml-1.5">--</span>`;
+    }
+  }
+
+  const w = 52, h = 18, pad = 2.5;
+  const minR = Math.min(5.5, ...pts) - 0.2;
+  const maxR = Math.max(9.2, ...pts) + 0.2;
+  const range = Math.max(1.0, maxR - minR);
+
+  const coords = pts.map((r, idx) => {
+    const x = +(pad + (idx / Math.max(1, pts.length - 1)) * (w - pad * 2)).toFixed(1);
+    const y = +(pad + (h - pad * 2) - ((r - minR) / range) * (h - pad * 2)).toFixed(1);
+    return { x, y, r };
+  });
+
+  const pathD = coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.x} ${c.y}`).join(' ');
+  const last = coords[coords.length - 1];
+  const recentMean = pts.reduce((a, b) => a + b, 0) / pts.length;
+  const diff = recentMean - careerRat;
+  const strokeCol = diff >= 0.12 ? '#10b981' : (diff <= -0.12 ? '#f43f5e' : '#f59e0b');
+  const tip = `Last ${pts.length} Ratings: ${pts.map(n => n.toFixed(1)).join(' → ')} (Avg ${recentMean.toFixed(2)} vs Career ${careerRat.toFixed(2)})`;
+
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="inline-block ml-1.5 overflow-visible" title="${tip}">
+    <path d="${pathD}" fill="none" stroke="${strokeCol}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${last.x}" cy="${last.y}" r="2.3" fill="${strokeCol}"/>
+  </svg>`;
 }
 
 function renderMembers(data) {
@@ -314,10 +355,11 @@ function renderMembers(data) {
   });
 
   tbody.innerHTML = rawList.map(m => {
-    const name = m.name || m.proName || 'Unknown', ovr = Number(m.proOverall || 85), tierInfo = getCardTierTheme(ovr);
+    const name = m.name || m.proName || 'Unknown', proNick = (m.proName && m.proName !== name) ? m.proName : '';
+    const ovr = Number(m.proOverall || 85), tierInfo = getCardTierTheme(ovr);
     const normPos = normalizePosition(m.favoritePosition || m.pos || 'MID'), exactPos = EA_PRO_POS_MAP[String(m.proPos ?? '')] || normPos;
     const games = Number(m.gamesPlayed ?? 0), goals = Number(m.goals ?? 0), assists = Number(m.assists ?? 0);
-    const careerRat = parseFloat(m.ratingAve || m.rating || 0), pass = m.passSuccessRate ?? 0, motm = m.manOfTheMatch ?? 0;
+    const careerRat = parseFloat(m.ratingAve || m.rating || 0), pass = m.passSuccessRate ?? 0, motm = Number(m.manOfTheMatch ?? 0);
 
     const r10 = RECENT_10_STATS_MAP[name];
     const sm = SHAME_LIST_CACHE.find(x => x.name === name);
@@ -328,24 +370,14 @@ function renderMembers(data) {
     const gaPg = games > 0 ? ((goals + assists) / games).toFixed(2) : '0.00';
     const r10Conv = r10?.shots > 0 ? Math.round((r10.goals / r10.shots) * 100) : null;
     const shotConv = Number(m.shotConvRate || 0) > 0 ? Number(m.shotConvRate) : (r10Conv ?? '--');
-
-    const totalCS = Math.max(Number(m.totalCleanSheets ?? m.cleanSheetsDef ?? 0), Number(r10?.recentCleanSheets || 0));
-    const csBadge = totalCS > 0
-      ? `<span class="ml-1.5 px-1.5 py-0.5 rounded bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 text-[10px] font-bold" title="${totalCS} Clean Sheets">${totalCS} CS</span>`
-      : '';
-
-    const otherG = Number(m.otherClubGames ?? 0);
-    const loyaltyBadge = otherG === 0
-      ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">🛡️ One-Club</span>`
-      : `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">💼 ${otherG}g Elsewhere</span>`;
-    const recentAvg = RECENT_FORM_MAP[name];
-    const formArr = (recentAvg !== undefined && careerRat > 0) ? (recentAvg - careerRat >= 0.15 ? '<span class="text-emerald-400 font-black ml-1">▲</span>' : recentAvg - careerRat <= -0.15 ? '<span class="text-rose-400 font-black ml-1">▼</span>' : '<span class="text-gray-500 ml-1">•</span>') : '';
+    const motmPct = games > 0 ? Math.round((motm / games) * 100) : 0;
 
     m._normalizedPos = normPos; m._rawPos = exactPos;
     const bCol = normPos === 'FWD' ? 'text-rose-400 bg-rose-500/10' : normPos === 'MID' ? 'text-amber-400 bg-amber-500/10' : normPos === 'DEF' ? 'text-blue-400 bg-blue-500/10' : 'text-purple-400 bg-purple-500/10';
     const escName = name.replace(/'/g, "\\'");
+    const sparklineSvg = buildPlayerRatingSparkline(name, careerRat);
 
-    return `<tr onclick="openFutModal('${escName}')" class="hover:bg-gray-800/50 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center justify-between gap-2"><div class="flex items-center gap-2">${renderAvatarWithFlagHtml(name, 'w-8 h-8 sm:w-9 sm:h-9', 'border-emerald-500/40', 'w-3.5 h-2.5')}<span class="hover:text-yellow-400 font-bold">${name}</span>${loyaltyBadge}</div><button onclick="quickComparePlayer('${escName}', event)" class="text-[11px] bg-gray-800 hover:bg-sky-500/20 text-gray-400 hover:text-sky-300 border border-gray-700 hover:border-sky-500/40 px-1.5 py-0.5 rounded transition" title="Compare in Radar Chart">⚖️</button></div></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded border font-black text-xs ${tierInfo.badgeClass}">${ovr}</span></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${bCol}">${exactPos}</span></td><td class="py-2.5 px-2 text-center text-gray-300">${games}</td><td class="py-2.5 px-2 text-center font-bold text-emerald-400">${goals} ${shotConv!=='--'?`<span class="text-[10px] text-gray-400 font-mono">(${shotConv}%)</span>`:''}</td><td class="py-2.5 px-2 text-center text-gray-300">${assists}</td><td class="py-2.5 px-2 text-center text-emerald-300 font-mono">${gaPg}</td><td class="py-2.5 px-2 text-center text-sky-400 font-medium" title="${tackles} Tackles Won (${tWin}% Success Rate)">${tackles} <span class="text-xs text-gray-400">(${tWin}%)</span>${csBadge}</td><td class="py-2.5 px-2 text-center text-yellow-400 font-semibold">${careerRat.toFixed(1)}${formArr}</td><td class="py-2.5 px-2 text-center text-gray-300">${pass}%</td><td class="py-2.5 px-2 text-center text-purple-400">${motm}</td></tr>`;
+    return `<tr onclick="openFutModal('${escName}')" class="hover:bg-gray-800/50 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-2.5">${renderAvatarWithFlagHtml(name, 'w-8 h-8 sm:w-9 sm:h-9', 'border-emerald-500/40', 'w-3.5 h-2.5')}<div class="leading-tight"><div class="hover:text-yellow-400 font-bold">${name}</div>${proNick?`<div class="text-[10px] text-gray-500 font-medium">"${proNick}"</div>`:''}</div></div></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded border font-black text-xs ${tierInfo.badgeClass}">${ovr}</span></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${bCol}">${exactPos}</span></td><td class="py-2.5 px-2 text-center text-gray-300 font-mono">${games}</td><td class="py-2.5 px-2 text-center font-bold text-emerald-400">${goals} ${shotConv!=='--'?`<span class="text-[10px] text-gray-500 font-mono font-normal">(${shotConv}%)</span>`:''}</td><td class="py-2.5 px-2 text-center text-gray-200 font-semibold">${assists}</td><td class="py-2.5 px-2 text-center text-emerald-300 font-mono">${gaPg}</td><td class="py-2.5 px-2 text-center text-sky-400 font-medium" title="${tackles} Tackles Won (${tWin}% Success Rate)">${tackles} <span class="text-[10px] text-gray-500 font-mono font-normal">(${tWin}%)</span></td><td class="py-2.5 px-2 text-center"><div class="inline-flex items-center justify-center"><span class="text-yellow-400 font-black font-mono">${careerRat.toFixed(1)}</span>${sparklineSvg}</div></td><td class="py-2.5 px-2 text-center text-gray-300 font-mono">${pass}%</td><td class="py-2.5 px-2 text-center text-purple-400 font-bold" title="${motm} MoTM Awards (${motmPct}% of games)">${motm}</td></tr>`;
   }).join('');
   return rawList;
 }
