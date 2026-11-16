@@ -81,8 +81,9 @@ function renderRecentClubsChips() {
 
 function switchLeaderboardMode(mode) {
   CURRENT_LEADERBOARD_MODE = mode;
-  document.getElementById('btnLbSeason').className = mode === 'season' ? 'px-3 py-1 rounded text-xs font-black bg-emerald-500 text-black transition shadow' : 'px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
-  document.getElementById('btnLbAllTime').className = mode === 'allTime' ? 'px-3 py-1 rounded text-xs font-black bg-emerald-500 text-black transition shadow' : 'px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
+  const bS = document.getElementById('btnLbSeason'), bA = document.getElementById('btnLbAllTime');
+  if (bS) bS.className = mode === 'season' ? 'px-3 py-1 rounded text-xs font-black bg-emerald-500 text-black transition shadow' : 'px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
+  if (bA) bA.className = mode === 'allTime' ? 'px-3 py-1 rounded text-xs font-black bg-emerald-500 text-black transition shadow' : 'px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
   loadTop10ClubsLeaderboard(mode);
 }
 
@@ -193,18 +194,27 @@ async function shareElementAsPng(elementId, filenamePrefix = 'ClubsTracker') {
 
 function openDiscordModal() {
   document.getElementById('discordModalStatus')?.classList.add('hidden');
-  document.getElementById('discordWebhookInput').value = localStorage.getItem(`discordWebhook_${GLOBAL_CLUB_ID || 'default'}`) || localStorage.getItem('discordWebhook_default') || '';
-  const m = document.getElementById('discordModal'); m.classList.remove('hidden'); m.classList.add('flex');
+  const inp = document.getElementById('discordWebhookInput');
+  if (inp) inp.value = localStorage.getItem(`discordWebhook_${GLOBAL_CLUB_ID || 'default'}`) || localStorage.getItem('discordWebhook_default') || '';
+  const m = document.getElementById('discordModal');
+  if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
 }
 
-function closeDiscordModal() { const m = document.getElementById('discordModal'); m.classList.add('hidden'); m.classList.remove('flex'); }
+function closeDiscordModal() {
+  const m = document.getElementById('discordModal');
+  if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+}
 
 async function sendRecapToDiscord() {
   const input = document.getElementById('discordWebhookInput'), status = document.getElementById('discordModalStatus'), btn = document.getElementById('btnSendDiscord');
   const webhookUrl = (input?.value || '').trim();
   if (!webhookUrl) {
-    status.className = 'text-xs px-3 py-2 rounded font-semibold bg-rose-950/80 border border-rose-800 text-rose-200';
-    status.innerText = '⚠️ Please paste your Discord Channel Webhook URL first.'; status.classList.remove('hidden'); return;
+    if (status) {
+      status.className = 'text-xs px-3 py-2 rounded font-semibold bg-rose-950/80 border border-rose-800 text-rose-200';
+      status.innerText = '⚠️ Please paste your Discord Channel Webhook URL first.';
+      status.classList.remove('hidden');
+    }
+    return;
   }
   if (GLOBAL_CLUB_ID) localStorage.setItem(`discordWebhook_${GLOBAL_CLUB_ID}`, webhookUrl);
   localStorage.setItem('discordWebhook_default', webhookUrl);
@@ -231,7 +241,8 @@ async function sendRecapToDiscord() {
     if (byRed) banter.push({ title: '🟥 Sunday League Butcher', winner: byRed.name, stat: `${byRed.yellows}🟨 ${byRed.reds}🟥 • ${byRed.tackles} Tackles` });
   }
 
-  btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Sending...`; status.classList.add('hidden');
+  if (btn) { btn.disabled = true; btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Sending...`; }
+  status?.classList.add('hidden');
   try {
     const res = await fetch(`${API_BASE}/discord/send`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -248,13 +259,21 @@ async function sendRecapToDiscord() {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Failed to post to Discord');
-    status.className = 'text-xs px-3 py-2 rounded font-semibold bg-emerald-950/80 border border-emerald-700 text-emerald-300';
-    status.innerText = '✅ Recap & MVP posted to your Discord server!'; status.classList.remove('hidden');
+    if (status) {
+      status.className = 'text-xs px-3 py-2 rounded font-semibold bg-emerald-950/80 border border-emerald-700 text-emerald-300';
+      status.innerText = '✅ Recap & MVP posted to your Discord server!';
+      status.classList.remove('hidden');
+    }
     setTimeout(closeDiscordModal, 1400);
   } catch (err) {
-    status.className = 'text-xs px-3 py-2 rounded font-semibold bg-rose-950/80 border border-rose-800 text-rose-200';
-    status.innerText = `❌ ${err.message}`; status.classList.remove('hidden');
-  } finally { btn.disabled = false; btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Send Recap Now`; }
+    if (status) {
+      status.className = 'text-xs px-3 py-2 rounded font-semibold bg-rose-950/80 border border-rose-800 text-rose-200';
+      status.innerText = `❌ ${err.message}`;
+      status.classList.remove('hidden');
+    }
+  } finally {
+    if (btn) { btn.disabled = false; btn.innerHTML = `<i class="fa-solid fa-paper-plane"></i> Send Recap Now`; }
+  }
 }
 
 async function handleSearch(overrideQuery = null, autoSelectExactSlug = false) {
@@ -284,21 +303,24 @@ async function handleSearch(overrideQuery = null, autoSelectExactSlug = false) {
       if (exact) return loadClub(exact.id, platform, false);
     }
     setStatus(`Found ${data.length} matching clubs. Select yours:`);
-    document.getElementById('matchesList').innerHTML = data.map(c => `<div onclick="document.getElementById('matchesCard').classList.add('hidden');loadClub('${c.id}','${platform}')" class="p-3 rounded bg-gray-800/80 hover:bg-gray-800 border border-gray-700 cursor-pointer flex justify-between items-center transition"><div><div class="font-bold text-white">${c.name}</div><div class="text-xs text-gray-400">ID: ${c.id}</div></div><button class="text-xs bg-emerald-500 text-black font-semibold px-2.5 py-1 rounded">Select</button></div>`).join('');
-    document.getElementById('matchesCard').classList.remove('hidden');
+    const ml = document.getElementById('matchesList');
+    if (ml) ml.innerHTML = data.map(c => `<div onclick="document.getElementById('matchesCard').classList.add('hidden');loadClub('${c.id}','${platform}')" class="p-3 rounded bg-gray-800/80 hover:bg-gray-800 border border-gray-700 cursor-pointer flex justify-between items-center transition"><div><div class="font-bold text-white">${c.name}</div><div class="text-xs text-gray-400">ID: ${c.id}</div></div><button class="text-xs bg-emerald-500 text-black font-semibold px-2.5 py-1 rounded">Select</button></div>`).join('');
+    document.getElementById('matchesCard')?.classList.remove('hidden');
   } catch (e) { setStatus(`Search failed: ${e.message}`, true); }
 }
 
 function switchRecapMode(mode) {
   CURRENT_RECAP_MODE = mode;
-  document.getElementById('btnRecapSession').className = mode === 'session' ? 'px-2.5 py-1 rounded text-xs font-black bg-amber-400 text-black transition shadow' : 'px-2.5 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
-  document.getElementById('btnRecapLast10').className = mode === 'last10' ? 'px-2.5 py-1 rounded text-xs font-black bg-amber-400 text-black transition shadow' : 'px-2.5 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
+  const bS = document.getElementById('btnRecapSession'), bL = document.getElementById('btnRecapLast10');
+  if (bS) bS.className = mode === 'session' ? 'px-2.5 py-1 rounded text-xs font-black bg-amber-400 text-black transition shadow' : 'px-2.5 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
+  if (bL) bL.className = mode === 'last10' ? 'px-2.5 py-1 rounded text-xs font-black bg-amber-400 text-black transition shadow' : 'px-2.5 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition';
   updateRecapMetricsDisplay(GLOBAL_CLUB_ID, mode === 'session' ? SESSION_MATCHES_CACHE : GLOBAL_MATCHES.slice(0, 10), mode);
 }
 
 // Self-Explanatory Party Size Win % Card
 function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const sec = document.getElementById('sessionRecapSection');
+  if (!sec) return;
   if (!fixtures.length) return sec.classList.add('hidden');
   sec.classList.remove('hidden');
 
@@ -345,42 +367,51 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   });
 
   const gd = sGF - sGA, pfx = mode === 'session' ? 'Session' : 'Last 10';
-  document.getElementById('recapRecordTitle').innerText = `${pfx} Record`;
-  document.getElementById('recapMvpTitle').innerText = `👑 ${pfx} MVP`;
-  document.getElementById('recapLiabilityTitle').innerText = `⚓ ${pfx} Passenger`;
-  document.getElementById('sessionTimeWindow').innerText = mode === 'session' ? `${fixtures.length} Match Stint` : `Last ${fixtures.length} Matches`;
-  document.getElementById('sessionRecordText').innerText = `${sW}W - ${sD}D - ${sL}L`;
-  document.getElementById('sessionGoalDiffText').innerText = `${sGF} GF / ${sGA} GA (${gd>=0?`+${gd}`:gd} GD)`;
+  const rTitle = document.getElementById('recapRecordTitle'), mTitle = document.getElementById('recapMvpTitle'), lTitle = document.getElementById('recapLiabilityTitle');
+  const sWin = document.getElementById('sessionTimeWindow'), sRec = document.getElementById('sessionRecordText'), sGd = document.getElementById('sessionGoalDiffText');
+  if (rTitle) rTitle.innerText = `${pfx} Record`;
+  if (mTitle) mTitle.innerText = `👑 ${pfx} MVP`;
+  if (lTitle) lTitle.innerText = `⚓ ${pfx} Passenger`;
+  if (sWin) sWin.innerText = mode === 'session' ? `${fixtures.length} Match Stint` : `Last ${fixtures.length} Matches`;
+  if (sRec) sRec.innerText = `${sW}W - ${sD}D - ${sL}L`;
+  if (sGd) sGd.innerText = `${sGF} GF / ${sGA} GA (${gd>=0?`+${gd}`:gd} GD)`;
 
   const tb = document.getElementById('sessionTiltBadge');
-  tb.className = sL > sW && sL >= 2 ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40' : sW > sL ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40';
-  tb.innerText = sL > sW && sL >= 2 ? '🚨 HIGH TILT' : sW > sL ? '🔥 VIBES IMMACULATE' : '⚖️ MIXED BAG';
+  if (tb) {
+    tb.className = sL > sW && sL >= 2 ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40' : sW > sL ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40';
+    tb.innerText = sL > sW && sL >= 2 ? '🚨 HIGH TILT' : sW > sL ? '🔥 VIBES IMMACULATE' : '⚖️ MIXED BAG';
+  }
 
   const arr = Object.values(pMap).map(u => ({ ...u, imp: computePlayerImpactScore(u) })).sort((a, b) => b.imp - a.imp);
   if (arr.length) {
     const mvp = arr[0], liab = arr[arr.length - 1];
-    document.getElementById('sessionMvpName').innerText = mvp.name;
-    document.getElementById('sessionMvpStats').innerText = formatHolisticPlayerSummary(mvp, false);
-    document.getElementById('sessionMvpAvatarBox').innerHTML = renderAvatarWithFlagHtml(mvp.name, 'w-11 h-11', 'border-emerald-400', 'w-4 h-3');
-    document.getElementById('sessionLiabilityName').innerText = liab.name;
-    document.getElementById('sessionLiabilityStats').innerText = formatHolisticPlayerSummary(liab, arr.length > 1);
-    document.getElementById('sessionLiabilityAvatarBox').innerHTML = renderAvatarWithFlagHtml(liab.name, 'w-11 h-11', 'border-rose-400', 'w-4 h-3');
+    const mN = document.getElementById('sessionMvpName'), mS = document.getElementById('sessionMvpStats'), mA = document.getElementById('sessionMvpAvatarBox');
+    const lN = document.getElementById('sessionLiabilityName'), lS = document.getElementById('sessionLiabilityStats'), lA = document.getElementById('sessionLiabilityAvatarBox');
+    if (mN) mN.innerText = mvp.name;
+    if (mS) mS.innerText = formatHolisticPlayerSummary(mvp, false);
+    if (mA) mA.innerHTML = renderAvatarWithFlagHtml(mvp.name, 'w-11 h-11', 'border-emerald-400', 'w-4 h-3');
+    if (lN) lN.innerText = liab.name;
+    if (lS) lS.innerText = formatHolisticPlayerSummary(liab, arr.length > 1);
+    if (lA) lA.innerHTML = renderAvatarWithFlagHtml(liab.name, 'w-11 h-11', 'border-rose-400', 'w-4 h-3');
   }
 
   const bestOwn = [2, 3, 4, 5].map(k => ownBuckets[k]).filter(b => b.total > 0).sort((a, b) => (b.w / b.total) - (a.w / a.total));
   const worstOpp = [2, 3, 4, 5].map(k => oppBuckets[k]).filter(b => b.total > 0).sort((a, b) => (a.w / a.total) - (b.w / b.total));
 
-  document.getElementById('ownPartyModeBadge').innerText = 'By Squad Size';
-  document.getElementById('ownPartySizeGrid').innerHTML = [2, 3, 4, 5].map(k => {
-    const ob = ownBuckets[k];
-    const wp = ob.total > 0 ? Math.round((ob.w / ob.total) * 100) : null;
-    const col = wp === null ? 'text-gray-500' : (wp >= 50 ? 'text-emerald-400' : 'text-rose-400');
-    return `<div class="flex items-center justify-between text-[10px] bg-gray-950/60 border border-gray-800/80 rounded px-2 py-1"><span class="text-gray-300 font-bold">${ob.label}:</span><span class="font-mono font-black ${col}">${wp !== null ? `${wp}% (${ob.w}/${ob.total})` : '--'}</span></div>`;
-  }).join('');
+  const pBadge = document.getElementById('ownPartyModeBadge'), pGrid = document.getElementById('ownPartySizeGrid'), pVerd = document.getElementById('squadFactorVerdict');
+  if (pBadge) pBadge.innerText = 'By Squad Size';
+  if (pGrid) {
+    pGrid.innerHTML = [2, 3, 4, 5].map(k => {
+      const ob = ownBuckets[k];
+      const wp = ob.total > 0 ? Math.round((ob.w / ob.total) * 100) : null;
+      const col = wp === null ? 'text-gray-500' : (wp >= 50 ? 'text-emerald-400' : 'text-rose-400');
+      return `<div class="flex items-center justify-between text-[10px] bg-gray-950/60 border border-gray-800/80 rounded px-2 py-1"><span class="text-gray-300 font-bold">${ob.label}:</span><span class="font-mono font-black ${col}">${wp !== null ? `${wp}% (${ob.w}/${ob.total})` : '--'}</span></div>`;
+    }).join('');
+  }
 
   const ownTxt = bestOwn.length ? `Sweet spot: ${bestOwn[0].label} (${Math.round((bestOwn[0].w / bestOwn[0].total) * 100)}% Win)` : '';
   const oppTxt = worstOpp.length ? `Toughest: ${worstOpp[0].label} (${Math.round((worstOpp[0].w / worstOpp[0].total) * 100)}% Win)` : '';
-  document.getElementById('squadFactorVerdict').innerText = [ownTxt, oppTxt].filter(Boolean).join(' • ') || 'Balanced squad size record';
+  if (pVerd) pVerd.innerText = [ownTxt, oppTxt].filter(Boolean).join(' • ') || 'Balanced squad size record';
 }
 
 async function loadClub(clubId, platform = 'common-gen5', updateHistory = true) {
@@ -439,46 +470,54 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
   }
 
   CURRENT_CLUB_CREST_URL = `${API_BASE}/crest/${crestId}?name=${encodeURIComponent(name)}&clubId=${encodeURIComponent(clubId)}&platform=${encodeURIComponent(platform)}`;
-  document.getElementById('heroCrestBox').innerHTML = `<img src="${CURRENT_CLUB_CREST_URL}" class="w-full h-full object-contain p-1 drop-shadow" alt="${name}">`;
-  document.getElementById('clubName').innerText = name;
+  const heroBox = document.getElementById('heroCrestBox');
+  if (heroBox) heroBox.innerHTML = `<img src="${CURRENT_CLUB_CREST_URL}" class="w-full h-full object-contain p-1 drop-shadow" alt="${name}">`;
+  const cNameEl = document.getElementById('clubName');
+  if (cNameEl) cNameEl.innerText = name;
 
   const divShield = document.getElementById('clubDivShieldContainer');
-  if (data.division) { divShield.innerHTML = renderDivisionShieldHtml(data.divisionNum ?? data.division, 'lg'); divShield.classList.remove('hidden'); }
-  document.getElementById('clubIdentityBar').classList.remove('hidden');
+  if (divShield && data.division) { divShield.innerHTML = renderDivisionShieldHtml(data.divisionNum ?? data.division, 'lg'); divShield.classList.remove('hidden'); }
+  document.getElementById('clubIdentityBar')?.classList.remove('hidden');
 
   const reg = data.regionInfo || { name: 'Global Matchmaking', flag: null };
   const regFlagEl = document.getElementById('clubRegionFlag');
-  if (reg.flag) {
-    regFlagEl.src = `https://flagcdn.com/w40/${reg.flag}.png`;
-    regFlagEl.classList.remove('hidden');
-  } else {
-    regFlagEl.classList.add('hidden');
+  if (regFlagEl) {
+    if (reg.flag) {
+      regFlagEl.src = `https://flagcdn.com/w40/${reg.flag}.png`;
+      regFlagEl.classList.remove('hidden');
+    } else {
+      regFlagEl.classList.add('hidden');
+    }
   }
-  document.getElementById('clubRegionName').innerText = reg.name;
-  document.getElementById('clubStadiumName').innerText = data.stadiumName || 'Pro Clubs Arena';
-
-  const rep = data.clubRep || { formattedFans: '~6.6M', level: 5, tierTitle: 'Up and Coming' };
-  document.getElementById('clubLevelBadgeText').innerText = `Lvl ${rep.level} • ${rep.formattedFans} Fans (${rep.tierTitle})`;
+  const regNameEl = document.getElementById('clubRegionName');
+  if (regNameEl) regNameEl.innerText = reg.name;
+  const stadEl = document.getElementById('clubStadiumName');
+  if (stadEl) stadEl.innerText = data.stadiumName || 'Pro Clubs Arena';
 
   const kits = data.kits || { home: ['#10b981','#ffffff','#064e3b'], away: ['#1e293b','#38bdf8','#0f172a'], third: ['#f59e0b','#111827','#ffffff'] };
-  document.getElementById('clubKitsContainer').innerHTML = `${renderMiniJerseySvg(kits.home,'Home')}<span class="text-gray-700">|</span>${renderMiniJerseySvg(kits.away,'Away')}<span class="text-gray-700">|</span>${renderMiniJerseySvg(kits.third,'3rd')}`;
-  if (data.globalRank) { const rb = document.getElementById('globalRankBadge'); rb.innerText = `🌍 ${data.globalRank.label}`; rb.classList.remove('hidden'); }
-
-  if (data.trophies) {
-    document.getElementById('trophyBar').classList.remove('hidden');
-    document.getElementById('trophyPromos').innerText = data.trophies.promotions ?? 0;
-    document.getElementById('trophyRelegs').innerText = data.trophies.relegations ?? 0;
-    const pk = data.trophies.bestDivision || data.division || 'Div 5';
-    document.getElementById('trophyPeakDivShield').innerHTML = renderDivisionShieldHtml(data.trophies.bestDivisionNum ?? pk, 'sm');
+  const kitsBox = document.getElementById('clubKitsContainer');
+  if (kitsBox) kitsBox.innerHTML = `${renderMiniJerseySvg(kits.home,'Home')}<span class="text-gray-700">|</span>${renderMiniJerseySvg(kits.away,'Away')}<span class="text-gray-700">|</span>${renderMiniJerseySvg(kits.third,'3rd')}`;
+  if (data.globalRank) {
+    const rb = document.getElementById('globalRankBadge');
+    if (rb) { rb.innerText = `🌍 ${data.globalRank.label}`; rb.classList.remove('hidden'); }
   }
 
-  document.getElementById('clubMeta').innerText = `Club ID: ${clubId} | ${platform.includes('gen5')?'PC / PS5 / XBOX SERIES X|S':platform.toUpperCase()}`;
-  document.getElementById('clubRecord').innerText = `${wins} - ${ties} - ${losses}`;
-  const wpSub = document.getElementById('clubWinPctSub');
+  if (data.trophies) {
+    document.getElementById('trophyBar')?.classList.remove('hidden');
+    const tP = document.getElementById('trophyPromos'), tR = document.getElementById('trophyRelegs'), tPk = document.getElementById('trophyPeakDivShield');
+    if (tP) tP.innerText = data.trophies.promotions ?? 0;
+    if (tR) tR.innerText = data.trophies.relegations ?? 0;
+    const pk = data.trophies.bestDivision || data.division || 'Div 5';
+    if (tPk) tPk.innerHTML = renderDivisionShieldHtml(data.trophies.bestDivisionNum ?? pk, 'sm');
+  }
+
+  const cMeta = document.getElementById('clubMeta'), cRec = document.getElementById('clubRecord'), wpSub = document.getElementById('clubWinPctSub');
+  const sRat = document.getElementById('skillRating'), gSt = document.getElementById('goalStats'), gpgSub = document.getElementById('goalPerGameSub');
+  if (cMeta) cMeta.innerText = `Club ID: ${clubId} | ${platform.includes('gen5')?'PC / PS5 / XBOX SERIES X|S':platform.toUpperCase()}`;
+  if (cRec) cRec.innerText = `${wins} - ${ties} - ${losses}`;
   if (wpSub) wpSub.innerText = `${winPct}% Win • ${totalGames} GP`;
-  document.getElementById('skillRating').innerText = rating;
-  document.getElementById('goalStats').innerHTML = `${goals}/${conceded} <span class="text-xs text-gray-400 font-normal">(${gDiff>=0?`+${gDiff}`:gDiff})</span>`;
-  const gpgSub = document.getElementById('goalPerGameSub');
+  if (sRat) sRat.innerText = rating;
+  if (gSt) gSt.innerHTML = `${goals}/${conceded} <span class="text-xs text-gray-400 font-normal">(${gDiff>=0?`+${gDiff}`:gDiff})</span>`;
   if (gpgSub) gpgSub.innerText = `${totalGames > 0 ? (goals / totalGames).toFixed(1) : '0.0'} GF/g • ${totalGames > 0 ? (conceded / totalGames).toFixed(1) : '0.0'} GA/g`;
 }
 
@@ -496,6 +535,7 @@ function filterRecentMatches(category) {
 // Recent 10 Matches Renderer (Awards 👑 MVP to highest impact and 🥄 SPOON to lowest impact player)
 function renderRecentMatches(clubId, matches) {
   const tbody = document.getElementById('recentMatchesTable'), formContainer = document.getElementById('formBadges');
+  if (!tbody) return;
   const rawArr = Array.isArray(matches) ? matches : (matches?.matches || []);
   const matchArr = CURRENT_MATCH_FILTER === 'ALL'
     ? rawArr.slice(0, 10)
