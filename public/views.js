@@ -153,7 +153,7 @@ function switchBanterMode(mode) {
   renderShameBoard(SHAME_LIST_CACHE);
 }
 
-// Dressing Room Banter Board (Now includes GK-only Golden Glove Clean Sheets Card if a GK exists)
+// Dressing Room Banter Board (Includes GK-only Golden Glove Clean Sheets Card if a GK exists)
 function renderShameBoard(shameList = []) {
   const sec = document.getElementById('shameBoardSection');
   if (!shameList.length && !GLOBAL_MEMBERS.length) return sec.classList.add('hidden');
@@ -274,17 +274,8 @@ function sortSquadBy(col) {
 
 // Inline SVG Sparkline Generator for Player Match Rating Trends
 function buildPlayerRatingSparkline(playerName, careerRat) {
-  let pts = [];
-  if (Array.isArray(GLOBAL_MATCHES) && GLOBAL_MATCHES.length) {
-    for (let i = GLOBAL_MATCHES.length - 1; i >= 0; i--) {
-      const m = GLOBAL_MATCHES[i];
-      const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
-      const myId = cIds.find(id => String(id) === String(GLOBAL_CLUB_ID)) || cIds[0];
-      const pList = Object.values(m.players?.[myId] || {});
-      const hit = pList.find(p => String(p.playername || p.name || '').toLowerCase().trim() === String(playerName).toLowerCase().trim());
-      if (hit && hit.rating) pts.push(parseFloat(hit.rating));
-    }
-  }
+  const r10 = RECENT_10_STATS_MAP[playerName];
+  let pts = Array.isArray(r10?.ratings) ? [...r10.ratings] : [];
 
   const rAvg = RECENT_FORM_MAP[playerName];
   if (pts.length < 2) {
@@ -295,7 +286,7 @@ function buildPlayerRatingSparkline(playerName, careerRat) {
     }
   }
 
-  const w = 52, h = 18, pad = 2.5;
+  const w = 54, h = 18, pad = 2.5;
   const minR = Math.min(5.5, ...pts) - 0.2;
   const maxR = Math.max(9.2, ...pts) + 0.2;
   const range = Math.max(1.0, maxR - minR);
@@ -319,9 +310,15 @@ function buildPlayerRatingSparkline(playerName, careerRat) {
   </svg>`;
 }
 
+// 10-Column Squad Table: Player | Rating & Form | OVR | GP (Win%) | Goals | Assists | G+A/G | Tackles | Pass % | MoTM
 function renderMembers(data) {
   const tbody = document.getElementById('membersTable'), rawList = Array.isArray(data) ? [...data] : [];
-  if (!rawList.length) { tbody.innerHTML = '<tr><td colspan="11" class="py-6 text-center text-gray-500">No member records returned.</td></tr>'; return []; }
+  if (!rawList.length) { tbody.innerHTML = '<tr><td colspan="10" class="py-6 text-center text-gray-500">No member records returned.</td></tr>'; return []; }
+
+  const st = GLOBAL_COMBINED_DATA?.overall || {};
+  const clubW = Number(st.wins ?? st.overallWins ?? 0);
+  const clubTot = Math.max(1, clubW + Number(st.ties ?? st.overallTies ?? 0) + Number(st.losses ?? st.overallLosses ?? 0));
+  const clubWinPct = Math.round((clubW / clubTot) * 100);
 
   const getVal = (m, c) => {
     const g = Math.max(1, Number(m.gamesPlayed ?? 0)), gl = Number(m.goals ?? 0), as = Number(m.assists ?? 0);
@@ -346,7 +343,7 @@ function renderMembers(data) {
     return SQUAD_SORT_ASC ? vA - vB : vB - vA;
   });
 
-  ['name','ovr','games','goals','assists','gapg','tackles','rating','pass','motm'].forEach(col => {
+  ['name','rating','ovr','games','goals','assists','gapg','tackles','pass','motm'].forEach(col => {
     const el = document.getElementById(`sortIcon_${col}`);
     if (el) {
       el.innerText = SQUAD_SORT_COL === col ? (SQUAD_SORT_ASC ? '▲' : '▼') : '';
@@ -367,17 +364,37 @@ function renderMembers(data) {
     const r10TklWin = (sm && sm.tackleAtt > 0) ? Math.round((sm.tackles / sm.tackleAtt) * 100) : 0;
     const tWin = Number(m.tackleSuccessRate ?? m.tacklesuccessrate ?? r10TklWin ?? 0);
 
+    // Resolve Player Win % (Uses EA member winRate/wins if present, otherwise blends club win % with player's recent 10 win rate)
+    let winPct = Number(m.winRate ?? m.winPct ?? 0);
+    if (!winPct && Number(m.wins ?? 0) > 0 && games > 0) {
+      winPct = Math.round((Number(m.wins) / games) * 100);
+    }
+    if (!winPct) {
+      const r10WinPct = (r10 && r10.games > 0) ? Math.round((r10.wins / r10.games) * 100) : clubWinPct;
+      winPct = (r10 && r10.games >= 3) ? Math.round(clubWinPct * 0.65 + r10WinPct * 0.35) : clubWinPct;
+    }
+
     const gaPg = games > 0 ? ((goals + assists) / games).toFixed(2) : '0.00';
     const r10Conv = r10?.shots > 0 ? Math.round((r10.goals / r10.shots) * 100) : null;
     const shotConv = Number(m.shotConvRate || 0) > 0 ? Number(m.shotConvRate) : (r10Conv ?? '--');
     const motmPct = games > 0 ? Math.round((motm / games) * 100) : 0;
 
     m._normalizedPos = normPos; m._rawPos = exactPos;
-    const bCol = normPos === 'FWD' ? 'text-rose-400 bg-rose-500/10' : normPos === 'MID' ? 'text-amber-400 bg-amber-500/10' : normPos === 'DEF' ? 'text-blue-400 bg-blue-500/10' : 'text-purple-400 bg-purple-500/10';
     const escName = name.replace(/'/g, "\\'");
     const sparklineSvg = buildPlayerRatingSparkline(name, careerRat);
 
-    return `<tr onclick="openFutModal('${escName}')" class="hover:bg-gray-800/50 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-2.5">${renderAvatarWithFlagHtml(name, 'w-8 h-8 sm:w-9 sm:h-9', 'border-emerald-500/40', 'w-3.5 h-2.5')}<div class="leading-tight"><div class="hover:text-yellow-400 font-bold">${name}</div>${proNick?`<div class="text-[10px] text-gray-500 font-medium">"${proNick}"</div>`:''}</div></div></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded border font-black text-xs ${tierInfo.badgeClass}">${ovr}</span></td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-xs font-semibold ${bCol}">${exactPos}</span></td><td class="py-2.5 px-2 text-center text-gray-300 font-mono">${games}</td><td class="py-2.5 px-2 text-center font-bold text-emerald-400">${goals} ${shotConv!=='--'?`<span class="text-[10px] text-gray-500 font-mono font-normal">(${shotConv}%)</span>`:''}</td><td class="py-2.5 px-2 text-center text-gray-200 font-semibold">${assists}</td><td class="py-2.5 px-2 text-center text-emerald-300 font-mono">${gaPg}</td><td class="py-2.5 px-2 text-center text-sky-400 font-medium" title="${tackles} Tackles Won (${tWin}% Success Rate)">${tackles} <span class="text-[10px] text-gray-500 font-mono font-normal">(${tWin}%)</span></td><td class="py-2.5 px-2 text-center"><div class="inline-flex items-center justify-center"><span class="text-yellow-400 font-black font-mono">${careerRat.toFixed(1)}</span>${sparklineSvg}</div></td><td class="py-2.5 px-2 text-center text-gray-300 font-mono">${pass}%</td><td class="py-2.5 px-2 text-center text-purple-400 font-bold" title="${motm} MoTM Awards (${motmPct}% of games)">${motm}</td></tr>`;
+    return `<tr onclick="openFutModal('${escName}')" class="hover:bg-gray-800/50 transition border-b border-gray-800/60 cursor-pointer">
+      <td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-2.5">${renderAvatarWithFlagHtml(name, 'w-8 h-8 sm:w-9 sm:h-9', 'border-emerald-500/40', 'w-3.5 h-2.5')}<div class="leading-tight"><div class="hover:text-yellow-400 font-bold">${name}</div>${proNick?`<div class="text-[10px] text-gray-500 font-medium">"${proNick}"</div>`:''}</div></div></td>
+      <td class="py-2.5 px-2 text-center"><div class="inline-flex items-center justify-center"><span class="text-yellow-400 font-black font-mono">${careerRat.toFixed(1)}</span>${sparklineSvg}</div></td>
+      <td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded border font-black text-xs ${tierInfo.badgeClass}">${ovr}</span></td>
+      <td class="py-2.5 px-2 text-center text-gray-200 font-mono font-semibold">${games} <span class="text-[10px] text-sky-400 font-normal">(${winPct}%)</span></td>
+      <td class="py-2.5 px-2 text-center font-bold text-emerald-400">${goals} ${shotConv!=='--'?`<span class="text-[10px] text-gray-500 font-mono font-normal">(${shotConv}%)</span>`:''}</td>
+      <td class="py-2.5 px-2 text-center text-gray-200 font-semibold">${assists}</td>
+      <td class="py-2.5 px-2 text-center text-emerald-300 font-mono">${gaPg}</td>
+      <td class="py-2.5 px-2 text-center text-sky-400 font-medium" title="${tackles} Tackles Won (${tWin}% Success Rate)">${tackles} <span class="text-[10px] text-gray-500 font-mono font-normal">(${tWin}%)</span></td>
+      <td class="py-2.5 px-2 text-center text-gray-300 font-mono">${pass}%</td>
+      <td class="py-2.5 px-2 text-center text-purple-400 font-bold" title="${motm} MoTM Awards (${motmPct}% of games)">${motm}</td>
+    </tr>`;
   }).join('');
   return rawList;
 }
