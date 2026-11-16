@@ -211,7 +211,6 @@ async function sendRecapToDiscord() {
     const bySkill = [...SHAME_LIST_CACHE].sort((a, b) => b.skillMoves - a.skillMoves)[0];
     const byPass = [...SHAME_LIST_CACHE].sort((a, b) => b.missedPasses - a.missedPasses)[0];
     const byBarn = [...SHAME_LIST_CACHE].sort((a, b) => (b.shots - b.goals) - (a.shots - a.goals))[0];
-    const byAllergy = [...SHAME_LIST_CACHE].sort((a, b) => (b.shots - b.assists * 2.5) - (a.shots - a.assists * 2.5))[0];
     const byBluetooth = [...SHAME_LIST_CACHE].sort((a, b) => Math.max(0, b.tackleAtt - b.tackles) - Math.max(0, a.tackleAtt - a.tackles))[0];
 
     if (byInt) banter.push({ title: '📡 The Interceptor', winner: byInt.name, stat: `${byInt.interceptions} Int & Recoveries` });
@@ -221,7 +220,6 @@ async function sendRecapToDiscord() {
     if (bySkill) banter.push({ title: '🌀 Fidget Spinner', winner: bySkill.name, stat: `${bySkill.skillMoves} Skill Moves` });
     if (byPass) banter.push({ title: '🏥 Hospital Pass', winner: byPass.name, stat: `${byPass.missedPasses} Missed Passes` });
     if (byBarn) banter.push({ title: '🚪 Barn Door', winner: byBarn.name, stat: `${byBarn.shots} Shots (${byBarn.goals}G)` });
-    if (byAllergy) banter.push({ title: '🚫 Allergy to Passing', winner: byAllergy.name, stat: `${byAllergy.shots} Shots vs ${byAllergy.assists}A` });
     if (byBluetooth) banter.push({ title: '💨 Bluetooth Tackler', winner: byBluetooth.name, stat: `${Math.max(0, byBluetooth.tackleAtt - byBluetooth.tackles)} Missed Tackles` });
   }
 
@@ -290,6 +288,7 @@ function switchRecapMode(mode) {
   updateRecapMetricsDisplay(GLOBAL_CLUB_ID, mode === 'session' ? SESSION_MATCHES_CACHE : GLOBAL_MATCHES.slice(0, 10), mode);
 }
 
+// Self-Explanatory Party Size Win % Card (Shows Our Pros Win% & Record clearly without confusing dual numbers)
 function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const sec = document.getElementById('sessionRecapSection');
   if (!fixtures.length) return sec.classList.add('hidden');
@@ -298,7 +297,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   let sW = 0, sD = 0, sL = 0, sGF = 0, sGA = 0;
   const pMap = {};
   const ownBuckets = { 2:{label:'2 Pros',w:0,d:0,l:0,total:0}, 3:{label:'3 Pros',w:0,d:0,l:0,total:0}, 4:{label:'4 Pros',w:0,d:0,l:0,total:0}, 5:{label:'5+ Pros',w:0,d:0,l:0,total:0} };
-  const oppBuckets = { 2:{label:'vs 2p',w:0,d:0,l:0,total:0}, 3:{label:'vs 3p',w:0,d:0,l:0,total:0}, 4:{label:'vs 4p',w:0,d:0,l:0,total:0}, 5:{label:'vs 5+p',w:0,d:0,l:0,total:0} };
+  const oppBuckets = { 2:{label:'vs 2-Man',w:0,total:0}, 3:{label:'vs 3-Man',w:0,total:0}, 4:{label:'vs 4-Man',w:0,total:0}, 5:{label:'vs 5+ Man',w:0,total:0} };
 
   fixtures.forEach(m => {
     const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
@@ -318,7 +317,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     if (oppCnt > 0) {
       const bk = oppCnt <= 2 ? 2 : oppCnt === 3 ? 3 : oppCnt === 4 ? 4 : 5;
       oppBuckets[bk].total++;
-      if (isWin) oppBuckets[bk].w++; else if (isDraw) oppBuckets[bk].d++; else oppBuckets[bk].l++;
+      if (isWin) oppBuckets[bk].w++;
     }
 
     myPlayers.forEach(p => {
@@ -361,20 +360,19 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   }
 
   const bestOwn = [2, 3, 4, 5].map(k => ownBuckets[k]).filter(b => b.total > 0).sort((a, b) => (b.w / b.total) - (a.w / a.total));
-  const bestOpp = [2, 3, 4, 5].map(k => oppBuckets[k]).filter(b => b.total > 0).sort((a, b) => (b.w / b.total) - (a.w / a.total));
+  const worstOpp = [2, 3, 4, 5].map(k => oppBuckets[k]).filter(b => b.total > 0).sort((a, b) => (a.w / a.total) - (b.w / b.total));
 
-  document.getElementById('ownPartyModeBadge').innerText = `${pfx} (Our Size vs Opp)`;
+  document.getElementById('ownPartyModeBadge').innerText = 'By Squad Size';
   document.getElementById('ownPartySizeGrid').innerHTML = [2, 3, 4, 5].map(k => {
-    const ob = ownBuckets[k], op = oppBuckets[k];
-    const owp = ob.total > 0 ? `${Math.round((ob.w / ob.total) * 100)}%` : '--';
-    const pwp = op.total > 0 ? `${Math.round((op.w / op.total) * 100)}%` : '--';
-    const oRec = ob.total > 0 ? `(${ob.w}W-${ob.d}D-${ob.l}L)` : '';
-    return `<div class="flex items-center justify-between text-[10px] bg-gray-950/60 border border-gray-800/80 rounded px-2 py-1"><span class="text-gray-300 font-bold">${k===5?'5+ Pros':`${k} Pros`}</span><span class="font-mono"><b class="text-emerald-400" title="Our Squad Win % ${oRec}">${owp}</b> <span class="text-gray-600">|</span> <b class="text-sky-400" title="Win % vs Opponent ${k}-Man Lobby">${pwp} vs</b></span></div>`;
+    const ob = ownBuckets[k];
+    const wp = ob.total > 0 ? Math.round((ob.w / ob.total) * 100) : null;
+    const col = wp === null ? 'text-gray-500' : (wp >= 50 ? 'text-emerald-400' : 'text-rose-400');
+    return `<div class="flex items-center justify-between text-[10px] bg-gray-950/60 border border-gray-800/80 rounded px-2 py-1"><span class="text-gray-300 font-bold">${ob.label}:</span><span class="font-mono font-black ${col}">${wp !== null ? `${wp}% (${ob.w}/${ob.total})` : '--'}</span></div>`;
   }).join('');
 
-  const ownTxt = bestOwn.length ? `Best squad: ${bestOwn[0].label} (${Math.round((bestOwn[0].w / bestOwn[0].total) * 100)}%)` : '';
-  const oppTxt = bestOpp.length ? `Toughest vs: ${bestOpp[0].label}` : '';
-  document.getElementById('squadFactorVerdict').innerText = [ownTxt, oppTxt].filter(Boolean).join(' • ') || 'Balanced lobby breakdown';
+  const ownTxt = bestOwn.length ? `Sweet spot: ${bestOwn[0].label} (${Math.round((bestOwn[0].w / bestOwn[0].total) * 100)}% Win)` : '';
+  const oppTxt = worstOpp.length ? `Toughest: ${worstOpp[0].label} (${Math.round((worstOpp[0].w / worstOpp[0].total) * 100)}% Win)` : '';
+  document.getElementById('squadFactorVerdict').innerText = [ownTxt, oppTxt].filter(Boolean).join(' • ') || 'Balanced squad size record';
 }
 
 async function loadClub(clubId, platform = 'common-gen5', updateHistory = true) {
@@ -488,6 +486,7 @@ function filterRecentMatches(category) {
   renderRecentMatches(GLOBAL_CLUB_ID, GLOBAL_MATCHES);
 }
 
+// Recent 10 Matches Renderer (Awards 👑 MVP to highest impact and 🥄 SPOON to lowest impact player)
 function renderRecentMatches(clubId, matches) {
   const tbody = document.getElementById('recentMatchesTable'), formContainer = document.getElementById('formBadges');
   const rawArr = Array.isArray(matches) ? matches : (matches?.matches || []);
@@ -704,51 +703,6 @@ function buildDynamicPitchTactic(members = [], matches = []) {
   document.getElementById('pitchMetricOvr').innerText = hCnt ? `${Math.round(assigned.reduce((a,b)=>a+Number(b.proOverall||85),0)/hCnt)} OVR` : '--';
   document.getElementById('pitchMetricRating').innerText = hCnt ? (assigned.reduce((a,b)=>a+parseFloat(b.ratingAve||7.0),0)/hCnt).toFixed(2) : '--';
   document.getElementById('pitchMetricZone').innerText = 'Midfield Engine';
-}
-
-function renderDivisionShieldHtml(divInput, size = 'sm') {
-  const dStr = String(divInput || 'Div 5').toUpperCase();
-  let num = 5;
-  if (dStr.includes('ELITE')) num = 0;
-  else if (dStr.includes('1')) num = 1;
-  else if (dStr.includes('2')) num = 2;
-  else if (dStr.includes('3')) num = 3;
-  else if (dStr.includes('4')) num = 4;
-  else if (dStr.includes('5')) num = 5;
-  else if (/^\d+$/.test(dStr)) num = parseInt(dStr, 10);
-
-  const colors = num === 0
-    ? { bg: '#312e81', border: '#818cf8', text: '#e0e7ff', label: 'ELITE' }
-    : num === 1
-    ? { bg: '#78350f', border: '#fbbf24', text: '#fef3c7', label: 'DIV 1' }
-    : num === 2
-    ? { bg: '#374151', border: '#9ca3af', text: '#f3f4f6', label: 'DIV 2' }
-    : num === 3
-    ? { bg: '#581c87', border: '#c084fc', text: '#f3e8ff', label: 'DIV 3' }
-    : num === 4
-    ? { bg: '#14532d', border: '#4ade80', text: '#dcfce7', label: 'DIV 4' }
-    : { bg: '#1e3a8a', border: '#60a5fa', text: '#dbeafe', label: 'DIV 5' };
-
-  const isLg = size === 'lg';
-  const w = isLg ? 48 : 34, h = isLg ? 56 : 40, fSize = isLg ? 13 : 10;
-
-  return `<div class="inline-flex items-center justify-center" title="Division ${num === 0 ? 'Elite' : num}">
-    <svg width="${w}" height="${h}" viewBox="0 0 40 48" class="drop-shadow">
-      <path d="M 4 4 L 36 4 C 36 24 28 40 20 44 C 12 40 4 24 4 4 Z" fill="${colors.bg}" stroke="${colors.border}" stroke-width="2.5"/>
-      <text x="20" y="27" font-family="'Oswald', sans-serif" font-size="${fSize}" font-weight="900" fill="${colors.text}" text-anchor="middle">${colors.label}</text>
-    </svg>
-  </div>`;
-}
-
-function renderMiniJerseySvg(kitColors = ['#10b981', '#ffffff', '#064e3b'], label = 'Kit') {
-  const primary = kitColors[0] || '#10b981';
-  const secondary = kitColors[1] || '#ffffff';
-  return `<div class="inline-flex items-center gap-1 bg-gray-900/90 border border-gray-800 px-2 py-0.5 rounded text-[10px]" title="${label} Kit">
-    <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 flex-shrink-0">
-      <path d="M4 3 L9 2 C12 4 15 4 18 2 L20 3 L22 8 L18 11 L17 9 L17 21 L7 21 L7 9 L6 11 L2 8 Z" fill="${primary}" stroke="${secondary}" stroke-width="1.2" stroke-linejoin="round"/>
-    </svg>
-    <span class="font-bold text-gray-300">${label}</span>
-  </div>`;
 }
 
 function checkInitialUrlRoute() {
