@@ -15,52 +15,17 @@ let CURRENT_RECAP_MODE = 'session';
 let CURRENT_BANTER_MODE = 'last10';
 let CURRENT_PITCH_MODE = 'lastMatch';
 
-const PLAYSTYLE_META_MAP = {
-  'FINESSE SHOT': { name: 'Finesse Shot', icon: 'fa-bullseye', desc: 'Curved finesse shots with deadly accuracy' },
-  'INCISIVE PASS': { name: 'Incisive Pass', icon: 'fa-compass-drafting', desc: ' clinical through-balls that split defenses' },
-  'INTERCEPT': { name: 'Intercept', icon: 'fa-magnet', desc: 'Extended reach to cut out passing lanes' },
-  'FAR REACH': { name: 'Far Reach', icon: 'fa-hand-paper', desc: 'Acrobatic top-corner goalkeeper saves' },
-  'RAPID': { name: 'Rapid', icon: 'fa-bolt', desc: 'Explosive knock-ons and sprint speed on the ball' },
-  'FIRST TOUCH': { name: 'First Touch', icon: 'fa-feather', desc: 'Instant ball control under heavy pressure' },
-  'TECHNICAL': { name: 'Technical', icon: 'fa-wand-magic-sparkles', desc: 'High-speed R1 controlled dribbling' },
-  'TIKI TAKA': { name: 'Tiki Taka', icon: 'fa-diagram-project', desc: 'Crisp one-touch ground passing accuracy' },
-  'RELENTLESS': { name: 'Relentless', icon: 'fa-heart-pulse', desc: 'Endless stamina recovery into the 90th minute' },
-  'ANTICIPATE': { name: 'Anticipate', icon: 'fa-shield-halved', desc: 'Clean standing tackles that retain possession' },
-  'BRUISER': { name: 'Bruiser', icon: 'fa-dumbbell', desc: 'Dominant physical shoulder-to-shoulder challenges' },
-  'LONG BALL PASS': { name: 'Long Ball Pass', icon: 'fa-route', desc: 'Pinpoint lofted switches and over-the-top balls' },
-  'FOOTWORK': { name: 'Footwork', icon: 'fa-shoe-prints', desc: 'Lightning reflex saves with feet in 1v1s' },
-  'CROSS CLAIMER': { name: 'Cross Claimer', icon: 'fa-hands-holding-circle', desc: 'Commands the 6-yard box on high crosses' },
-  'POWER SHOT': { name: 'Power Shot', icon: 'fa-meteor', desc: 'Thunderous long-range strikes' },
-  'WHIPPED PASS': { name: 'Whipped Pass', icon: 'fa-wind', desc: ' venomous driven crosses into the box' },
-  'JOCKEY': { name: 'Jockey', icon: 'fa-person-running', desc: 'Rapid lateral defensive strafing speed' },
-  'AERIAL': { name: 'Aerial', icon: 'fa-plane-up', desc: 'Towering vertical leap on headers' },
-  'PINGED PASS': { name: 'Pinged Pass', icon: 'fa-location-arrow', desc: 'Laser-guided driven ground passes' },
-  'TRIVELA': { name: 'Trivela', icon: 'fa-circle-nodes', desc: 'Outside-of-the-boot curl passes and shots' },
-  'PRESS PROVEN': { name: 'Press Proven', icon: 'fa-lock', desc: 'Shields the ball effortlessly against tight presses' },
-  'QUICK STEP': { name: 'Quick Step', icon: 'fa-forward-fast', desc: 'Instant acceleration burst from standing starts' },
-  'BLOCK': { name: 'Block', icon: 'fa-Ban', desc: 'Elastic leg reach to block goal-bound shots' }
+constEXTENDED_EA_NATION_CODES = {
+  '1': 'al', '2': 'ad', '3': 'am', '4': 'at', '5': 'az', '6': 'by', '7': 'be', '8': 'ba', '9': 'bg', '10': 'hr',
+  '11': 'cy', '12': 'cz', '13': 'dk', '14': 'gb-eng', '15': 'me', '16': 'ee', '17': 'fo', '18': 'fr', '19': 'mk', '20': 'ge',
+  '21': 'de', '22': 'gr', '23': 'hu', '24': 'is', '25': 'ie', '26': 'il', '27': 'it', '28': 'lv', '29': 'li', '30': 'lt',
+  '31': 'lu', '32': 'mt', '33': 'md', '34': 'nl', '35': 'gb-nir', '36': 'no', '37': 'pl', '38': 'pt', '39': 'ro', '40': 'ru',
+  '41': 'sm', '42': 'gb-sct', '43': 'sk', '44': 'si', '45': 'es', '46': 'se', '47': 'ch', '48': 'tr', '49': 'ua', '50': 'gb-wls',
+  '51': 'rs', '52': 'ar', '53': 'bo', '54': 'br', '55': 'cl', '56': 'co', '57': 'ec', '58': 'py', '59': 'pe', '60': 'uy',
+  '61': 've', '70': 'ca', '73': 'cr', '82': 'jm', '83': 'mx', '95': 'us', '97': 'dz', '103': 'cm', '108': 'ci', '111': 'eg',
+  '117': 'gh', '126': 'ml', '129': 'ma', '133': 'ng', '136': 'sn', '140': 'za', '145': 'tn', '155': 'cn', '163': 'jp', '167': 'kr',
+  '183': 'sa', '195': 'au', '198': 'nz', '219': 'xk'
 };
-
-function resolvePlaystyleEntry(keyOrObj, isPlus = false) {
-  if (keyOrObj && typeof keyOrObj === 'object' && keyOrObj.name) return keyOrObj;
-  const raw = String(keyOrObj || 'TECHNICAL').replace(/\+$/g, '').trim().toUpperCase();
-  if (typeof PLAYSTYLE_CATALOG !== 'undefined' && PLAYSTYLE_CATALOG[raw]) {
-    const cat = PLAYSTYLE_CATALOG[raw];
-    return {
-      key: raw,
-      name: isPlus && !String(cat.name).endsWith('+') ? `${cat.name}+` : cat.name,
-      icon: cat.icon || 'fa-bolt',
-      desc: cat.desc || 'Signature Pro Clubs PlayStyle'
-    };
-  }
-  const meta = PLAYSTYLE_META_MAP[raw] || { name: raw.charAt(0) + raw.slice(1).toLowerCase(), icon: 'fa-star', desc: 'Signature Pro Clubs PlayStyle' };
-  return {
-    key: raw,
-    name: isPlus ? `${meta.name}+` : meta.name,
-    icon: meta.icon,
-    desc: meta.desc
-  };
-}
 
 function slugifyClubName(name) {
   return String(name || '')
@@ -73,7 +38,7 @@ function slugifyClubName(name) {
 function normalizePosition(rawPos) {
   const s = String(rawPos || '').trim().toUpperCase();
   if (['0', 'GK', 'GOALKEEPER'].includes(s)) return 'GK';
-  if (['1', '2', '3', '4', '5', '6', '7', '8', 'DEF', 'DEFENDER', 'CB', 'LB', 'RB', 'LWB', 'RWB', 'LCB', 'RCB'].includes(s)) return 'DEF';
+  if (['1', '2', '3', '4', '5', '6', '7', '8', 'DEF', 'DEFENDER', 'CB', 'LB', 'RB', 'LWB', 'RWB', 'LCB', 'RCB', 'SW'].includes(s)) return 'DEF';
   if (['9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', 'MID', 'MIDFIELDER', 'CDM', 'CM', 'CAM', 'LM', 'RM', 'LDM', 'RDM', 'LCM', 'RCM', 'LAM', 'RAM'].includes(s)) return 'MID';
   if (['20', '21', '22', '23', '24', '25', '26', '27', 'FWD', 'FORWARD', 'ST', 'CF', 'LW', 'RW', 'LF', 'RF', 'LS', 'RS'].includes(s)) return 'FWD';
   return 'MID';
@@ -176,21 +141,29 @@ function getPlayerAvatarUrl(name, highRes = false) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
+// Resolves player's country flag URL across EA_NATION_MAP, 75+ FIFA Nation IDs, and club region fallback
 function resolvePlayerFlagUrl(memberOrName) {
   const m = typeof memberOrName === 'object' && memberOrName !== null ? memberOrName : findMemberMeta(memberOrName);
-  if (!m) return null;
-  const natId = String(m.proNationality || m.nationalityId || m.nationality || '').trim();
-  if (typeof EA_NATION_MAP !== 'undefined' && EA_NATION_MAP[natId]) {
+  const natId = String(m?.proNationality ?? m?.nationalityId ?? m?.nationality ?? '').trim();
+
+  if (natId && typeof EA_NATION_MAP !== 'undefined' && EA_NATION_MAP[natId]?.code) {
     return `https://flagcdn.com/w40/${EA_NATION_MAP[natId].code}.png`;
   }
-  return null;
+  if (natId && EXTENDED_EA_NATION_CODES[natId]) {
+    return `https://flagcdn.com/w40/${EXTENDED_EA_NATION_CODES[natId]}.png`;
+  }
+  const clubFlag = GLOBAL_COMBINED_DATA?.regionInfo?.flag;
+  if (clubFlag) {
+    return `https://flagcdn.com/w40/${clubFlag}.png`;
+  }
+  return 'https://flagcdn.com/w40/ie.png';
 }
 
 function renderAvatarWithFlagHtml(playerName, sizeClass = 'w-9 h-9', borderClass = 'border-emerald-500/40', flagSize = 'w-3.5 h-2.5') {
   const avatarUrl = getPlayerAvatarUrl(playerName);
   const flagUrl = resolvePlayerFlagUrl(playerName);
   const flagHtml = flagUrl
-    ? `<img src="${flagUrl}" class="absolute -bottom-0.5 -right-0.5 ${flagSize} object-cover rounded-[2px] border border-gray-950 shadow-sm" alt="Flag">`
+    ? `<img src="${flagUrl}" class="absolute -bottom-0.5 -right-0.5 ${flagSize} object-cover rounded-[2px] border border-gray-950 shadow-md z-10" alt="Flag">`
     : '';
   return `<div class="relative inline-block flex-shrink-0"><img src="${avatarUrl}" class="${sizeClass} rounded-full avatar-circle border ${borderClass} bg-gray-900 object-cover" alt="${playerName}">${flagHtml}</div>`;
 }
@@ -357,14 +330,17 @@ function getChaosEmoji(myG, oppG, oppSR) {
 }
 
 function getPlayerRadarMetrics(m = {}) {
+  const name = m.name || m.proName || '';
+  const r10 = RECENT_10_STATS_MAP[name] || {};
   const ovr = Math.max(75, Number(m.proOverall || 82));
   const games = Math.max(1, Number(m.gamesPlayed ?? 1));
   const goals = Number(m.goals ?? 0);
   const assists = Number(m.assists ?? 0);
-  const tackles = Number(m.tacklesMade ?? m.tacklesmade ?? m.tackles ?? 0);
+  const tackles = Number(m.tacklesMade ?? m.tacklesmade ?? m.tackles ?? r10.tackles ?? 0);
   const passPct = Number(m.passSuccessRate ?? 76);
   const tklPct = Number(m.tackleSuccessRate ?? 28);
-  const shotConv = Number(m.shotConvRate ?? m.shotSuccessRate ?? 24);
+  const r10Conv = r10.shots > 0 ? Math.round((r10.goals / r10.shots) * 100) : 22;
+  const shotConv = Number(m.shotConvRate ?? m.shotSuccessRate ?? r10Conv);
   const rat = parseFloat(m.ratingAve || m.rating || 7.2);
   const motm = Number(m.manOfTheMatch ?? 0);
   const normPos = normalizePosition(m.favoritePosition || m.pos || 'MID');
@@ -402,39 +378,42 @@ function getPlayerRadarMetrics(m = {}) {
 }
 
 function computeArchetypeAndPlaystyles(m = {}) {
+  const name = m.name || m.proName || 'Pro';
+  const r10 = RECENT_10_STATS_MAP[name] || {};
   const metrics = getPlayerRadarMetrics(m);
-  const [pac, sho, pas, dri, def] = metrics.attributes.map(a => a.raw);
-  const normPos = normalizePosition(m.favoritePosition || m.pos || 'MID');
-  const exactPos = (typeof EA_PRO_POS_MAP !== 'undefined' && EA_PRO_POS_MAP[String(m.proPos ?? '')]) || normPos;
-  const games = Math.max(1, Number(m.gamesPlayed ?? 1));
-  const isAnchor = isDefensiveAnchorRole(normPos, exactPos, Number(m.tacklesMade ?? 0) / games, Number(m.goals ?? 0) / games, 2);
+  const [pac] = metrics.attributes.map(a => a.raw);
 
-  if (normPos === 'GK') {
-    return {
-      archetype: 'SHOT STOPPER',
-      psPlus: resolvePlaystyleEntry('FAR REACH', true),
-      activePlaystyles: ['FOOTWORK', 'CROSS CLAIMER', 'LONG BALL PASS'].map(k => resolvePlaystyleEntry(k, false))
-    };
+  const games = Math.max(1, Number(m.gamesPlayed ?? 1));
+  const goals = Number(m.goals ?? 0);
+  const assists = Number(m.assists ?? 0);
+  const tackles = Number(m.tacklesMade ?? m.tacklesmade ?? m.tackles ?? r10.tackles ?? 0);
+  const passPct = Number(m.passSuccessRate ?? 76);
+  const gpg = goals / games;
+  const apg = assists / games;
+  const tpg = tackles / games;
+  const r10G = Math.max(1, Number(r10.games || 1));
+  const spg = r10.shots !== undefined ? (r10.shots / r10G) : (gpg * 3.2);
+  const convPct = Number(m.shotConvRate || (r10.shots > 0 ? Math.round((r10.goals / r10.shots) * 100) : 22));
+  const skillsPg = r10.skillMoves !== undefined ? (r10.skillMoves / r10G) : ((gpg + apg) * 1.8);
+
+  const activePos = r10.normPos || normalizePosition(m.favoritePosition || m.pos || 'MID');
+  const exactPos = (typeof EA_PRO_POS_MAP !== 'undefined' && EA_PRO_POS_MAP[String(m.proPos ?? '')]) || activePos;
+  const isAnchor = isDefensiveAnchorRole(activePos, exactPos, tpg, gpg, spg);
+
+  let archetype = 'BOX-TO-BOX ENGINE';
+  if (activePos === 'GK' || exactPos === 'GK') {
+    archetype = 'SHOT STOPPER';
+  } else if (isAnchor) {
+    archetype = tpg >= 2.2 ? 'BALL-WINNING ANCHOR' : 'DEEP-LYING SHIELD';
+  } else if (activePos === 'FWD' || gpg >= apg + 0.22) {
+    archetype = convPct >= 28 ? 'CLINICAL FINISHER' : (pac >= 86 ? 'SPEEDSTER POACHER' : 'COMPLETE FORWARD');
+  } else if (apg >= 0.45 || passPct >= 83) {
+    archetype = 'PLAYMAKER MAESTRO';
+  } else if (skillsPg >= 3.2) {
+    archetype = 'TECHNICAL CREATOR';
   }
-  if (isAnchor) {
-    return {
-      archetype: def >= 84 ? 'BALL-WINNING ANCHOR' : 'DEEP-LYING SHIELD',
-      psPlus: resolvePlaystyleEntry('INTERCEPT', true),
-      activePlaystyles: ['ANTICIPATE', 'BRUISER', 'LONG BALL PASS'].map(k => resolvePlaystyleEntry(k, false))
-    };
-  }
-  if (normPos === 'FWD' || sho >= pas + 4) {
-    return {
-      archetype: pac >= 88 ? 'POACHER / SPEEDSTER' : 'CLINICAL FINISHER',
-      psPlus: resolvePlaystyleEntry('FINESSE SHOT', true),
-      activePlaystyles: ['RAPID', 'FIRST TOUCH', 'TECHNICAL'].map(k => resolvePlaystyleEntry(k, false))
-    };
-  }
-  return {
-    archetype: pas >= 84 ? 'PLAYMAKER MAESTRO' : 'BOX-TO-BOX ENGINE',
-    psPlus: resolvePlaystyleEntry('INCISIVE PASS', true),
-    activePlaystyles: ['TIKI TAKA', 'TECHNICAL', 'RELENTLESS'].map(k => resolvePlaystyleEntry(k, false))
-  };
+
+  return { archetype, psPlus: null, activePlaystyles: [] };
 }
 
 function buildRadarSvg(p1Metrics = [], p2Metrics = []) {
@@ -534,6 +513,7 @@ function computeMatchIntelligence(clubId, matches = []) {
         };
       }
       const u = pMap[n];
+      u.normPos = normPos;
       u.games++; u.ratSum += rat; u.ratings.push(rat);
       if (myG > oppG) u.wins++;
       if (isSub) { u.subGames++; u.superSubGA += (goals + assists); }
