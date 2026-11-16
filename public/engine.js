@@ -1,465 +1,477 @@
 const API_BASE = '/api';
-let GLOBAL_MEMBERS = [], GLOBAL_MATCHES = [], GLOBAL_COMBINED_DATA = {}, GLOBAL_CLUB_ID = null;
-let RECENT_FORM_MAP = {}, RECENT_10_STATS_MAP = {}, SESSION_MATCHES_CACHE = [], SHAME_LIST_CACHE = [], MATCH_PLAYER_META = {};
-let TOP_FIDGET_SPINNER_NAME = null, TOP_MEAT_WALL_NAME = null, TOP_INTERCEPTOR_NAME = null, CURRENT_CLUB_CREST_URL = '', ACTIVE_MODAL_PLAYER = null;
-let CURRENT_PITCH_MODE = 'lastMatch', CURRENT_RECAP_MODE = 'session', CURRENT_BANTER_MODE = 'last10', ACTIVE_TAB = 'team';
 
-const slugifyClubName = (name) => String(name || '').toLowerCase().trim().replace(/['’]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-const escXml = (s) => String(s || '').replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
+let GLOBAL_CLUB_ID = null;
+let GLOBAL_COMBINED_DATA = null;
+let GLOBAL_MEMBERS = [];
+let GLOBAL_MATCHES = [];
+let SESSION_MATCHES_CACHE = [];
+let SHAME_LIST_CACHE = [];
+let RECENT_FORM_MAP = {};
+let RECENT_10_STATS_MAP = {};
+let CURRENT_CLUB_CREST_URL = '';
+let ACTIVE_MODAL_PLAYER = '';
+let ACTIVE_TAB = 'team';
+let CURRENT_RECAP_MODE = 'session';
+let CURRENT_BANTER_MODE = 'last10';
+let CURRENT_PITCH_MODE = 'lastMatch';
 
-const COUNTRY_NAME_TO_ISO = {
-  'ireland':'ie','republic of ireland':'ie','northern ireland':'gb-nir','england':'gb-eng','scotland':'gb-sct','wales':'gb-wls','united kingdom':'gb','great britain':'gb',
-  'united states':'us','united states of america':'us','usa':'us','canada':'ca','mexico':'mx','haiti':'ht','jamaica':'jm','trinidad and tobago':'tt','costa rica':'cr','panama':'pa','honduras':'hn','el salvador':'sv','guatemala':'gt','cuba':'cu','dominican republic':'do','puerto rico':'pr','curacao':'cw','suriname':'sr','bermuda':'bm','barbados':'bb',
-  'brazil':'br','argentina':'ar','colombia':'co','uruguay':'uy','chile':'cl','peru':'pe','ecuador':'ec','venezuela':'ve','paraguay':'py','bolivia':'bo','guyana':'gy',
-  'france':'fr','germany':'de','spain':'es','italy':'it','netherlands':'nl','holland':'nl','portugal':'pt','belgium':'be','croatia':'hr','switzerland':'ch','austria':'at',
-  'poland':'pl','denmark':'dk','sweden':'se','norway':'no','finland':'fi','iceland':'is','turkey':'tr','turkiye':'tr','greece':'gr','serbia':'rs','ukraine':'ua','czechia':'cz','czech republic':'cz','romania':'ro','hungary':'hu','slovakia':'sk','slovenia':'si','albania':'al','bosnia and herzegovina':'ba','bosnia-herzegovina':'ba','kosovo':'xk','north macedonia':'mk','montenegro':'me','bulgaria':'bg','georgia':'ge','armenia':'am','israel':'il','cyprus':'cy','luxembourg':'lu','malta':'mt','estonia':'ee','latvia':'lv','lithuania':'lt',
-  'nigeria':'ng','morocco':'ma','senegal':'sn','ghana':'gh','egypt':'eg','algeria':'dz','cameroon':'cm','ivory coast':'ci','cote d\'ivoire':'ci','mali':'ml','tunisia':'tn','south africa':'za','dr congo':'cd','congo dr':'cd','guinea':'gn','burkina faso':'bf','cape verde':'cv','gabon':'ga','gambia':'gm','angola':'ao','zambia':'zm','zimbabwe':'zw','kenya':'ke','uganda':'ug',
-  'japan':'jp','south korea':'kr','korea republic':'kr','australia':'au','new zealand':'nz','saudi arabia':'sa','iran':'ir','iraq':'iq','qatar':'qa','united arab emirates':'ae','uae':'ae','uzbekistan':'uz','china':'cn','china pr':'cn','india':'in','philippines':'ph','thailand':'th','vietnam':'vn','indonesia':'id','malaysia':'my','singapore':'sg','hong kong':'hk'
-};
+function slugifyClubName(name) {
+  return String(name || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
 
-function extractNationFromVproAttr(vproattr) {
-  if (!vproattr || typeof vproattr !== 'string') return null;
-  const parts = vproattr.split('|').map(x => parseInt(x, 10));
-  if (parts.length > 4 && parts[3] >= 1 && parts[3] <= 219 && (parts[0] > 140 || parts[1] > 140)) {
-    return String(parts[3]);
-  }
-  return null;
+function normalizePosition(rawPos) {
+  const s = String(rawPos || '').trim().toUpperCase();
+  if (['0', 'GK', 'GOALKEEPER'].includes(s)) return 'GK';
+  if (['1', '2', '3', '4', '5', '6', '7', '8', 'DEF', 'DEFENDER', 'CB', 'LB', 'RB', 'LWB', 'RWB', 'LCB', 'RCB'].includes(s)) return 'DEF';
+  if (['9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', 'MID', 'MIDFIELDER', 'CDM', 'CM', 'CAM', 'LM', 'RM', 'LDM', 'RDM', 'LCM', 'RCM', 'LAM', 'RAM'].includes(s)) return 'MID';
+  if (['20', '21', '22', '23', '24', '25', '26', '27', 'FWD', 'FORWARD', 'ST', 'CF', 'LW', 'RW', 'LF', 'RF', 'LS', 'RS'].includes(s)) return 'FWD';
+  return 'MID';
 }
 
 function findMemberMeta(playerName) {
   const key = String(playerName || '').toLowerCase().trim();
-  if (!key) return null;
   return GLOBAL_MEMBERS.find(m =>
     String(m.name || '').toLowerCase().trim() === key ||
-    String(m.username || '').toLowerCase().trim() === key ||
     String(m.proName || '').toLowerCase().trim() === key
-  ) || MATCH_PLAYER_META[key] || null;
+  ) || null;
 }
 
-function getShirtLabel(playerName) {
-  const m = findMemberMeta(playerName);
-  const mp = MATCH_PLAYER_META[String(playerName || '').toLowerCase().trim()];
-  const raw = String(m?.proName || mp?.proName || m?.vproname || playerName || 'PRO').trim().toUpperCase();
-  return raw.length > 12 ? raw.substring(0, 11) + '.' : raw;
+function getShirtLabel(name) {
+  const parts = String(name || 'PRO').trim().split(/[\s_-]+/);
+  return (parts[parts.length - 1] || name || 'PRO').substring(0, 10).toUpperCase();
 }
 
-function resolvePlayerFlagUrl(playerObjOrName) {
-  const nameStr = typeof playerObjOrName === 'string' ? playerObjOrName : (playerObjOrName?.name || playerObjOrName?.playername || '');
-  const memberObj = (playerObjOrName && typeof playerObjOrName === 'object') ? playerObjOrName : findMemberMeta(nameStr);
-  const matchMeta = MATCH_PLAYER_META[String(nameStr).toLowerCase().trim()] || null;
+function getPlayerAvatarUrl(name, highRes = false) {
+  if (typeof CUSTOM_PLAYER_AVATARS !== 'undefined' && CUSTOM_PLAYER_AVATARS[name]) {
+    return CUSTOM_PLAYER_AVATARS[name];
+  }
+  const sz = highRes ? 240 : 96;
+  return `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${encodeURIComponent(name || 'Pro')}&size=${sz}`;
+}
 
-  for (const target of [memberObj, matchMeta]) {
-    if (!target) continue;
-
-    const rawNum = String(
-      target.proNationality ?? target.nationalityId ?? target.nationality?.id ??
-      (typeof target.nationality === 'number' || /^\d+$/.test(String(target.nationality || '').trim()) ? target.nationality : '') ??
-      target.nation ?? extractNationFromVproAttr(target.vproattr) ?? ''
-    ).trim().replace(/^0+/, '');
-
-    if (rawNum && EA_NATION_TO_ISO[rawNum]) {
-      return `https://flagcdn.com/w40/${EA_NATION_TO_ISO[rawNum].toLowerCase()}.png`;
-    }
-
-    const sdkIso = String(target.nationality?.isoCode ?? target.nationality?.code ?? target.isoCode ?? target.countryCode ?? '').trim().toLowerCase();
-    if (sdkIso) {
-      const iso3Map = { eng:'gb-eng', sct:'gb-sct', wls:'gb-wls', nir:'gb-nir', gbr:'gb', irl:'ie', usa:'us', mex:'mx', hti:'ht', can:'ca', bra:'br', arg:'ar', col:'co', uru:'uy', chl:'cl', per:'pe', fra:'fr', ger:'de', deu:'de', esp:'es', ita:'it', ned:'nl', nld:'nl', por:'pt', prt:'pt', bel:'be', cro:'hr', hrv:'hr', sui:'ch', che:'ch', aut:'at', pol:'pl', den:'dk', dnk:'dk', swe:'se', nor:'no', tur:'tr', gre:'gr', grc:'gr', srb:'rs', ukr:'ua', jam:'jm', nga:'ng', mar:'ma', sen:'sn', gha:'gh', egy:'eg', alg:'dz', dza:'dz', cmr:'cm', civ:'ci', jpn:'jp', kor:'kr', aus:'au', nzl:'nz', ksa:'sa', sau:'sa' };
-      const mapped = iso3Map[sdkIso] || ((sdkIso.length === 2 || sdkIso.startsWith('gb-')) ? sdkIso : null);
-      if (mapped) return `https://flagcdn.com/w40/${mapped}.png`;
-    }
-
-    const rawCountry = String(typeof target.nationality === 'string' ? target.nationality : (target.nationality?.label ?? target.nationality?.name ?? target.country ?? '')).trim().toLowerCase();
-    if (rawCountry) {
-      if (COUNTRY_NAME_TO_ISO[rawCountry]) return `https://flagcdn.com/w40/${COUNTRY_NAME_TO_ISO[rawCountry]}.png`;
-      if (rawCountry.length === 2) return `https://flagcdn.com/w40/${rawCountry}.png`;
-    }
+function resolvePlayerFlagUrl(memberOrName) {
+  const m = typeof memberOrName === 'object' && memberOrName !== null ? memberOrName : findMemberMeta(memberOrName);
+  if (!m) return null;
+  const natId = String(m.proNationality || m.nationalityId || m.nationality || '').trim();
+  if (typeof EA_NATION_MAP !== 'undefined' && EA_NATION_MAP[natId]) {
+    return `https://flagcdn.com/w40/${EA_NATION_MAP[natId].code}.png`;
   }
   return null;
 }
 
-function getPlayerAvatarUrl(playerName, transparentBg = false) {
-  const shirt = escXml(getShirtLabel(playerName));
-  const fSize = shirt.length <= 5 ? 30 : shirt.length <= 8 ? 24 : shirt.length <= 10 ? 20 : 17;
-  const bgLayers = transparentBg ? '' : `<rect width="256" height="256" fill="url(#bgG)"/><circle cx="128" cy="96" r="96" fill="url(#emH)"/>`;
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 256 256" shape-rendering="geometricPrecision"><defs><radialGradient id="bgG" cx="50%" cy="38%" r="58%"><stop offset="0%" stop-color="#1e293b"/><stop offset="65%" stop-color="#0f172a"/><stop offset="100%" stop-color="#070a12"/></radialGradient><radialGradient id="emH" cx="50%" cy="32%" r="42%"><stop offset="0%" stop-color="#10b981" stop-opacity="0.22"/><stop offset="100%" stop-color="#10b981" stop-opacity="0"/></radialGradient><linearGradient id="hdG" x1="20%" y1="0%" x2="80%" y2="100%"><stop offset="0%" stop-color="#94a3b8"/><stop offset="45%" stop-color="#475569"/><stop offset="100%" stop-color="#1e293b"/></linearGradient><linearGradient id="jsG" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#334155"/><stop offset="50%" stop-color="#1e293b"/><stop offset="100%" stop-color="#090d16"/></linearGradient><linearGradient id="rmL" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#e2e8f0" stop-opacity="0.9"/><stop offset="50%" stop-color="#64748b" stop-opacity="0.4"/><stop offset="100%" stop-color="#10b981" stop-opacity="0.7"/></linearGradient></defs>${bgLayers}<path d="M 96 130 L 84 166 L 172 166 L 160 130 Z" fill="#1e293b"/><path d="M 102 130 L 96 164 L 128 176 L 160 164 L 154 130 Z" fill="url(#hdG)" opacity="0.85"/><path d="M 12 256 C 16 192 50 166 94 156 L 128 188 L 162 156 C 206 166 240 192 244 256 Z" fill="url(#jsG)" stroke="url(#rmL)" stroke-width="2.5" stroke-linejoin="round"/><path d="M 42 184 C 62 170 78 164 96 159" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.85"/><path d="M 214 184 C 194 170 178 164 160 159" fill="none" stroke="#10b981" stroke-width="4" stroke-linecap="round" opacity="0.85"/><path d="M 90 156 L 128 194 L 166 156 L 156 153 L 128 181 L 100 153 Z" fill="#0f172a" stroke="#10b981" stroke-width="1.8" stroke-linejoin="round"/><path d="M 128 32 C 100 32 84 48 84 74 L 84 86 C 79 86 76 91 77 98 C 78 105 81 109 85 109 C 88 124 98 138 112 145 C 118 148 123 149 128 149 C 133 149 138 148 144 145 C 158 138 168 124 171 109 C 175 109 178 105 179 98 C 180 91 177 86 172 86 L 172 74 C 172 48 156 32 128 32 Z" fill="url(#hdG)" stroke="url(#rmL)" stroke-width="2.5" stroke-linejoin="round"/><path d="M 94 64 C 94 48 108 38 128 38" fill="none" stroke="#f8fafc" stroke-width="2.2" stroke-linecap="round" opacity="0.45"/><rect x="44" y="201" width="168" height="34" rx="6" fill="#070a12" fill-opacity="0.68"/><text x="128" y="226" font-family="'Oswald','Arial Narrow',sans-serif" font-size="${fSize}" font-weight="900" letter-spacing="1.4" fill="#f8fafc" stroke="#070a12" stroke-width="2.5" paint-order="stroke" text-anchor="middle">${shirt}</text></svg>`;
-  return `data:image/svg+xml;utf8,` + encodeURIComponent(svg);
-}
-
-function renderAvatarWithFlagHtml(playerName, sizeCls = 'w-8 h-8', borderCls = 'border-emerald-500/40', flagCls = 'w-3.5 h-2.5') {
+function renderAvatarWithFlagHtml(playerName, sizeClass = 'w-9 h-9', borderClass = 'border-emerald-500/40', flagSize = 'w-3.5 h-2.5') {
+  const avatarUrl = getPlayerAvatarUrl(playerName);
   const flagUrl = resolvePlayerFlagUrl(playerName);
-  const shirt = getShirtLabel(playerName);
-  const flagImg = flagUrl
-    ? `<img src="${flagUrl}" class="absolute -top-0.5 -right-0.5 ${flagCls} object-cover rounded-[2px] border border-gray-950 shadow-md z-10 pointer-events-none" alt="Flag">`
+  const flagHtml = flagUrl
+    ? `<img src="${flagUrl}" class="absolute -bottom-0.5 -right-0.5 ${flagSize} object-cover rounded-[2px] border border-gray-950 shadow-sm" alt="Flag">`
     : '';
-
-  return `<div class="relative inline-flex flex-shrink-0" title="${playerName} (${shirt})">
-    <img src="${getPlayerAvatarUrl(playerName)}" class="${sizeCls} rounded-full avatar-circle border ${borderCls} bg-gray-900 object-cover" alt="${playerName}">
-    ${flagImg}
-  </div>`;
+  return `<div class="relative inline-block flex-shrink-0"><img src="${avatarUrl}" class="${sizeClass} rounded-full avatar-circle border ${borderClass} bg-gray-900 object-cover" alt="${playerName}">${flagHtml}</div>`;
 }
 
-function normalizePosition(rawPos) {
-  const p = String(rawPos || '').toLowerCase().trim();
-  if (['forward','striker','st','cf','lw','rw','lf','rf','ls','rs'].includes(p)) return 'FWD';
-  if (['defender','defence','cb','lb','rb','lwb','rwb','lcb','rcb'].includes(p)) return 'DEF';
-  return ['goalkeeper','gk'].includes(p) ? 'GK' : 'MID';
-}
-
-function isDefensiveAnchorRole(normPos, exactPos = '', defActionsPerGame = 0, goalsPerGame = 0, shotsPerGame = 0) {
-  if (normPos === 'FWD' || normPos === 'GK') return false;
-  if (normPos === 'DEF') return true;
-  const ex = String(exactPos || '').toUpperCase().trim();
-  if (['CDM', 'LDM', 'RDM', 'LWB', 'RWB', 'CB', 'LB', 'RB', 'LCB', 'RCB', 'CM', 'LCM', 'RCM'].includes(ex) && goalsPerGame <= 0.45) {
-    return true;
+function getCardTierTheme(ovr = 85) {
+  const n = Number(ovr || 85);
+  if (n >= 90) {
+    return {
+      tier: 'TOTY / ICON',
+      badgeClass: 'bg-sky-500/20 text-sky-300 border-sky-400/50',
+      textColor: '#f8fafc',
+      baseStops: ['#0f172a', '#1e3a8a', '#1d4ed8', '#1e293b', '#090d16'],
+      plateStops: ['#1e293b', '#0f172a', '#020617'],
+      rimStops: ['#e0f2fe', '#38bdf8', '#eab308', '#fef08a']
+    };
   }
-  if (normPos === 'MID' && defActionsPerGame >= 1.5 && shotsPerGame < 2.2 && goalsPerGame <= 0.4) {
-    return true;
+  if (n >= 85) {
+    return {
+      tier: 'RARE GOLD',
+      badgeClass: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40',
+      textColor: '#2b2108',
+      baseStops: ['#fef08a', '#facc15', '#eab308', '#ca8a04', '#854d0e'],
+      plateStops: ['#fde047', '#eab308', '#a16207'],
+      rimStops: ['#ffffff', '#fde047', '#a16207', '#fef08a']
+    };
   }
-  return false;
-}
-
-function getCardTierTheme(ovr) {
-  const r = Number(ovr || 75);
-  if (r < 76) return { tier: 'BRONZE', badgeClass: 'bg-amber-900/40 text-amber-300 border-amber-600/50', textColor: '#271406', baseStops: ['#f7d4b6','#e29e6b','#c67a43','#9c5525','#5e2d0d'], plateStops: ['#f2c29b','#c87d48','#85461b'], rimStops: ['#ffffff','#f5cba7','#7c3f19','#f7d4b6'] };
-  if (r < 85) return { tier: 'SILVER', badgeClass: 'bg-slate-700/50 text-slate-200 border-slate-400/50', textColor: '#1e293b', baseStops: ['#ffffff','#e2e8f0','#cbd5e1','#94a3b8','#475569'], plateStops: ['#f1f5f9','#cbd5e1','#64748b'], rimStops: ['#ffffff','#e2e8f0','#475569','#f8fafc'] };
-  return { tier: 'GOLD', badgeClass: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/50', textColor: '#2b2108', baseStops: ['#fef08a','#facc15','#eab308','#ca8a04','#854d0e'], plateStops: ['#fde047','#eab308','#a16207'], rimStops: ['#ffffff','#fde047','#a16207','#fef08a'] };
-}
-
-function computeMatchGradeAndUnitRatings(myG, oppG, stats = []) {
-  let s = 0, pm = 0, pa = 0, t = 0;
-  stats.forEach(p => { s += Number(p.shots||0); pm += Number(p.passesmade||0); pa += Number(p.passattempts||p.passesmade||0); t += Number(p.tacklesmade||p.tackles||0); });
-  const atk = Math.min(9.9, Math.max(4.0, 5.6 + myG * 0.95 + (s > 0 ? myG / s : (myG > 0 ? 0.5 : 0)) * 1.6 + ((pa > 0 ? (pm / pa) * 100 : 75) - 70) * 0.04));
-  const def = Math.min(9.9, Math.max(3.8, 7.4 + (oppG === 0 ? 1.4 : 0) - oppG * 0.85 + Math.min(1.5, t * 0.14)));
-  const gd = myG - oppG, c = atk * 0.5 + def * 0.5 + gd * 0.35;
-  const [grade, gradeCls] = (c >= 8.7 || (gd >= 3 && myG >= 4)) ? ['S', 'bg-yellow-500/20 text-yellow-300 border-yellow-400/50']
-    : (c >= 8.0 || gd >= 2) ? ['A+', 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40']
-    : (c >= 7.3 || gd === 1) ? ['A', 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30']
-    : (c >= 6.4 || gd === 0) ? ['B', 'bg-amber-500/15 text-amber-300 border-amber-500/30']
-    : (c >= 5.5 || gd === -1) ? ['C', 'bg-orange-500/15 text-orange-300 border-orange-500/30']
-    : ['D', 'bg-rose-500/15 text-rose-400 border-rose-500/30'];
-  return { grade, gradeCls, atk: atk.toFixed(1), def: def.toFixed(1) };
-}
-
-function parsePlayerMatchEvents(p = {}, exactRole = '') {
-  const ev = {};
-  for (let i = 0; i < 6; i++) {
-    String(p[`match_event_aggregate_${i}`] || '').split(',').forEach(pair => {
-      const [k, v] = pair.split(':'), id = parseInt(k, 10), cnt = parseInt(v, 10);
-      if (!isNaN(id) && !isNaN(cnt)) ev[id] = (ev[id] || 0) + cnt;
-    });
-  }
-  const beats = ev[38] || 0, takeOns = ev[112] || 0, dribbles = ev[174] || 0, flair = ev[147] || 0;
-  const skills = beats + flair + Math.max(0, takeOns - beats);
-
-  const tackles = Number(p.tacklesmade || p.tackles || 0);
-  const shots = Number(p.shots || 0), goals = Number(p.goals || 0);
-  const rating = parseFloat(p.rating || 7.0);
-  const posStr = String(p.pos || '').toLowerCase();
-  const normPos = normalizePosition(posStr);
-
-  const rawBlocks = (ev[156] || 0) + (ev[12] || 0) + (ev[13] || 0) + (ev[14] || 0) + (ev[51] || 0) + (ev[56] || 0);
-  const rawInterceptions = Number(p.interceptions ?? p.ballRecoveries ?? 0) +
-    (ev[6] || 0) + (ev[158] || 0) + (ev[22] || 0) + (ev[23] || 0) + (ev[29] || 0) + (ev[52] || 0) + (ev[55] || 0);
-
-  const isAnchor = isDefensiveAnchorRole(normPos, exactRole, tackles + rawInterceptions + rawBlocks, goals, shots);
-  const blocks = rawBlocks > 0 ? rawBlocks : (isAnchor ? Math.max(1, Math.round(tackles * 0.55)) : Math.round(tackles * 0.25));
-
-  let interceptions = rawInterceptions;
-  if (normPos !== 'FWD' && normPos !== 'GK') {
-    if (isAnchor && interceptions === 0 && (tackles > 0 || rating >= 6.8)) {
-      interceptions = Math.max(1, Math.round(tackles * 0.7 + (rating >= 7.3 ? 2 : 1)));
-    } else if (normPos === 'MID' && interceptions === 0 && tackles >= 1) {
-      interceptions = Math.max(1, Math.round(tackles * 0.55));
-    }
-  }
-
-  const saves = Math.max(Number(p.saves ?? 0), ev[202] || 0);
-  const goalsConceded = Number(p.goalsconceded ?? p.goalsConceded ?? 0);
-
-  const offsides = Number(p.offsides ?? ev[153] ?? 0);
-  const rawWoodwork = Number(p.woodwork ?? p.shotsHitWoodwork ?? 0) + (ev[9] || 0) + (ev[42] || 0) + (ev[89] || 0);
-  const woodwork = rawWoodwork > 0 ? rawWoodwork : ((shots >= 4 && goals === 0 && rating >= 7.2) ? 1 : (shots - goals >= 5 ? 1 : 0));
-
-  const redCards = Number(p.redcards ?? p.redCards ?? p.red_cards ?? 0);
-  const directYellow = Number(p.yellowcards ?? p.yellowCards ?? p.yellow_cards ?? 0);
-  const verifiedEventYellows = (ev[95] || 0) + (ev[213] || 0);
-  const yellowCards = directYellow > 0 ? directYellow : verifiedEventYellows;
-
-  return { skillMoves: skills, dribblesCompleted: dribbles, blocks, interceptions, saves, goalsConceded, offsides, woodwork, yellowCards, redCards };
-}
-
-function computePlayerImpactScore(u) {
-  const gp = Math.max(1, u.games || 1);
-  const avgRat = u.ratingSum / gp;
-  const normPos = u.normPos || 'MID';
-  const defActPg = (u.tackles + u.interceptions + u.blocks) / gp;
-  const isAnchor = isDefensiveAnchorRole(normPos, u.exactPos, defActPg, u.goals / gp, (u.shots || 0) / gp);
-
-  const ratingScore = avgRat * 10;
-
-  const shotConv = u.shots > 0 ? (u.goals / u.shots) : 0;
-  const wastedShots = Math.max(0, u.shots - u.goals);
-  const wastePenaltyWeight = isAnchor ? 0.15 : 0.35;
-  const convBonus = u.shots >= 2 ? (shotConv - 0.25) * 4.5 : (u.goals > 0 ? 1.0 : 0);
-  const attackScore = ((u.goals * 3.8) + (u.assists * 3.2) - (wastedShots * wastePenaltyWeight)) / gp + convBonus;
-
-  const passAtt = Math.max(u.passesMade, u.passAttempts || u.passesMade);
-  const missedPasses = Math.max(0, passAtt - u.passesMade);
-  const passPct = passAtt > 0 ? (u.passesMade / passAtt) * 100 : 75;
-  const passAccWeight = isAnchor ? 0.22 : 0.14;
-  const passAccBonus = passAtt >= 5 * gp ? ((passPct - 75) * passAccWeight) : 0;
-  const playmakingScore = ((u.passesMade * 0.12) - (missedPasses * 0.22) + (u.skillMoves * 0.32)) / gp + passAccBonus;
-
-  const intWeight   = isAnchor ? 1.60 : (normPos === 'MID' ? 1.05 : 0.35);
-  const blockWeight = isAnchor ? 1.45 : (normPos === 'MID' ? 0.95 : 0.40);
-  const tklWeight   = isAnchor ? 1.40 : (normPos === 'MID' ? 1.15 : 0.60);
-
-  const tAtt = Math.max(u.tackles, u.tackleAttempts || u.tackles);
-  const missedTackles = Math.max(0, tAtt - u.tackles);
-  const tklWinPct = tAtt > 0 ? (u.tackles / tAtt) : 0.5;
-  const tklEfficiencyBonus = (isAnchor && u.tackles >= gp) ? Math.max(0, (tklWinPct - 0.35) * 3.2) : 0;
-
-  const csWeight = (isAnchor || normPos === 'GK') ? 3.5 : 1.2;
-  const avgGoalsConceded = (u.goalsConceded || 0) / gp;
-  const lockdownBonus = isAnchor
-    ? (avgGoalsConceded <= 0.8 ? 2.5 : (avgGoalsConceded <= 1.25 ? 1.5 : (avgGoalsConceded <= 1.6 ? 0.7 : 0)))
-    : 0;
-
-  const defenseScore = (
-    (u.interceptions * intWeight) +
-    (u.blocks * blockWeight) +
-    (u.tackles * tklWeight) -
-    (missedTackles * 0.25) +
-    (u.cleanSheets * csWeight)
-  ) / gp + tklEfficiencyBonus + lockdownBonus;
-
-  const gkShotsFaced = u.saves + (u.goalsConceded || 0);
-  const savePctBonus = (u.saves > 0 && gkShotsFaced >= 2) ? (((u.saves / gkShotsFaced) - 0.65) * 4.0) : 0;
-  const gkScore = ((u.saves * 1.35) / gp) + savePctBonus;
-
-  const disciplinePenalty = ((u.offsides * 0.65) + (u.yellows * 1.5) + (u.reds * 5.5)) / gp;
-
-  return ratingScore + attackScore + playmakingScore + defenseScore + gkScore - disciplinePenalty;
-}
-
-function formatHolisticPlayerSummary(u, isPassenger = false) {
-  const gp = Math.max(1, u.games);
-  const avg = (u.ratingSum / gp).toFixed(1);
-  const passAtt = Math.max(u.passesMade, u.passAttempts || u.passesMade);
-  const passPct = passAtt > 0 ? Math.round((u.passesMade / passAtt) * 100) : 0;
-  const missedPasses = Math.max(0, passAtt - u.passesMade);
-  const defTotal = u.tackles + u.blocks + u.interceptions;
-  const isAnchor = isDefensiveAnchorRole(u.normPos, u.exactPos, defTotal / gp, u.goals / gp, (u.shots || 0) / gp);
-
-  if (isPassenger) {
-    const flaws = [];
-    if (u.reds > 0 || u.yellows > 0) flaws.push(`${u.yellows > 0 ? `${u.yellows}🟨` : ''}${u.reds > 0 ? `${u.reds}🟥` : ''}`);
-    if (u.shots >= 3 && u.goals === 0) flaws.push(`0/${u.shots} Shots`);
-    else if (u.goals + u.assists > 0) flaws.push(`${u.goals}G ${u.assists}A`);
-    if (missedPasses >= 4 * gp) flaws.push(`${missedPasses} Turnovers (${passPct}%)`);
-    else if (passAtt > 0) flaws.push(`${passPct}% Pass`);
-    if (u.offsides >= 2) flaws.push(`${u.offsides} Offsides`);
-    if (!flaws.length) flaws.push(`${defTotal} Def Act`);
-    return `${avg} AVG • ${flaws.slice(0, 2).join(' • ')} (${u.games}G)`;
-  }
-
-  const highlights = [];
-  if (u.saves >= 3) highlights.push(`${u.saves} Saves`);
-  if (isAnchor && defTotal >= 1.5 * gp) {
-    highlights.push(`${u.interceptions}Int ${u.blocks}Blk ${u.tackles}Tkl`);
-    if (u.cleanSheets > 0) highlights.push(`${u.cleanSheets} CS`);
-    else if (u.goals + u.assists > 0) highlights.push(`${u.goals}G ${u.assists}A`);
-    else if (passAtt > 0) highlights.push(`${passPct}% Pass`);
-    return `${avg} AVG • ${highlights.slice(0, 2).join(' • ')} (${u.games}G)`;
-  }
-
-  if (u.goals + u.assists > 0) {
-    const convStr = u.shots >= 2 && u.goals > 0 ? ` (${Math.round((u.goals / u.shots) * 100)}%)` : '';
-    highlights.push(`${u.goals}G ${u.assists}A${convStr}`);
-  }
-  if (defTotal >= 2 * gp) highlights.push(`${u.tackles}Tkl ${u.blocks + u.interceptions}Blk/Int`);
-  if (u.cleanSheets > 0 && (isAnchor || u.normPos === 'GK' || highlights.length < 2)) highlights.push(`${u.cleanSheets} CS`);
-  if (highlights.length < 2 && passAtt > 0) highlights.push(`${passPct}% Pass`);
-  return `${avg} AVG • ${highlights.slice(0, 2).join(' • ')} (${u.games}G)`;
-}
-
-function computeArchetypeAndPlaystyles(p) {
-  const name = String(p.name || p.proName || 'Pro'), pos = p._normalizedPos || 'MID', rawPos = String(p._rawPos || '').toUpperCase();
-  const g = Math.max(1, Number(p.gamesPlayed || 1)), gpg = Number(p.goals || 0) / g, apg = Number(p.assists || 0) / g;
-  const tpg = Number(p.tacklesMade ?? p.tacklesmade ?? p.tackles ?? 0) / g;
-  const tWin = Number(p.tackleSuccessRate ?? p.tacklesuccessrate ?? 25), pPct = Number(p.passSuccessRate || 75), rat = parseFloat(p.ratingAve || 7.2), h = parseInt(p.proHeight || 180, 10);
-  const isAnchor = isDefensiveAnchorRole(pos, rawPos, tpg * 1.8, gpg, 1);
-  let seed = 0; for (let i = 0; i < name.length; i++) seed = (seed * 31 + name.charCodeAt(i)) % 1000;
-  const jit = (idx) => ((seed + idx * 17) % 11) * 0.8;
-
-  const archetype = pos === 'FWD' ? (h >= 188 ? 'Target' : gpg >= 0.65 ? 'Finisher' : apg >= 0.42 ? 'Creator' : h <= 175 ? 'Spark' : 'Hawk')
-    : pos === 'MID' ? (isAnchor || tpg >= 1.45 ? 'Destroyer' : pPct >= 83 && apg >= 0.35 ? 'Maestro' : gpg >= 0.38 ? 'Shadow Striker' : pPct >= 80 ? 'Architect' : 'Engine')
-    : pos === 'DEF' ? (rawPos.includes('B') && !rawPos.includes('CB') ? 'Marauder' : h >= 188 ? 'Titan' : 'Guardian') : 'Sweeper Keeper';
-
-  if (pos === 'GK') return { archetype, psPlus: { slug: 'footwork', name: 'Footwork', desc: 'Boosted close-range foot saves.' }, activePlaystyles: [{ slug: 'far_reach', name: 'Far Reach', desc: 'Extended reach on outside-box shots.' }, { slug: 'cross_claimer', name: 'Cross Claimer', desc: 'Intercepts high crosses cleanly.' }] };
-
-  const pool = [
-    { slug: 'finesse_shot', name: 'Finesse Shot', desc: 'Faster finesse shots with maximum curve.', score: (pos==='FWD'?40:18) + gpg*45 + jit(1) },
-    { slug: 'power_shot', name: 'Power Shot', desc: 'Faster power shots with velocity boost.', score: gpg*38 + (h>=182?10:0) + jit(2) },
-    { slug: 'chip_shot', name: 'Chip Shot', desc: 'Accurate chip shots over rushing keepers.', score: gpg*32 + (rat>=7.6?14:0) + jit(3) },
-    { slug: 'dead_ball', name: 'Dead Ball', desc: 'Set pieces delivered with extra curve and speed.', score: apg*30 + gpg*20 + jit(4) },
-    { slug: 'incisive_pass', name: 'Incisive Pass', desc: 'Through passes are far more accurate.', score: (pos==='MID'?32:15) + apg*55 + pPct*0.3 + jit(5) },
-    { slug: 'tiki_taka', name: 'Tiki Taka', desc: 'Crisp first-time ground passes with high accuracy.', score: (pPct>=80?42:10) + pPct*0.45 + jit(6) },
-    { slug: 'pinged_pass', name: 'Pinged Pass', desc: 'Driven ground passes travel faster.', score: (pos==='MID'?28:12) + pPct*0.4 + apg*25 + jit(7) },
-    { slug: 'whipped_pass', name: 'Whipped Pass', desc: 'Accurate driven crosses with high curve.', score: ((rawPos.includes('W')||rawPos.includes('M')||rawPos.includes('B'))?28:5) + apg*38 + jit(8) },
-    { slug: 'long_ball_pass', name: 'Long Ball Pass', desc: 'Lofted through passes are harder to intercept.', score: (pos!=='FWD'?26:6) + pPct*0.35 + jit(9) },
-    { slug: 'technical', name: 'Technical', desc: 'Higher Controlled Sprint speed and tight turns.', score: rat*5.5 + (gpg+apg)*20 + jit(10) },
-    { slug: 'rapid', name: 'Rapid', desc: 'Higher sprint speed while dribbling.', score: (pos==='FWD'?34:16) + (h<=180?15:4) + gpg*28 + jit(11) },
-    { slug: 'quick_step', name: 'Quick Step', desc: 'Faster Explosive Sprint acceleration.', score: (h<=178?32:14) + (gpg+apg)*22 + jit(12) },
-    { slug: 'first_touch', name: 'First Touch', desc: 'Reduced error when trapping under pressure.', score: pPct*0.38 + gpg*22 + jit(13) },
-    { slug: 'trickster', name: 'Trickster', desc: 'Unique flicks and faster strafe dribbling.', score: (pos==='FWD'?25:12) + (name===TOP_FIDGET_SPINNER_NAME?35:0) + jit(14) },
-    { slug: 'press_proven', name: 'Press Proven', desc: 'Shields ball effectively from pressers.', score: (pos==='MID'?30:15) + pPct*0.35 + tpg*10 + jit(15) },
-    { slug: 'trivela', name: 'Trivela', desc: 'Outside-of-the-foot passes and shots.', score: apg*32 + gpg*26 + jit(16) },
-    { slug: 'anticipate', name: 'Anticipate', desc: 'Standing tackles stop ball directly at feet.', score: (isAnchor?45:10) + tpg*24 + tWin*0.4 + jit(17) },
-    { slug: 'intercept', name: 'Intercept', desc: 'Increased reach and ball retention on interceptions.', score: (isAnchor?48:(pos!=='FWD'?28:4)) + (name===TOP_INTERCEPTOR_NAME?35:0) + tpg*26 + jit(18) },
-    { slug: 'jockey', name: 'Jockey', desc: 'Increased max speed of Sprint Jockey.', score: (isAnchor?38:12) + tWin*0.45 + jit(19) },
-    { slug: 'block', name: 'Block', desc: 'Increased reach when performing blocks.', score: (isAnchor?40:6) + (name===TOP_MEAT_WALL_NAME?35:0) + tpg*18 + jit(20) },
-    { slug: 'bruiser', name: 'Bruiser', desc: 'Greater physical strength in tackles.', score: (h>=184?28:8) + tpg*22 + jit(22) },
-    { slug: 'aerial_fortress', name: 'Aerial Fortress', desc: 'Higher jumps and aerial dominance.', score: (h>=187?52:4) + gpg*15 + jit(23) },
-    { slug: 'relentless', name: 'Relentless', desc: 'Reduces fatigue loss and boosts stamina recovery.', score: (g>=25?28:14) + (tpg+apg)*14 + jit(24) }
-  ].sort((a, b) => b.score - a.score);
-
-  return { archetype, psPlus: pool[0], activePlaystyles: [pool[1], pool[2]] };
-}
-
-function getChaosEmoji(myG, oppG, oppSR) {
-  const tot = myG + oppG;
-  if (Number(oppSR || 0) >= 1900) return { emoji: '🔥', label: 'SWEATFEST (1900+ SR)' };
-  if (tot >= 8) return { emoji: '🏀', label: 'BASKETBALL MATCH (8+ Goals)' };
-  if (myG < oppG && oppG >= 3) return { emoji: '🚨', label: 'DEFENSIVE DISASTERCLASS' };
-  if (myG > oppG && tot <= 3) return { emoji: '🧱', label: 'HARAMBALL WIN (Gritty Defense)' };
-  if (myG >= 4 && myG > oppG) return { emoji: '💥', label: 'GOAL CARNIVAL (4+ Scored)' };
-  return myG === oppG ? { emoji: '🤝', label: 'POINTS SHARED' } : { emoji: '⚽', label: 'COMPETITIVE FIXTURE' };
-}
-
-function getPlayerRadarMetrics(p) {
-  const ovr = Number(p.proOverall || 85), games = Math.max(1, Number(p.gamesPlayed || 1)), g = Number(p.goals || 0), a = Number(p.assists || 0);
-  const t = Number(p.tacklesMade ?? p.tacklesmade ?? p.tackles ?? 0);
-  const passPct = Number(p.passSuccessRate || 78), rat = parseFloat(p.ratingAve || 7.2), motm = Number(p.manOfTheMatch || 0);
-  const exactPos = EA_PRO_POS_MAP[String(p.proPos ?? '')] || p._rawPos || '';
-  const isAnchor = isDefensiveAnchorRole(p._normalizedPos, exactPos, (t / games) * 1.8, g / games, 1);
-  const pac = Math.min(99, Math.max(60, Math.round(ovr + 3))), sho = Math.min(99, Math.max(55, Math.round(ovr - 4 + (g / games) * 14))), pas = Math.min(99, Math.max(58, Math.round(passPct + 6))), dri = Math.min(99, Math.max(62, Math.round(ovr + (rat - 7.0) * 5))), def = Math.min(99, Math.max(28, Math.round((isAnchor ? 82 : 42) + (t / games) * 15))), phy = Math.min(99, Math.max(58, Math.round(ovr - 3 + (t / games) * 6)));
-  const gpg = g / games, apg = a / games, tpg = t / games, mPct = Math.round((motm / games) * 100);
   return {
-    attributes: [{ label:'PAC', val:pac, raw:pac }, { label:'SHO', val:sho, raw:sho }, { label:'PAS', val:pas, raw:pas }, { label:'DRI', val:dri, raw:dri }, { label:'DEF', val:def, raw:def }, { label:'PHY', val:phy, raw:phy }],
-    stats: [{ label:'G/G', val:Math.min(100,Math.round(gpg*95)), raw:gpg.toFixed(2) }, { label:'A/G', val:Math.min(100,Math.round(apg*110)), raw:apg.toFixed(2) }, { label:'RAT', val:Math.min(100,Math.round(rat*10)), raw:rat.toFixed(1) }, { label:'PAS%', val:Math.min(100,Math.round(passPct)), raw:`${passPct}%` }, { label:'TKL/G', val:Math.min(100,Math.round(tpg*38)), raw:tpg.toFixed(1) }, { label:'MoTM%', val:Math.min(100,Math.round(mPct*2.2)), raw:`${mPct}%` }]
+    tier: 'SILVER PRO',
+    badgeClass: 'bg-slate-400/20 text-slate-200 border-slate-400/40',
+    textColor: '#0f172a',
+    baseStops: ['#f1f5f9', '#cbd5e1', '#94a3b8', '#64748b', '#334155'],
+    plateStops: ['#e2e8f0', '#94a3b8', '#475569'],
+    rimStops: ['#ffffff', '#cbd5e1', '#475569', '#f1f5f9']
   };
 }
 
-function buildRadarSvg(ax1, ax2) {
-  const cx = 140, cy = 140, maxR = 94;
-  const pt = (i, v) => { const a = (Math.PI * 2 * i) / 6 - Math.PI / 2, r = (Math.max(8, Math.min(100, v)) / 100) * maxR; return `${(cx + r * Math.cos(a)).toFixed(1)},${(cy + r * Math.sin(a)).toFixed(1)}`; };
-  const grids = [0.25, 0.5, 0.75, 1].map(l => `<polygon points="${[0,1,2,3,4,5].map(i=>pt(i,l*100)).join(' ')}" fill="none" stroke="#475569" stroke-width="1" stroke-dasharray="${l<1?'3 3':''}"/>`).join('');
-  const axes = [0,1,2,3,4,5].map(i => { const e = pt(i,100).split(','), lb = pt(i,120).split(','); return `<line x1="${cx}" y1="${cy}" x2="${e[0]}" y2="${e[1]}" stroke="#475569"/><text x="${lb[0]}" y="${Number(lb[1])+4}" text-anchor="middle" fill="#94a3b8" font-size="11" font-weight="800">${ax1[i].label}</text>`; }).join('');
-  return `<svg viewBox="0 0 280 280" class="w-full h-full overflow-visible">${grids}${axes}<polygon points="${ax2.map((a,i)=>pt(i,a.val)).join(' ')}" fill="rgba(56,189,248,0.22)" stroke="#38bdf8" stroke-width="2.5"/><polygon points="${ax1.map((a,i)=>pt(i,a.val)).join(' ')}" fill="rgba(16,185,129,0.28)" stroke="#10b981" stroke-width="2.5"/></svg>`;
+function isDefensiveAnchorRole(normPos, exactPos, tklPerGame = 0, goalsPerGame = 0, shotsPerGame = 0) {
+  const ex = String(exactPos || '').toUpperCase();
+  if (normPos === 'DEF' || ['CDM', 'LDM', 'RDM', 'CB', 'LB', 'RB', 'LWB', 'RWB'].includes(ex)) return true;
+  if (normPos === 'MID' && tklPerGame >= 1.8 && goalsPerGame < 0.35 && shotsPerGame < 1.3) return true;
+  return false;
 }
 
-function computeMatchIntelligence(clubId, matchesPayload) {
-  RECENT_FORM_MAP = {}; RECENT_10_STATS_MAP = {}; MATCH_PLAYER_META = {};
-  TOP_FIDGET_SPINNER_NAME = null; TOP_MEAT_WALL_NAME = null; TOP_INTERCEPTOR_NAME = null;
-  const ratingBuckets = {}, duoContributions = {}, opponentCounts = {}, shameMap = {}, sessionMatches = [];
-  let highestSrOpp = null, prevTs = null;
-  const matchArr = Array.isArray(matchesPayload) ? matchesPayload : (matchesPayload?.matches || []);
+function parsePlayerMatchEvents(p = {}, exactPos = '') {
+  const goals = Number(p.goals || 0);
+  const assists = Number(p.assists || 0);
+  const shots = Number(p.shots || 0);
+  const passesMade = Number(p.passesmade || p.passesMade || 0);
+  const passAtt = Number(p.passattempts || p.passAttempts || passesMade);
+  const tackles = Number(p.tacklesmade || p.tacklesMade || p.tackles || 0);
+  const tackleAtt = Number(p.tackleattempts || p.tackleAttempts || tackles);
+  const rat = parseFloat(p.rating || 7.0);
+  const normPos = p.pos ? normalizePosition(p.pos) : 'MID';
+  const isAnchor = isDefensiveAnchorRole(normPos, exactPos, tackles, goals, shots);
 
-  matchArr.slice(0, 10).forEach((m, idx) => {
-    const ts = Number(m.timestamp || 0);
-    if (idx === 0 || (prevTs && ts > 0 && Math.abs(prevTs - ts) <= 4 * 3600)) { sessionMatches.push(m); prevTs = ts; }
+  const rawBlocks = Number(p.blocks ?? p.shotsBlocked ?? p.blockedShots ?? -1);
+  const blocks = rawBlocks >= 0
+    ? rawBlocks
+    : Math.max(0, Math.round(tackles * (isAnchor ? 0.55 : 0.22) + (normPos === 'DEF' && rat >= 7.2 ? 1 : 0)));
+
+  const rawInt = Number(p.interceptions ?? p.ballRecoveries ?? -1);
+  const interceptions = rawInt >= 0
+    ? rawInt
+    : Math.max(0, Math.round(tackles * (isAnchor ? 0.75 : 0.35) + (passesMade >= 16 && isAnchor ? 2 : (isAnchor ? 1 : 0))));
+
+  const rawSkills = Number(p.skillmoves ?? p.skillMoves ?? p.dribblesCompleted ?? -1);
+  const skillMoves = rawSkills >= 0
+    ? rawSkills
+    : Math.max(0, Math.round((shots * 0.65) + (goals + assists) * 1.1 + (normPos !== 'DEF' && passesMade >= 12 ? 2 : 0)));
+
+  const dribblesCompleted = Math.max(skillMoves, Math.round(passesMade * 0.25 + (goals + assists)));
+  const MissedShots = Math.max(0, shots - goals);
+  const rawWood = Number(p.woodwork ?? p.hitWoodwork ?? -1);
+  const woodwork = rawWood >= 0 ? rawWood : (MissedShots >= 4 ? 1 : 0);
+
+  const saves = Number(p.saves || 0);
+  const goalsConceded = Number(p.goalsconceded || p.goalsConceded || 0);
+  const offsides = Number(p.offsides || 0);
+  const redCards = Number(p.redcards || p.redCards || 0);
+  const yellowCards = Number(p.yellowcards || p.yellowCards || 0);
+
+  return { blocks, interceptions, skillMoves, dribblesCompleted, woodwork, saves, goalsConceded, offsides, yellowCards, redCards };
+}
+
+function computePlayerImpactScore(u = {}) {
+  const g = Math.max(1, Number(u.games || 1));
+  const avgRat = Number(u.ratingSum || 7.0) / g;
+  const gpg = Number(u.goals || 0) / g;
+  const apg = Number(u.assists || 0) / g;
+  const spg = Number(u.shots || 0) / g;
+  const pPct = u.passAttempts > 0 ? (u.passesMade / u.passAttempts) : 0.78;
+  const tpg = Number(u.tackles || 0) / g;
+  const bpg = Number(u.blocks || 0) / g;
+  const ipg = Number(u.interceptions || 0) / g;
+  const csRate = Number(u.cleanSheets || 0) / g;
+  const missedPassesPg = Math.max(0, (u.passAttempts || 0) - (u.passesMade || 0)) / g;
+  const missedShotsPg = Math.max(0, (u.shots || 0) - (u.goals || 0)) / g;
+  const cardsPenalty = ((Number(u.reds || 0) * 3.5) + (Number(u.yellows || 0) * 1.0)) / g;
+
+  const isAnchor = isDefensiveAnchorRole(u.normPos, u.exactPos, tpg, gpg, spg);
+  let score = avgRat * 10;
+
+  if (u.normPos === 'GK') {
+    score += (Number(u.saves || 0) / g) * 3.2 + csRate * 8.0 - (Number(u.goalsConceded || 0) / g) * 1.8;
+  } else if (isAnchor) {
+    score += (tpg * 2.8) + (ipg * 2.4) + (bpg * 2.5) + (csRate * 6.5) + (pPct * 12) + ((gpg + apg) * 5.0) - (missedPassesPg * 0.7) - cardsPenalty;
+  } else if (u.normPos === 'MID') {
+    score += ((gpg + apg) * 8.5) + (pPct * 14) + (tpg * 1.8) + (ipg * 1.5) - (missedPassesPg * 0.85) - (missedShotsPg * 0.6) - cardsPenalty;
+  } else {
+    score += (gpg * 10.5) + (apg * 7.5) + (pPct * 8) - (missedShotsPg * 1.1) - (missedPassesPg * 0.65) - cardsPenalty;
+  }
+  return +score.toFixed(2);
+}
+
+function formatHolisticPlayerSummary(u = {}, isLiability = false) {
+  const g = Math.max(1, Number(u.games || 1));
+  const avgRat = (Number(u.ratingSum || 7.0) / g).toFixed(1);
+  const pPct = u.passAttempts > 0 ? Math.round((u.passesMade / u.passAttempts) * 100) : 78;
+  const isAnchor = isDefensiveAnchorRole(u.normPos, u.exactPos, u.tackles / g, u.goals / g, u.shots / g);
+
+  if (isLiability) {
+    const missedP = Math.max(0, (u.passAttempts || 0) - (u.passesMade || 0));
+    const missedS = Math.max(0, (u.shots || 0) - (u.goals || 0));
+    if (u.reds > 0) return `${avgRat} Rat • ${u.reds} Red Card(s) & ${missedP} Turnovers`;
+    if (missedP >= missedS && missedP > 2) return `${avgRat} Rat • ${missedP} Turnovers (${pPct}% Pass)`;
+    if (missedS > 2) return `${avgRat} Rat • ${u.goals}G from ${u.shots} Shots (${missedP} Turnovers)`;
+    return `${avgRat} Rat • ${u.goals}G ${u.assists}A (${pPct}% Pass)`;
+  }
+
+  if (isAnchor) {
+    return `${avgRat} Rat • ${u.tackles} Tkl, ${u.interceptions + u.blocks} Int/Blk • ${pPct}% Pass`;
+  }
+  return `${avgRat} Rat • ${u.goals}G ${u.assists}A • ${pPct}% Pass (${u.tackles} Tkl)`;
+}
+
+function computeMatchGradeAndUnitRatings(myG, oppG, playerStats = []) {
+  const gd = myG - oppG;
+  const avgRat = playerStats.length
+    ? playerStats.reduce((s, p) => s + parseFloat(p.rating || 7.0), 0) / playerStats.length
+    : 7.0;
+
+  const atkScore = Math.min(9.9, Math.max(4.5, 6.2 + myG * 0.85 + (avgRat - 7.0) * 0.7)).toFixed(1);
+  const defScore = Math.min(9.9, Math.max(4.0, 7.8 - oppG * 0.90 + (oppG === 0 ? 1.2 : 0) + (avgRat - 7.0) * 0.5)).toFixed(1);
+  const total = gd * 12 + avgRat * 10 + (oppG === 0 ? 8 : 0);
+
+  let grade = 'B', gradeCls = 'bg-sky-500/20 text-sky-300 border-sky-500/40';
+  if (total >= 95) { grade = 'S'; gradeCls = 'bg-yellow-500/25 text-yellow-300 border-yellow-400'; }
+  else if (total >= 82) { grade = 'A'; gradeCls = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'; }
+  else if (total >= 68) { grade = 'B'; gradeCls = 'bg-sky-500/20 text-sky-300 border-sky-500/40'; }
+  else if (total >= 55) { grade = 'C'; gradeCls = 'bg-amber-500/20 text-amber-300 border-amber-500/40'; }
+  else { grade = 'D'; gradeCls = 'bg-rose-500/20 text-rose-300 border-rose-500/40'; }
+
+  return { grade, gradeCls, atk: atkScore, def: defScore };
+}
+
+function getChaosEmoji(myG, oppG, oppSR) {
+  const tot = myG + oppG, diff = myG - oppG;
+  if (diff >= 3) return { emoji: '🔥', label: 'Total Demolition' };
+  if (diff <= -3) return { emoji: '💀', label: 'Defensive Collapse' };
+  if (tot >= 6) return { emoji: '🍿', label: ' basketball Scoreline' };
+  if (myG === 0 && oppG === 0) return { emoji: '🧱', label: 'Tactical Chess Match' };
+  if (diff === 1 && Number(oppSR || 0) >= 1750) return { emoji: '🧊', label: 'Ice-Cold Giant Killing' };
+  return { emoji: '⚔️', label: 'Competitive Battle' };
+}
+
+function getPlayerRadarMetrics(m = {}) {
+  const ovr = Number(m.proOverall || 85);
+  const games = Math.max(1, Number(m.gamesPlayed ?? 1));
+  const goals = Number(m.goals ?? 0);
+  const assists = Number(m.assists ?? 0);
+  const tackles = Number(m.tacklesMade ?? m.tacklesmade ?? m.tackles ?? 0);
+  const passPct = Number(m.passSuccessRate ?? 76);
+  const tklPct = Number(m.tackleSuccessRate ?? 28);
+  const shotConv = Number(m.shotConvRate ?? m.shotSuccessRate ?? 24);
+  const rat = parseFloat(m.ratingAve || m.rating || 7.2);
+  const motm = Number(m.manOfTheMatch ?? 0);
+  const normPos = normalizePosition(m.favoritePosition || m.pos || 'MID');
+  const exactPos = (typeof EA_PRO_POS_MAP !== 'undefined' && EA_PRO_POS_MAP[String(m.proPos ?? '')]) || normPos;
+  const isAnchor = isDefensiveAnchorRole(normPos, exactPos, tackles / games, goals / games, 2);
+
+  const clamp = (v, lo = 45, hi = 99) => Math.max(lo, Math.min(hi, Math.round(v)));
+
+  const pac = clamp(ovr + (normPos === 'FWD' ? 4 : normPos === 'MID' ? 2 : 0) + ((goals + assists) / games) * 4);
+  const sho = clamp((normPos === 'FWD' ? ovr + 2 : isAnchor ? ovr - 16 : ovr - 4) + (goals / games) * 14 + (shotConv * 0.18));
+  const pas = clamp(ovr - 2 + (passPct - 75) * 0.7 + (assists / games) * 12);
+  const dri = clamp(ovr + (normPos !== 'DEF' ? 3 : -6) + (rat - 7.0) * 6);
+  const def = clamp((isAnchor ? ovr + 3 : normPos === 'MID' ? ovr - 14 : ovr - 36) + (tackles / games) * 10 + (tklPct * 0.15), 28, 99);
+  const phy = clamp((isAnchor ? ovr + 2 : ovr - 5) + (tackles / games) * 7 + (Number(m.proWeight || 75) - 72) * 0.4, 52, 99);
+
+  const attributes = [
+    { label: 'PAC', val: pac, raw: pac },
+    { label: 'SHO', val: sho, raw: sho },
+    { label: 'PAS', val: pas, raw: pas },
+    { label: 'DRI', val: dri, raw: dri },
+    { label: 'DEF', val: def, raw: def },
+    { label: 'PHY', val: phy, raw: phy }
+  ];
+
+  const stats = [
+    { label: 'G/G', val: clamp((goals / games) * 115, 15, 99), raw: (goals / games).toFixed(2) },
+    { label: 'A/G', val: clamp((assists / games) * 135, 15, 99), raw: (assists / games).toFixed(2) },
+    { label: 'PASS%', val: clamp(passPct, 25, 99), raw: `${passPct}%` },
+    { label: 'TKL/G', val: clamp((tackles / games) * 32, 15, 99), raw: (tackles / games).toFixed(1) },
+    { label: 'RAT', val: clamp((rat - 5.5) * 28, 20, 99), raw: rat.toFixed(1) },
+    { label: 'MOTM%', val: clamp((motm / games) * 220, 12, 99), raw: `${Math.round((motm / games) * 100)}%` }
+  ];
+
+  return { attributes, stats };
+}
+
+function computeArchetypeAndPlaystyles(m = {}) {
+  const metrics = getPlayerRadarMetrics(m);
+  const [pac, sho, pas, dri, def, phy] = metrics.attributes.map(a => a.raw);
+  const normPos = normalizePosition(m.favoritePosition || m.pos || 'MID');
+  const exactPos = (typeof EA_PRO_POS_MAP !== 'undefined' && EA_PRO_POS_MAP[String(m.proPos ?? '')]) || normPos;
+  const games = Math.max(1, Number(m.gamesPlayed ?? 1));
+  const isAnchor = isDefensiveAnchorRole(normPos, exactPos, Number(m.tacklesMade ?? 0) / games, Number(m.goals ?? 0) / games, 2);
+
+  if (normPos === 'GK') {
+    return { archetype: 'SHOT STOPPER', psPlus: 'FAR REACH+', activePlaystyles: ['FOOTWORK', 'CROSS CLAIMER'] };
+  }
+  if (isAnchor) {
+    return {
+      archetype: def >= 84 ? 'BALL-WINNING ANCHOR' : 'DEEP-LYING SHIELD',
+      psPlus: 'INTERCEPT+',
+      activePlaystyles: ['ANTICIPATE', 'BRUISER', 'LONG BALL PASS']
+    };
+  }
+  if (normPos === 'FWD' || sho >= pas + 4) {
+    return {
+      archetype: pac >= 88 ? 'POACHER / SPEEDSTER' : 'CLINICAL FINISHER',
+      psPlus: 'FINESSE SHOT+',
+      activePlaystyles: ['RAPID', 'FIRST TOUCH', 'TECHNICAL']
+    };
+  }
+  return {
+    archetype: pas >= 84 ? 'PLAYMAKER MAESTRO' : 'BOX-TO-BOX ENGINE',
+    psPlus: 'INCISIVE PASS+',
+    activePlaystyles: ['TIKI TAKA', 'TECHNICAL', 'RELENTLESS']
+  };
+}
+
+function buildRadarSvg(p1Metrics = [], p2Metrics = []) {
+  const sz = 250, cx = 125, cy = 125, rMax = 86;
+  const angles = p1Metrics.map((_, i) => -Math.PI / 2 + (i * 2 * Math.PI) / 6);
+
+  const pt = (val, ang) => {
+    const r = (Math.max(10, Math.min(100, val)) / 100) * rMax;
+    return `${(cx + r * Math.cos(ang)).toFixed(1)},${(cy + r * Math.sin(ang)).toFixed(1)}`;
+  };
+
+  const rings = [0.25, 0.5, 0.75, 1].map(scale => {
+    const pts = angles.map(a => `${(cx + rMax * scale * Math.cos(a)).toFixed(1)},${(cy + rMax * scale * Math.sin(a)).toFixed(1)}`).join(' ');
+    return `<polygon points="${pts}" fill="none" stroke="#1f2937" stroke-width="1"/>`;
+  }).join('');
+
+  const axes = angles.map((a, i) => {
+    const x2 = (cx + rMax * Math.cos(a)).toFixed(1), y2 = (cy + rMax * Math.sin(a)).toFixed(1);
+    const lx = (cx + (rMax + 20) * Math.cos(a)).toFixed(1), ly = (cy + (rMax + 20) * Math.sin(a) + 3.5).toFixed(1);
+    return `<line x1="${cx}" y1="${cy}" x2="${x2}" y2="${y2}" stroke="#1f2937" stroke-width="1"/><text x="${lx}" y="${ly}" fill="#94a3b8" font-size="10" font-weight="800" text-anchor="middle">${p1Metrics[i].label}</text>`;
+  }).join('');
+
+  const poly1 = p1Metrics.map((m, i) => pt(m.val, angles[i])).join(' ');
+  const poly2 = p2Metrics.map((m, i) => pt(m.val, angles[i])).join(' ');
+
+  return `<svg viewBox="0 0 ${sz} ${sz}" class="w-full h-full overflow-visible select-none">
+    ${rings}${axes}
+    <polygon points="${poly2}" fill="rgba(56, 189, 248, 0.20)" stroke="#38bdf8" stroke-width="2"/>
+    <polygon points="${poly1}" fill="rgba(16, 185, 129, 0.25)" stroke="#10b981" stroke-width="2.2"/>
+  </svg>`;
+}
+
+function computeMatchIntelligence(clubId, matches = []) {
+  const recent10 = Array.isArray(matches) ? matches.slice(0, 10) : [];
+  RECENT_FORM_MAP = {};
+  RECENT_10_STATS_MAP = {};
+  SESSION_MATCHES_CACHE = [];
+  SHAME_LIST_CACHE = [];
+
+  if (!recent10.length) {
+    document.getElementById('intelSection')?.classList.add('hidden');
+    document.getElementById('sessionRecapSection')?.classList.add('hidden');
+    document.getElementById('shameBoardSection')?.classList.add('hidden');
+    return [];
+  }
+
+  // Group Latest Session Matches (within 3.5 hours between consecutive matches)
+  const sessionMatches = [recent10[0]];
+  for (let i = 1; i < recent10.length; i++) {
+    const prevTs = Number(recent10[i - 1].timestamp || 0);
+    const currTs = Number(recent10[i].timestamp || 0);
+    if (prevTs > 0 && currTs > 0 && (prevTs - currTs) <= 3.5 * 3600) {
+      sessionMatches.push(recent10[i]);
+    } else {
+      break;
+    }
+  }
+  SESSION_MATCHES_CACHE = sessionMatches;
+
+  const pMap = {};
+  const duoMap = {};
+  const oppList = [];
+
+  // Iterate oldest-to-newest so chronological ratings array is in exact time order
+  [...recent10].reverse().forEach(m => {
     const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
-    const thisId = cIds.find(id => String(id) === String(clubId)) || cIds[0], oppId = cIds.find(id => String(id) !== String(clubId)) || cIds[1];
-    const myClub = clubs[thisId] || {}, oppClub = clubs[oppId] || {}, oppName = oppClub.details?.name || oppClub.name || 'Opponent FC', oppSR = Number(oppClub.skillRating || oppClub.details?.skillRating || 0);
-    const myG = Number(myClub.goals ?? myClub.score ?? 0), oppG = Number(oppClub.goals ?? oppClub.score ?? 0), isWin = myG > oppG, isLoss = myG < oppG;
+    const myId = cIds.find(id => String(id) === String(clubId)) || cIds[0];
+    const oppId = cIds.find(id => String(id) !== String(clubId)) || cIds[1];
+    const myClub = clubs[myId] || {}, oppClub = clubs[oppId] || {};
+    const myG = Number(myClub.goals ?? myClub.score ?? 0), oppG = Number(oppClub.goals ?? oppClub.score ?? 0);
 
-    if (!opponentCounts[oppName]) opponentCounts[oppName] = { clubId: oppId, name: oppName, played: 0, wins: 0, losses: 0, draws: 0, sr: oppSR, crestId: oppClub.crestId || oppClub.TEAM || oppClub.details?.crestAssetId };
-    opponentCounts[oppName].played++; if (isWin) opponentCounts[oppName].wins++; else if (isLoss) opponentCounts[oppName].losses++; else opponentCounts[oppName].draws++;
-    if (!highestSrOpp || oppSR > highestSrOpp.sr) highestSrOpp = opponentCounts[oppName];
+    const oppName = oppClub.details?.name || oppClub.name || 'Opponent FC';
+    const oppSr = Number(oppClub.skillRating || oppClub.details?.skillRating || 1500);
+    oppList.push({ oppId, oppName, oppSr, myG, oppG, crestId: oppClub.crestId || oppClub.TEAM || oppClub.details?.crestAssetId });
 
-    const lobbyPlayers = Object.values(m.players?.[thisId] || {});
-    const activeContributors = [], maxSecs = lobbyPlayers.reduce((mx, lp) => Math.max(mx, Number(lp.secondsPlayed || 0)), 0);
+    const myPlayers = Object.values(m.players?.[myId] || {});
+    const maxSecs = myPlayers.reduce((mx, p) => Math.max(mx, Number(p.secondsPlayed || 0)), 0);
 
-    lobbyPlayers.forEach(p => {
-      const pName = p.playername || p.name || 'Pro';
-      const pKey = String(pName).toLowerCase().trim();
-      const memberMeta = findMemberMeta(pName);
-      const exactPos = EA_PRO_POS_MAP[String(memberMeta?.proPos ?? '')] || '';
+    const activeNames = [];
+    myPlayers.forEach(p => {
+      const n = p.playername || p.name || 'Pro';
+      activeNames.push(n);
+      const memberMeta = findMemberMeta(n);
+      const exactPos = (typeof EA_PRO_POS_MAP !== 'undefined' && EA_PRO_POS_MAP[String(memberMeta?.proPos ?? '')]) || '';
       const normPos = p.pos ? normalizePosition(p.pos) : normalizePosition(memberMeta?.favoritePosition || 'MID');
+      const rat = parseFloat(p.rating || 7.0);
+      const goals = Number(p.goals || 0), assists = Number(p.assists || 0), shots = Number(p.shots || 0);
+      const pm = Number(p.passesmade || 0), pa = Number(p.passattempts || pm);
+      const tm = Number(p.tacklesmade || p.tackles || 0), ta = Number(p.tackleattempts || tm);
+      const ev = parsePlayerMatchEvents(p, exactPos);
+      const isSub = maxSecs > 600 && Number(p.secondsPlayed || maxSecs) <= maxSecs * 0.78 && ev.redCards === 0;
 
-      if (!MATCH_PLAYER_META[pKey]) {
-        MATCH_PLAYER_META[pKey] = {
-          name: pName,
-          proName: p.vproname || p.proName || null,
-          proNationality: p.proNationality || p.nationality || p.nation || extractNationFromVproAttr(p.vproattr) || null,
-          vproattr: p.vproattr || null
+      if (!pMap[n]) {
+        pMap[n] = {
+          name: n, normPos, exactPos, games: 0, subGames: 0, superSubGA: 0, ratSum: 0, ratings: [],
+          goals: 0, assists: 0, shots: 0, passesMade: 0, passAtt: 0, missedPasses: 0,
+          tackles: 0, tackleAtt: 0, blocks: 0, interceptions: 0, skillMoves: 0, dribblesCompleted: 0,
+          woodwork: 0, saves: 0, goalsConceded: 0, offsides: 0, yellows: 0, reds: 0, recentCleanSheets: 0
         };
       }
-
-      const r = parseFloat(p.rating || 0), g = Number(p.goals || 0), a = Number(p.assists || 0);
-      const t = Number(p.tacklesmade || p.tackles || 0), tAtt = Number(p.tackleattempts || Math.max(t, t * 2)), shots = Number(p.shots || 0);
-      const pMade = Number(p.passesmade || 0), pAtt = Number(p.passattempts || pMade), missedP = Math.max(0, pAtt - pMade);
-      const ev = parsePlayerMatchEvents(p, exactPos), reds = ev.redCards, yellows = ev.yellowCards;
-      const isSub = maxSecs > 600 && Number(p.secondsPlayed || maxSecs) <= maxSecs * 0.78 && reds === 0;
-
-      if (idx < 5 && r > 0) { if (!ratingBuckets[pName]) ratingBuckets[pName] = []; ratingBuckets[pName].push(r); }
-      if (!RECENT_10_STATS_MAP[pName]) RECENT_10_STATS_MAP[pName] = { games:0, goals:0, assists:0, shots:0, tackles:0, totalRating:0, skillMoves:0, blocks:0, interceptions:0, woodwork:0, yellows:0, reds:0, superSubGA:0, subGames:0, recentCleanSheets:0 };
-      const r10 = RECENT_10_STATS_MAP[pName];
-      r10.games++; r10.goals += g; r10.assists += a; r10.shots += shots; r10.tackles += t; r10.totalRating += r; r10.skillMoves += ev.skillMoves; r10.blocks += ev.blocks; r10.interceptions += ev.interceptions; r10.woodwork += ev.woodwork; r10.yellows += yellows; r10.reds += reds;
-      if (isSub) r10.subGames++; if (isSub && (g + a > 0)) r10.superSubGA += (g + a); if (oppG === 0) r10.recentCleanSheets++;
-
-      if (!shameMap[pName]) shameMap[pName] = { name: pName, normPos, exactPos, games:0, missedPasses:0, skillMoves:0, dribblesCompleted:0, blocks:0, interceptions:0, woodwork:0, shots:0, goals:0, assists:0, yellows:0, reds:0, tackles:0, tackleAtt:0, superSubGA:0, subGames:0, cleanSheets:0 };
-      const sm = shameMap[pName];
-      sm.games++; sm.missedPasses += missedP; sm.skillMoves += ev.skillMoves; sm.dribblesCompleted += ev.dribblesCompleted; sm.blocks += ev.blocks; sm.interceptions += ev.interceptions; sm.woodwork += ev.woodwork; sm.shots += shots; sm.goals += g; sm.assists += a; sm.yellows += yellows; sm.reds += reds; sm.tackles += t; sm.tackleAtt += tAtt;
-      if (isSub) sm.subGames++; if (isSub && (g + a > 0)) sm.superSubGA += (g + a); if (oppG === 0) sm.cleanSheets++;
-      if (g + a > 0) activeContributors.push({ name: pName, ga: g + a });
+      const u = pMap[n];
+      u.games++; u.ratSum += rat; u.ratings.push(rat);
+      if (isSub) { u.subGames++; u.superSubGA += (goals + assists); }
+      u.goals += goals; u.assists += assists; u.shots += shots;
+      u.passesMade += pm; u.passAtt += pa; u.missedPasses += Math.max(0, pa - pm);
+      u.tackles += tm; u.tackleAtt += ta;
+      u.blocks += ev.blocks; u.interceptions += ev.interceptions;
+      u.skillMoves += ev.skillMoves; u.dribblesCompleted += ev.dribblesCompleted;
+      u.woodwork += ev.woodwork; u.saves += ev.saves; u.goalsConceded += ev.goalsConceded || oppG;
+      u.offsides += ev.offsides; u.yellows += ev.yellowCards; u.reds += ev.redCards;
+      if (oppG === 0) u.recentCleanSheets++;
     });
 
-    for (let i = 0; i < activeContributors.length; i++) {
-      for (let j = i + 1; j < activeContributors.length; j++) {
-        const pair = [activeContributors[i].name, activeContributors[j].name].sort(), k = pair.join('|||');
-        if (!duoContributions[k]) duoContributions[k] = { p1: pair[0], p2: pair[1], combinedGA: 0, gamesTogether: 0 };
-        duoContributions[k].combinedGA += activeContributors[i].ga + activeContributors[j].ga; duoContributions[k].gamesTogether++;
+    // Build Dynamic Duo Pairs
+    const uniqueNames = [...new Set(activeNames)].sort();
+    for (let i = 0; i < uniqueNames.length; i++) {
+      for (let j = i + 1; j < uniqueNames.length; j++) {
+        const key = `${uniqueNames[i]}|||${uniqueNames[j]}`;
+        if (!duoMap[key]) duoMap[key] = { p1: uniqueNames[i], p2: uniqueNames[j], games: 0, wins: 0, combinedGA: 0 };
+        duoMap[key].games++;
+        if (myG > oppG) duoMap[key].wins++;
+        const p1Obj = myPlayers.find(x => (x.playername || x.name) === uniqueNames[i]);
+        const p2Obj = myPlayers.find(x => (x.playername || x.name) === uniqueNames[j]);
+        duoMap[key].combinedGA += Number(p1Obj?.goals || 0) + Number(p1Obj?.assists || 0) + Number(p2Obj?.goals || 0) + Number(p2Obj?.assists || 0);
       }
     }
   });
 
-  Object.keys(ratingBuckets).forEach(n => RECENT_FORM_MAP[n] = ratingBuckets[n].reduce((a, b) => a + b, 0) / ratingBuckets[n].length);
-  SESSION_MATCHES_CACHE = sessionMatches;
-  SHAME_LIST_CACHE = Object.values(shameMap);
+  Object.values(pMap).forEach(u => {
+    RECENT_FORM_MAP[u.name] = +(u.ratSum / Math.max(1, u.games)).toFixed(2);
+    RECENT_10_STATS_MAP[u.name] = u;
+  });
 
-  const topSkiller = [...SHAME_LIST_CACHE].sort((a, b) => b.skillMoves - a.skillMoves)[0];
-  if (topSkiller?.skillMoves > 0) TOP_FIDGET_SPINNER_NAME = topSkiller.name;
-  const topBlocker = [...SHAME_LIST_CACHE].sort((a, b) => b.blocks - a.blocks)[0];
-  if (topBlocker?.blocks > 0) TOP_MEAT_WALL_NAME = topBlocker.name;
+  SHAME_LIST_CACHE = Object.values(pMap);
 
-  const nonFwdList = SHAME_LIST_CACHE.filter(x => x.normPos !== 'FWD' && x.normPos !== 'GK');
-  const topInterceptor = (nonFwdList.length ? nonFwdList : SHAME_LIST_CACHE)
-    .sort((a, b) => (b.interceptions * 10 + b.tackles) - (a.interceptions * 10 + a.tackles))[0];
-  if (topInterceptor && (topInterceptor.interceptions > 0 || topInterceptor.tackles > 0)) {
-    TOP_INTERCEPTOR_NAME = topInterceptor.name;
-  }
-
-  updateRecapMetricsDisplay(clubId, CURRENT_RECAP_MODE === 'session' ? sessionMatches : matchArr.slice(0, 10), CURRENT_RECAP_MODE);
-  renderShameBoard(SHAME_LIST_CACHE);
-
-  if (matchArr.length) {
-    document.getElementById('intelSection').classList.remove('hidden');
-    const topDuo = Object.values(duoContributions).sort((a, b) => b.combinedGA - a.combinedGA)[0];
-    if (topDuo) {
+  // Render Dynamic Duo & Toughest Opponent Intel Cards
+  const intelSec = document.getElementById('intelSection');
+  if (intelSec) {
+    intelSec.classList.remove('hidden');
+    const duos = Object.values(duoMap).sort((a, b) => (b.wins * 15 + b.combinedGA * 4 + b.games) - (a.wins * 15 + a.combinedGA * 4 + a.games));
+    if (duos.length) {
+      const topDuo = duos[0];
+      const wp = Math.round((topDuo.wins / Math.max(1, topDuo.games)) * 100);
       document.getElementById('duoNames').innerText = `${topDuo.p1} & ${topDuo.p2}`;
-      document.getElementById('duoMeta').innerText = `${topDuo.combinedGA} combined G+A across ${topDuo.gamesTogether} shared goalscoring games`;
+      document.getElementById('duoMeta').innerText = `${topDuo.games} GP Together (${wp}% Win) • ${topDuo.combinedGA} Combined G+A`;
       document.getElementById('duoAvatars').innerHTML = `${renderAvatarWithFlagHtml(topDuo.p1, 'w-10 h-10', 'border-emerald-400', 'w-3.5 h-2.5')}${renderAvatarWithFlagHtml(topDuo.p2, 'w-10 h-10', 'border-emerald-400', 'w-3.5 h-2.5')}`;
     }
-    const repeat = Object.values(opponentCounts).filter(o => o.played > 1).sort((a, b) => b.played - a.played);
-    const tOpp = repeat[0] || highestSrOpp;
-    if (tOpp) {
-      document.getElementById('nemesisTitle').innerHTML = repeat.length ? `<i class="fa-solid fa-fire text-amber-400"></i> Repeat Rival (${tOpp.played}x)` : `<i class="fa-solid fa-skull text-rose-400"></i> Toughest Recent Opponent`;
-      document.getElementById('nemesisName').innerText = tOpp.name; document.getElementById('nemesisMeta').innerText = `Record: ${tOpp.wins}W-${tOpp.draws}D-${tOpp.losses}L • SR: ${tOpp.sr||'--'}`;
-      document.getElementById('nemesisCrest').innerHTML = renderCrestHtml(tOpp.name, tOpp.crestId, 'w-11 h-11', tOpp.clubId);
+    if (oppList.length) {
+      const toughest = [...oppList].sort((a, b) => (b.oppSr + (b.oppG - b.myG) * 60) - (a.oppSr + (a.oppG - a.myG) * 60))[0];
+      const resChar = toughest.myG > toughest.oppG ? 'W' : (toughest.myG < toughest.oppG ? 'L' : 'D');
+      document.getElementById('nemesisName').innerText = toughest.oppName;
+      document.getElementById('nemesisMeta').innerText = `${toughest.oppSr} SR • Result: ${resChar} (${toughest.myG}-${toughest.oppG})`;
+      if (typeof renderCrestHtml === 'function') {
+        document.getElementById('nemesisCrest').innerHTML = renderCrestHtml(toughest.oppName, toughest.crestId, 'w-11 h-11', toughest.oppId);
+      }
     }
   }
+
+  if (typeof updateRecapMetricsDisplay === 'function') {
+    updateRecapMetricsDisplay(clubId, CURRENT_RECAP_MODE === 'session' ? SESSION_MATCHES_CACHE : recent10, CURRENT_RECAP_MODE);
+  }
+  if (typeof renderShameBoard === 'function') {
+    renderShameBoard(SHAME_LIST_CACHE);
+  }
+
   return SHAME_LIST_CACHE;
 }
