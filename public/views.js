@@ -1,49 +1,6 @@
 let SQUAD_SORT_COL = 'games';
 let SQUAD_SORT_ASC = false;
 
-// Self-contained PlayStyle Diamond Renderer (Guarantees Gold PlayStyle+ & Silver PlayStyles render cleanly even if passed strings or objects)
-function renderPlaystyleBadgeSafe(psInput, isPlus = false) {
-  const ps = typeof resolvePlaystyleEntry === 'function'
-    ? resolvePlaystyleEntry(psInput, isPlus)
-    : (typeof psInput === 'object' && psInput !== null ? psInput : { name: String(psInput || 'PlayStyle'), icon: 'fa-bolt', desc: 'Signature Pro Clubs PlayStyle' });
-
-  const label = ps.name || 'PlayStyle';
-  const icon = ps.icon || 'fa-bolt';
-  const desc = ps.desc || 'Signature Pro Clubs PlayStyle';
-
-  if (isPlus) {
-    return `<div class="ps-plus-badge group cursor-help" title="${label}: ${desc}">
-      <svg viewBox="0 0 48 44" class="w-full h-full absolute inset-0">
-        <defs>
-          <linearGradient id="psGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#fef08a"/>
-            <stop offset="50%" stop-color="#eab308"/>
-            <stop offset="100%" stop-color="#a16207"/>
-          </linearGradient>
-        </defs>
-        <polygon points="24,2 45,16 37,41 11,41 3,16" fill="url(#psGoldGrad)" stroke="#ffffff" stroke-width="1.8"/>
-      </svg>
-      <i class="fa-solid ${icon} text-[#1e1b08] text-sm relative z-10 drop-shadow"></i>
-      <span class="pointer-events-none absolute left-full ml-1.5 px-2 py-0.5 rounded bg-gray-950/95 border border-yellow-400/60 text-yellow-300 text-[9px] font-black uppercase tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-xl z-50">${label}</span>
-    </div>`;
-  }
-
-  return `<div class="ps-silver-badge group cursor-help" title="${label}: ${desc}">
-    <svg viewBox="0 0 40 36" class="w-full h-full absolute inset-0">
-      <defs>
-        <linearGradient id="psSilverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stop-color="#f8fafc"/>
-          <stop offset="55%" stop-color="#cbd5e1"/>
-          <stop offset="100%" stop-color="#475569"/>
-        </linearGradient>
-      </defs>
-      <polygon points="20,2 37,13 31,34 9,34 3,13" fill="url(#psSilverGrad)" stroke="#0f172a" stroke-width="1.5"/>
-    </svg>
-    <i class="fa-solid ${icon} text-[#0f172a] text-xs relative z-10"></i>
-    <span class="pointer-events-none absolute left-full ml-1.5 px-2 py-0.5 rounded bg-gray-950/95 border border-slate-400/50 text-slate-200 text-[9px] font-bold uppercase tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-xl z-50">${label}</span>
-  </div>`;
-}
-
 // Compact Hero Sparkline Renderer for Skill Rating Progression
 function renderSkillRatingGraph(clubId, clubData = {}, matches = []) {
   const sec = document.getElementById('srGraphSection'), chartBox = document.getElementById('srChartContainer'), badge = document.getElementById('srTrendBadge'), metaEl = document.getElementById('srPeakLowMeta');
@@ -157,7 +114,7 @@ function renderSkillRatingGraph(clubId, clubData = {}, matches = []) {
   </svg>`;
 }
 
-// 3-Pillar Focused Tactical Scouting Report (Strengths, Weaknesses, Tactical Fixes)
+// 3-Pillar Focused Tactical Scouting Report
 function renderClubReviewReport(clubData = {}, members = [], matches = [], shameList = []) {
   const sec = document.getElementById('clubReviewSection');
   if (!members.length) return sec.classList.add('hidden');
@@ -196,7 +153,7 @@ function switchBanterMode(mode) {
   renderShameBoard(SHAME_LIST_CACHE);
 }
 
-// Dressing Room Banter Board (Removed Bluetooth Tackler & Allergy to Passing; Sunday League Butcher includes Yellows, Reds & Tackles)
+// Dressing Room Banter Board (Removed Bluetooth Tackler & Allergy to Passing; Sunday League Butcher includes Yellow/Red cards & Tackles)
 function renderShameBoard(shameList = []) {
   const sec = document.getElementById('shameBoardSection');
   if (!shameList.length && !GLOBAL_MEMBERS.length) return sec.classList.add('hidden');
@@ -440,7 +397,7 @@ function initRadarComparison(members = []) {
   if (!members.length) return sec.classList.add('hidden');
   sec.classList.remove('hidden');
   const sorted = [...members].sort((a, b) => Number(b.gamesPlayed || 0) - Number(a.gamesPlayed || 0));
-  const opts = sorted.map(m => `<option value="${m.name||m.proName}" class="bg-gray-900 text-white">${m.name||m.proName} (${m.proOverall||85} OVR)</option>`).join('');
+  const opts = sorted.map(m => `<option value="${m.name||m.proName}" class="bg-gray-900 text-white">${m.name||m.proName} (${m.proOverall||80} OVR)</option>`).join('');
   const s1 = document.getElementById('radarSelectP1'), s2 = document.getElementById('radarSelectP2');
   s1.innerHTML = opts; s2.innerHTML = opts; if (sorted.length >= 2) s2.selectedIndex = 1;
   updateRadarCharts();
@@ -451,21 +408,31 @@ function updateRadarCharts() {
   const p2 = GLOBAL_MEMBERS.find(m => (m.name||m.proName) === document.getElementById('radarSelectP2').value) || GLOBAL_MEMBERS[0];
   if (!p1 || !p2) return;
   const m1 = getPlayerRadarMetrics(p1), m2 = getPlayerRadarMetrics(p2);
-  document.getElementById('radarChartAttributes').innerHTML = buildRadarSvg(m1.attributes, m2.attributes);
+  const attrBox = document.getElementById('radarChartAttributes');
+  if (attrBox) attrBox.innerHTML = buildRadarSvg(m1.attributes, m2.attributes);
   document.getElementById('radarChartStats').innerHTML = buildRadarSvg(m1.stats, m2.stats);
-  document.getElementById('radarLegendAttr').innerHTML = m1.attributes.map((a, i) => `<div class="flex flex-col items-center"><span class="text-[9px] text-gray-400 font-bold">${a.label}</span><div><span class="text-emerald-400 font-bold">${a.raw}</span>/<span class="text-sky-400 font-bold">${m2.attributes[i].raw}</span></div></div>`).join('');
   document.getElementById('radarLegendStats').innerHTML = m1.stats.map((s, i) => `<div class="flex flex-col items-center"><span class="text-[9px] text-gray-400 font-bold">${s.label}</span><div><span class="text-emerald-400 font-bold">${s.raw}</span>/<span class="text-sky-400 font-bold">${m2.stats[i].raw}</span></div></div>`).join('');
 }
 
+// 100% Real EA Telemetry UT Card Modal (Displays actual Career GP, Goals, Assists, Pass %, Tackles & MOTM)
 function openFutModal(playerName) {
   const p = GLOBAL_MEMBERS.find(m => (m.name || m.proName || m.gamertag) === playerName);
   if (!p) return;
   ACTIVE_MODAL_PLAYER = playerName;
   const name = p.name || p.proName || 'Player';
   const rawOvr = Number(p.proOverall || 0);
-  const ovr = rawOvr > 0 ? rawOvr : 82;
+  const ovr = rawOvr > 0 ? rawOvr : 80;
   const pos = EA_PRO_POS_MAP[String(p.proPos ?? '')] || (p._rawPos?.length <= 4 ? p._rawPos.toUpperCase() : p._normalizedPos);
-  const metrics = getPlayerRadarMetrics(p), buildInfo = computeArchetypeAndPlaystyles(p), theme = getCardTierTheme(ovr);
+  const theme = getCardTierTheme(ovr);
+
+  const r10 = RECENT_10_STATS_MAP[name] || {};
+  const games = Number(p.gamesPlayed ?? 0);
+  const goals = Number(p.goals ?? 0);
+  const assists = Number(p.assists ?? 0);
+  const passPct = Number(p.passSuccessRate ?? 0);
+  const tackles = Number(p.tacklesMade ?? p.tacklesmade ?? p.tackles ?? r10.tackles ?? 0);
+  const motm = Number(p.manOfTheMatch ?? 0);
+  const careerRat = parseFloat(p.ratingAve || p.rating || 0).toFixed(1);
 
   ['1','2','3','4','5'].forEach((n, i) => document.getElementById(`stopBase${n}`).setAttribute('stop-color', theme.baseStops[i]));
   ['1','2','3'].forEach((n, i) => document.getElementById(`stopPlate${n}`).setAttribute('stop-color', theme.plateStops[i]));
@@ -473,16 +440,20 @@ function openFutModal(playerName) {
   document.getElementById('futTopLeftText').style.color = theme.textColor;
   document.getElementById('futLowerTextContainer').style.color = theme.textColor;
 
-  document.getElementById('futArchetypeBadge').innerHTML = `<i class="fa-solid fa-crown text-[8px]"></i> ${buildInfo.archetype}`;
-  document.getElementById('futLeftPlaystylesStack').innerHTML = [
-    renderPlaystyleBadgeSafe(buildInfo.psPlus, true),
-    ...(buildInfo.activePlaystyles || []).map(ps => renderPlaystyleBadgeSafe(ps, false))
-  ].join('');
-  document.getElementById('futOvr').innerText = ovr;
+  document.getElementById('futArchetypeBadge').innerHTML = `<i class="fa-solid fa-star text-yellow-400 text-[8px]"></i> ${careerRat} AVG RATING • ${games} GP`;
+  const psStack = document.getElementById('futLeftPlaystylesStack');
+  if (psStack) psStack.innerHTML = '';
+
+  document.getElementById('futOvr').innerText = rawOvr > 0 ? rawOvr : '--';
   document.getElementById('futPos').innerText = pos;
   document.getElementById('futAvatar').src = getPlayerAvatarUrl(name, true);
   document.getElementById('futName').innerText = name;
-  ['Pac','Sho','Pas','Dri','Def','Phy'].forEach((k, i) => document.getElementById(`fut${k}`).innerText = metrics.attributes[i].raw);
+
+  const realVals = [games, goals, assists, `${passPct}%`, tackles, motm];
+  ['1','2','3','4','5','6'].forEach((k, i) => {
+    const el = document.getElementById(`futStat${k}`);
+    if (el) el.innerText = realVals[i];
+  });
 
   const fUrl = resolvePlayerFlagUrl(p), fEl = document.getElementById('futFlag');
   if (fUrl) { fEl.src = fUrl; fEl.classList.remove('hidden'); } else { fEl.classList.add('hidden'); }
