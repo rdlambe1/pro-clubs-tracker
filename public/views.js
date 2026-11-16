@@ -410,11 +410,13 @@ function updateRadarCharts() {
   const m1 = getPlayerRadarMetrics(p1), m2 = getPlayerRadarMetrics(p2);
   const attrBox = document.getElementById('radarChartAttributes');
   if (attrBox) attrBox.innerHTML = buildRadarSvg(m1.attributes, m2.attributes);
+  const attrLeg = document.getElementById('radarLegendAttr');
+  if (attrLeg) attrLeg.innerHTML = m1.attributes.map((a, i) => `<div class="flex flex-col items-center"><span class="text-[9px] text-gray-400 font-bold">${a.label}</span><div><span class="text-emerald-400 font-bold">${a.raw}</span>/<span class="text-sky-400 font-bold">${m2.attributes[i].raw}</span></div></div>`).join('');
   document.getElementById('radarChartStats').innerHTML = buildRadarSvg(m1.stats, m2.stats);
   document.getElementById('radarLegendStats').innerHTML = m1.stats.map((s, i) => `<div class="flex flex-col items-center"><span class="text-[9px] text-gray-400 font-bold">${s.label}</span><div><span class="text-emerald-400 font-bold">${s.raw}</span>/<span class="text-sky-400 font-bold">${m2.stats[i].raw}</span></div></div>`).join('');
 }
 
-// 100% Real EA Telemetry UT Card Modal (Displays actual Career GP, Goals, Assists, Pass %, Tackles & MOTM)
+// Restored Classic PAC / SHO / PAS / DRI / DEF / PHY Play Attributes + Flag on Avatar Frame & Card Footer
 function openFutModal(playerName) {
   const p = GLOBAL_MEMBERS.find(m => (m.name || m.proName || m.gamertag) === playerName);
   if (!p) return;
@@ -423,15 +425,8 @@ function openFutModal(playerName) {
   const rawOvr = Number(p.proOverall || 0);
   const ovr = rawOvr > 0 ? rawOvr : 80;
   const pos = EA_PRO_POS_MAP[String(p.proPos ?? '')] || (p._rawPos?.length <= 4 ? p._rawPos.toUpperCase() : p._normalizedPos);
-  const theme = getCardTierTheme(ovr);
-
-  const r10 = RECENT_10_STATS_MAP[name] || {};
+  const metrics = getPlayerRadarMetrics(p), buildInfo = computeArchetypeAndPlaystyles(p), theme = getCardTierTheme(ovr);
   const games = Number(p.gamesPlayed ?? 0);
-  const goals = Number(p.goals ?? 0);
-  const assists = Number(p.assists ?? 0);
-  const passPct = Number(p.passSuccessRate ?? 0);
-  const tackles = Number(p.tacklesMade ?? p.tacklesmade ?? p.tackles ?? r10.tackles ?? 0);
-  const motm = Number(p.manOfTheMatch ?? 0);
   const careerRat = parseFloat(p.ratingAve || p.rating || 0).toFixed(1);
 
   ['1','2','3','4','5'].forEach((n, i) => document.getElementById(`stopBase${n}`).setAttribute('stop-color', theme.baseStops[i]));
@@ -440,23 +435,27 @@ function openFutModal(playerName) {
   document.getElementById('futTopLeftText').style.color = theme.textColor;
   document.getElementById('futLowerTextContainer').style.color = theme.textColor;
 
-  document.getElementById('futArchetypeBadge').innerHTML = `<i class="fa-solid fa-star text-yellow-400 text-[8px]"></i> ${careerRat} AVG RATING • ${games} GP`;
-  const psStack = document.getElementById('futLeftPlaystylesStack');
-  if (psStack) psStack.innerHTML = '';
-
+  document.getElementById('futArchetypeBadge').innerHTML = `<i class="fa-solid fa-crown text-yellow-400 text-[8px]"></i> ${buildInfo.archetype} • ★ ${careerRat} (${games} GP)`;
   document.getElementById('futOvr').innerText = rawOvr > 0 ? rawOvr : '--';
   document.getElementById('futPos').innerText = pos;
   document.getElementById('futAvatar').src = getPlayerAvatarUrl(name, true);
   document.getElementById('futName').innerText = name;
 
-  const realVals = [games, goals, assists, `${passPct}%`, tackles, motm];
-  ['1','2','3','4','5','6'].forEach((k, i) => {
-    const el = document.getElementById(`futStat${k}`);
-    if (el) el.innerText = realVals[i];
+  ['Pac','Sho','Pas','Dri','Def','Phy'].forEach((k, i) => {
+    const el = document.getElementById(`fut${k}`);
+    if (el) el.innerText = metrics.attributes[i].raw;
   });
 
-  const fUrl = resolvePlayerFlagUrl(p), fEl = document.getElementById('futFlag');
-  if (fUrl) { fEl.src = fUrl; fEl.classList.remove('hidden'); } else { fEl.classList.add('hidden'); }
+  const fUrl = resolvePlayerFlagUrl(p);
+  const fEl = document.getElementById('futFlag');
+  const avFlagEl = document.getElementById('futAvatarFlag');
+  if (fUrl) {
+    if (fEl) { fEl.src = fUrl; fEl.classList.remove('hidden'); }
+    if (avFlagEl) { avFlagEl.src = fUrl; avFlagEl.classList.remove('hidden'); }
+  } else {
+    if (fEl) fEl.classList.add('hidden');
+    if (avFlagEl) avFlagEl.classList.add('hidden');
+  }
   document.getElementById('futClubCrest').src = CURRENT_CLUB_CREST_URL || `${API_BASE}/crest/0?name=FC`;
 
   const m = document.getElementById('futModal'); m.classList.remove('hidden'); m.classList.add('flex');
