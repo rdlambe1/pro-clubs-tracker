@@ -62,7 +62,42 @@ function getShirtNumber(name, memberMeta = null) {
   return String([8, 10, 6, 16, 17, 20, 21][abs % 7]);
 }
 
-// Custom Jersey-Back SVG Avatar with Player Name & Kit Number on the Back
+function hexLuminance(hex) {
+  const clean = String(hex || '#f59e0b').replace('#', '').trim();
+  const full = clean.length === 3 ? clean.split('').map(c => c + c).join('') : clean.padEnd(6, '0');
+  const num = parseInt(full, 16);
+  const r = (num >> 16) & 255;
+  const g = (num >> 8) & 255;
+  const b = num & 255;
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+}
+
+// Automatically ensures high-contrast readable text & trim on any kit color (e.g., black ink on bright yellow/gold kits)
+function getReadableJerseyPalette(homeKit = []) {
+  const primary = homeKit[0] || '#f59e0b';
+  const rawSec = homeKit[1] || '#111827';
+  const pLum = hexLuminance(primary);
+  const sLum = hexLuminance(rawSec);
+
+  if (pLum > 0.52) {
+    // Bright shirt (Yellow, Gold, White, Light Cyan, Neon Green) -> Force deep dark lettering & dark collar trim
+    return {
+      shirtFill: primary,
+      textFill: '#0b0f19',
+      textStroke: 'rgba(255,255,255,0.45)',
+      trimStroke: sLum < 0.35 ? rawSec : '#0f172a'
+    };
+  }
+  // Dark shirt (Navy, Black, Crimson, Forest Green) -> Force crisp white/light lettering
+  return {
+    shirtFill: primary,
+    textFill: sLum > 0.65 ? rawSec : '#ffffff',
+    textStroke: 'rgba(0,0,0,0.65)',
+    trimStroke: sLum > 0.55 ? rawSec : '#e2e8f0'
+  };
+}
+
+// High-Contrast Jersey-Back SVG Avatar with Player Name & Kit Number
 function getPlayerAvatarUrl(name, highRes = false) {
   if (typeof CUSTOM_PLAYER_AVATARS !== 'undefined' && CUSTOM_PLAYER_AVATARS[name]) {
     return CUSTOM_PLAYER_AVATARS[name];
@@ -72,30 +107,27 @@ function getPlayerAvatarUrl(name, highRes = false) {
   const shirtNum = getShirtNumber(name, m);
 
   const homeKit = GLOBAL_COMBINED_DATA?.kits?.home || ['#f59e0b', '#111827', '#ffffff'];
-  let primary = homeKit[0] || '#f59e0b';
-  let secondary = homeKit[1] || '#111827';
-  if (primary.toLowerCase() === secondary.toLowerCase()) secondary = '#ffffff';
+  const pal = getReadableJerseyPalette(homeKit);
 
-  const nameFontSize = shirtName.length >= 8 ? 11.5 : (shirtName.length >= 6 ? 13 : 14.5);
+  const nameFontSize = shirtName.length >= 8 ? 10.5 : (shirtName.length >= 6 ? 12 : 13.5);
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="${highRes ? 240 : 96}" height="${highRes ? 240 : 96}">
     <defs>
       <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stop-color="#1e293b"/>
-        <stop offset="100%" stop-color="#0b0f19"/>
+        <stop offset="100%" stop-color="#090d16"/>
       </linearGradient>
       <linearGradient id="kit" x1="0%" y1="0%" x2="0%" y2="100%">
-        <stop offset="0%" stop-color="${primary}"/>
-        <stop offset="100%" stop-color="${primary}" stop-opacity="0.86"/>
+        <stop offset="0%" stop-color="${pal.shirtFill}"/>
+        <stop offset="100%" stop-color="${pal.shirtFill}"/>
       </linearGradient>
     </defs>
     <rect width="120" height="120" rx="60" fill="url(#bg)"/>
-    <circle cx="60" cy="18" r="11" fill="#cbd5e1" opacity="0.85"/>
-    <path d="M35 28 L47 24 Q60 30 73 24 L85 28 L104 46 L91 61 L82 52 L82 108 L38 108 L38 52 L29 61 L16 46 Z" fill="url(#kit)" stroke="${secondary}" stroke-width="2.8" stroke-linejoin="round"/>
-    <path d="M46 24 Q60 31 74 24" fill="none" stroke="${secondary}" stroke-width="4" stroke-linecap="round"/>
-    <line x1="25" y1="56" x2="34" y2="47" stroke="${secondary}" stroke-width="2.5"/>
-    <line x1="95" y1="56" x2="86" y2="47" stroke="${secondary}" stroke-width="2.5"/>
-    <text x="60" y="50" font-family="'Oswald', 'Arial Black', sans-serif" font-size="${nameFontSize}" font-weight="900" fill="${secondary}" text-anchor="middle" letter-spacing="0.6">${shirtName}</text>
-    <text x="60" y="88" font-family="'Oswald', 'Impact', sans-serif" font-size="36" font-weight="900" fill="${secondary}" text-anchor="middle">${shirtNum}</text>
+    <path d="M32 24 L46 20 Q60 26 74 20 L88 24 L108 44 L94 60 L84 50 L84 108 L36 108 L36 50 L26 60 L12 44 Z" fill="url(#kit)" stroke="${pal.trimStroke}" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M45 20 Q60 28 75 20" fill="none" stroke="${pal.trimStroke}" stroke-width="4.5" stroke-linecap="round"/>
+    <line x1="21" y1="54" x2="31" y2="44" stroke="${pal.trimStroke}" stroke-width="2.8"/>
+    <line x1="99" y1="54" x2="89" y2="44" stroke="${pal.trimStroke}" stroke-width="2.8"/>
+    <text x="60" y="47" font-family="'Oswald', 'Arial Black', sans-serif" font-size="${nameFontSize}" font-weight="900" fill="${pal.textFill}" stroke="${pal.textStroke}" stroke-width="0.6" paint-order="stroke" text-anchor="middle" letter-spacing="0.5">${shirtName}</text>
+    <text x="60" y="90" font-family="'Oswald', 'Impact', sans-serif" font-size="40" font-weight="900" fill="${pal.textFill}" stroke="${pal.textStroke}" stroke-width="1.2" paint-order="stroke" text-anchor="middle">${shirtNum}</text>
   </svg>`;
 
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
