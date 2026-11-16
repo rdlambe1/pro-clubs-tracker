@@ -15,7 +15,7 @@ let CURRENT_RECAP_MODE = 'session';
 let CURRENT_BANTER_MODE = 'last10';
 let CURRENT_PITCH_MODE = 'lastMatch';
 
-constEXTENDED_EA_NATION_CODES = {
+const EXTENDED_EA_NATION_CODES = {
   '1': 'al', '2': 'ad', '3': 'am', '4': 'at', '5': 'az', '6': 'by', '7': 'be', '8': 'ba', '9': 'bg', '10': 'hr',
   '11': 'cy', '12': 'cz', '13': 'dk', '14': 'gb-eng', '15': 'me', '16': 'ee', '17': 'fo', '18': 'fr', '19': 'mk', '20': 'ge',
   '21': 'de', '22': 'gr', '23': 'hu', '24': 'is', '25': 'ie', '26': 'il', '27': 'it', '28': 'lv', '29': 'li', '30': 'lt',
