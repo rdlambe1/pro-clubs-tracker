@@ -18,20 +18,11 @@
     body.light-mode .text-gray-400, body.light-mode .text-gray-500 { color: #64748b !important; }
     body.light-mode .bg-gray-900, body.light-mode .bg-gray-900\/60, body.light-mode .bg-gray-900\/70, body.light-mode .bg-gray-900\/80, body.light-mode .bg-gray-900\/90, body.light-mode .bg-gray-950\/80, body.light-mode .bg-gray-800 { background-color: #f8fafc !important; border-color: #cbd5e1 !important; color: #0f172a !important; }
     body.light-mode .border-gray-800, body.light-mode .border-gray-800\/60, body.light-mode .border-gray-800\/70, body.light-mode .border-gray-800\/80, body.light-mode .border-gray-800\/90, body.light-mode .border-gray-700 { border-color: #e2e8f0 !important; }
-    body.light-mode .pitch-bg .text-white, body.light-mode .pitch-bg .text-gray-200, body.light-mode #futModal .text-white { color: #ffffff !important; }
+    body.light-mode #futModal .text-white { color: #ffffff !important; }
     body.light-mode #futModal .bg-gray-900\/95 { background-color: #0f172a !important; color: #ffffff !important; }
     img.avatar-circle { border-width: 2.5px !important; box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.9), 0 4px 10px rgba(0, 0, 0, 0.65); }
-    .pitch-bg { background: #143823; background-image: repeating-linear-gradient(0deg, #164027, #164027 45px, #133621 45px, #133621 90px); border: 2px solid rgba(255,255,255,0.35); border-radius: 12px; position: relative; overflow: hidden; }
-    .pitch-center-circle { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 96px; height: 96px; border: 2px solid rgba(255,255,255,0.25); border-radius: 50%; pointer-events: none; }
-    .pitch-center-line { position: absolute; top: 50%; left: 0; right: 0; border-top: 2px solid rgba(255,255,255,0.25); pointer-events: none; }
-    .pitch-penalty-top { position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 140px; height: 55px; border: 2px solid rgba(255,255,255,0.25); border-top: 0; pointer-events: none; }
-    .pitch-penalty-bottom { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); width: 140px; height: 55px; border: 2px solid rgba(255,255,255,0.25); border-bottom: 0; pointer-events: none; }
-    @media (min-width: 640px) { .pitch-center-circle { width: 120px; height: 120px; } .pitch-penalty-top, .pitch-penalty-bottom { width: 200px; height: 70px; } }
     .fc27-card-wrapper { width: 345px; height: 495px; position: relative; filter: drop-shadow(0 25px 40px rgba(0,0,0,0.85)); user-select: none; }
     .fc27-font { font-family: 'Oswald', sans-serif; }
-    .ps-plus-badge { width: 48px; height: 44px; position: relative; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.65)); transition: transform 0.15s; }
-    .ps-plus-badge:hover, .ps-silver-badge:hover { transform: scale(1.15); }
-    .ps-silver-badge { width: 40px; height: 36px; position: relative; display: flex; align-items: center; justify-content: center; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.55)); transition: transform 0.15s; }
     .ut-modal-scaler { transform-origin: center center; transition: transform 0.2s; }
     @media (max-width: 400px) { .ut-modal-scaler { transform: scale(0.84); } }
     @media (min-width: 401px) and (max-width: 480px) { .ut-modal-scaler { transform: scale(0.91); } }
@@ -86,7 +77,7 @@
           Track Your Club's <span class="text-emerald-400">Real Impact.</span>
         </h2>
         <p class="text-xs sm:text-sm text-gray-400 max-w-xl mx-auto leading-relaxed">
-          Session MVPs, 12-factor match grades, tactical pitch lineups, dressing room banter boards, and shareable FC27 UT cards.
+          Session MVPs, 12-factor match grades, Wooden Spoon awards, dressing room banter boards, and verified EA telemetry UT cards.
         </p>
 
         <div class="card p-2.5 sm:p-3 shadow-2xl border-emerald-500/30 max-w-2xl mx-auto">
@@ -151,7 +142,7 @@
         </div>
       </section>
 
-      <!-- FC 27 PRO CLUBS BUILD, ARCHETYPES, ACCELERATE & MASTERIES ENCYCLOPEDIA -->
+      <!-- PRO CLUBS BUILD, ARCHETYPES, ACCELERATE & MASTERIES ENCYCLOPEDIA -->
       <section class="card p-4 sm:p-6 space-y-5 border-t-2 border-t-emerald-500/40">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-gray-800 pb-3.5">
           <div>
@@ -350,19 +341,15 @@
         </div>
       </section>
 
-      <!-- 3-TAB NAVIGATION BAR -->
-      <nav class="grid grid-cols-3 gap-2.5 sm:gap-4">
+      <!-- 2-TAB NAVIGATION BAR (100% Real EA Telemetry Only — Pitch Removed) -->
+      <nav class="grid grid-cols-2 gap-3 sm:gap-4">
         <button id="tabBtn_team" onclick="switchDashboardTab('team')" class="card p-3 sm:p-4 flex items-center justify-center gap-2.5 sm:gap-3.5 border-2 border-emerald-500 bg-emerald-500/10 transition group cursor-pointer shadow-lg">
           <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center flex-shrink-0"><svg viewBox="0 0 36 36" class="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400"><path d="M18 3 L31 8 V17 C31 25.5 25.2 31.2 18 34 C10.8 31.2 5 25.5 5 17 V8 L18 3 Z" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linejoin="round"/><path d="M12 22 V16 M18 22 V12 M24 22 V18" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"/></svg></div>
-          <div class="text-left min-w-0"><div class="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate">Team</div><div class="text-[10px] text-gray-400 hidden sm:block truncate">Session, Matches & Review</div></div>
+          <div class="text-left min-w-0"><div class="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate">Team Overview</div><div class="text-[10px] text-gray-400 hidden sm:block truncate">Session Recap, Matches & Tactical Report</div></div>
         </button>
         <button id="tabBtn_players" onclick="switchDashboardTab('players')" class="card p-3 sm:p-4 flex items-center justify-center gap-2.5 sm:gap-3.5 border border-gray-800 hover:border-gray-700 transition group cursor-pointer">
           <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-sky-500/15 border border-sky-500/30 flex items-center justify-center flex-shrink-0"><svg viewBox="0 0 36 36" class="w-5 h-5 sm:w-6 sm:h-6 text-sky-400"><circle cx="13" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M5 28 C5 22.5 8.5 19.5 13 19.5 C17.5 19.5 21 22.5 21 28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/><circle cx="24" cy="13.5" r="3.5" fill="none" stroke="currentColor" stroke-width="2.3"/><path d="M21 28 C21.5 23.5 24 21 27.5 21 C30 21 32 22.8 32.5 26.5" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/></svg></div>
-          <div class="text-left min-w-0"><div class="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate">Players</div><div class="text-[10px] text-gray-400 hidden sm:block truncate">Squad, Banter & Radars</div></div>
-        </button>
-        <button id="tabBtn_pitch" onclick="switchDashboardTab('pitch')" class="card p-3 sm:p-4 flex items-center justify-center gap-2.5 sm:gap-3.5 border border-gray-800 hover:border-gray-700 transition group cursor-pointer">
-          <div class="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center flex-shrink-0"><svg viewBox="0 0 36 36" class="w-5 h-5 sm:w-6 sm:h-6 text-amber-400"><rect x="4" y="6" width="28" height="24" rx="3" fill="none" stroke="currentColor" stroke-width="2.5"/><line x1="18" y1="6" x2="18" y2="30" stroke="currentColor" stroke-width="2.2"/><circle cx="18" cy="18" r="4.5" fill="none" stroke="currentColor" stroke-width="2.2"/><rect x="4" y="13" width="4.5" height="10" fill="none" stroke="currentColor" stroke-width="2"/><rect x="27.5" y="13" width="4.5" height="10" fill="none" stroke="currentColor" stroke-width="2"/></svg></div>
-          <div class="text-left min-w-0"><div class="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate">Pitch</div><div class="text-[10px] text-gray-400 hidden sm:block truncate">Tactical Lineup & Best XI</div></div>
+          <div class="text-left min-w-0"><div class="text-xs sm:text-sm font-black text-white uppercase tracking-wider truncate">Squad & Banter</div><div class="text-[10px] text-gray-400 hidden sm:block truncate">Player Stats, Shame Board, UT Cards & Radar</div></div>
         </button>
       </nav>
 
@@ -433,7 +420,7 @@
             <div><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-masks-theater text-rose-400"></i> Dressing Room Banter & Shame Board</h3><p id="shameBoardSubtext" class="text-xs text-gray-400 mt-0.5">Hover over any award card for details</p></div>
             <div class="flex items-center bg-gray-900 p-1 rounded-lg border border-gray-800">
               <button id="btnBanterLast10" onclick="switchBanterMode('last10')" class="px-3 py-1 rounded text-xs font-black bg-rose-500 text-white transition shadow"><i class="fa-solid fa-fire-flame-curved mr-1"></i>Last 10 Matches</button>
-              <button id="btnBanterAllTime" onclick="switchBanterMode('allTime')" class="px-3 py-1 rounded text-xs font-black text-gray-300 hover:text-white transition"><i class="fa-solid fa-infinity mr-1"></i>All-Time Career</button>
+              <button id="btnBanterAllTime" onclick="switchBanterMode('allTime')" class="px-3 py-1 rounded text-xs font-bold text-gray-300 hover:text-white transition"><i class="fa-solid fa-infinity mr-1"></i>All-Time Career</button>
             </div>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5" id="shameBoardGrid"></div>
@@ -441,7 +428,7 @@
 
         <!-- Clean 10-Column Squad Table: Player | Rating & Form | OVR | GP (Win%) | Goals | Assists | G+A/G | Tackles | Pass % | MoTM -->
         <section class="card p-4 sm:p-6 space-y-4">
-          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1"><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance</h3><span class="text-xs text-gray-400">Tap any column header to sort • Tap any player row for their <b class="text-yellow-400">FC27 UT Card</b></span></div>
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1"><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance</h3><span class="text-xs text-gray-400">Tap any column header to sort • Tap any player row for their <b class="text-yellow-400">Verified EA Telemetry UT Card</b></span></div>
           <div class="overflow-x-auto touch-scroll"><table class="w-full text-left text-xs sm:text-sm whitespace-nowrap"><thead class="border-b border-gray-800 text-gray-400 uppercase text-[10px] sm:text-xs select-none"><tr>
             <th onclick="sortSquadBy('name')" class="py-2.5 px-2 cursor-pointer hover:text-white transition">Player <span id="sortIcon_name" class="text-[9px] text-gray-600"></span></th>
             <th onclick="sortSquadBy('rating')" class="py-2.5 px-2 text-left cursor-pointer hover:text-white transition">Rating & Form <span id="sortIcon_rating" class="text-[9px] text-gray-600"></span></th>
@@ -456,69 +443,26 @@
           </tr></thead><tbody id="membersTable" class="divide-y border-gray-800"></tbody></table></div>
         </section>
 
+        <!-- Head-to-Head Pro Radar Comparison (100% Real EA Telemetry Only) -->
         <section id="radarSection" class="hidden card p-4 sm:p-6 space-y-5">
           <div class="flex flex-col md:flex-row justify-between md:items-center gap-3 border-b border-gray-800 pb-4">
-            <div><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-chart-pie text-emerald-400"></i> Head-to-Head Pro Radar Comparison</h3><p class="text-xs text-gray-400 mt-0.5">Compare any two squad members across Build Attributes and Match Output</p></div>
+            <div><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-chart-pie text-emerald-400"></i> Head-to-Head Pro Telemetry Comparison</h3><p class="text-xs text-gray-400 mt-0.5">Compare any two squad members across 6 verified EA career output metrics</p></div>
             <div class="flex flex-wrap items-center gap-2">
               <div class="flex items-center gap-1.5 bg-gray-900 px-2.5 py-1.5 rounded-lg border border-emerald-500/40 flex-1 sm:flex-initial"><span class="w-2 h-2 rounded-full bg-emerald-400"></span><select id="radarSelectP1" onchange="updateRadarCharts()" class="bg-transparent text-xs font-bold text-white focus:outline-none w-full"></select></div>
               <span class="text-xs font-black text-gray-500">VS</span>
               <div class="flex items-center gap-1.5 bg-gray-900 px-2.5 py-1.5 rounded-lg border border-sky-500/40 flex-1 sm:flex-initial"><span class="w-2 h-2 rounded-full bg-sky-400"></span><select id="radarSelectP2" onchange="updateRadarCharts()" class="bg-transparent text-xs font-bold text-white focus:outline-none w-full"></select></div>
             </div>
           </div>
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-            <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3 sm:p-4 flex flex-col items-center"><div class="text-[11px] font-black uppercase tracking-wider text-gray-300 mb-2"><i class="fa-solid fa-bolt text-yellow-400 mr-1"></i>1. Build Attributes</div><div id="radarChartAttributes" class="w-full max-w-[290px] h-[260px] flex items-center justify-center"></div><div id="radarLegendAttr" class="w-full grid grid-cols-6 gap-1 text-center text-[10px] sm:text-[11px] font-mono pt-2 border-t border-gray-800/80 mt-2"></div></div>
-            <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-3 sm:p-4 flex flex-col items-center"><div class="text-[11px] font-black uppercase tracking-wider text-gray-300 mb-2"><i class="fa-solid fa-chart-line text-emerald-400 mr-1"></i>2. Match Output & Efficiency</div><div id="radarChartStats" class="w-full max-w-[290px] h-[260px] flex items-center justify-center"></div><div id="radarLegendStats" class="w-full grid grid-cols-6 gap-1 text-center text-[10px] sm:text-[11px] font-mono pt-2 border-t border-gray-800/80 mt-2"></div></div>
+          <div class="bg-gray-900/60 border border-gray-800 rounded-xl p-4 flex flex-col items-center max-w-xl mx-auto">
+            <div class="text-[11px] font-black uppercase tracking-wider text-gray-300 mb-2"><i class="fa-solid fa-chart-line text-emerald-400 mr-1"></i>Verified EA Match Output & Efficiency</div>
+            <div id="radarChartStats" class="w-full max-w-[300px] h-[265px] flex items-center justify-center"></div>
+            <div id="radarLegendStats" class="w-full grid grid-cols-6 gap-1 text-center text-[10px] sm:text-[11px] font-mono pt-2 border-t border-gray-800/80 mt-2"></div>
           </div>
         </section>
 
         <section id="milestonesSection" class="hidden card p-4 sm:p-6 space-y-4">
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1"><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-flag-checkered text-emerald-400"></i> Road to Club Milestones</h3><span class="text-xs text-gray-400">Players closest to their next major club landmark</span></div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5" id="milestonesGrid"></div>
-        </section>
-      </div>
-
-      <!-- TAB 3: PITCH -->
-      <div id="tabPane_pitch" class="hidden space-y-5">
-        <section class="card p-4 sm:p-6 space-y-4">
-          <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-3 border-b border-gray-800 pb-4">
-            <div>
-              <div class="flex flex-wrap items-center gap-2">
-                <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-chess-board text-emerald-400"></i> Tactical Pitch & Squad Lineup</h3>
-                <span id="formationBadge" class="text-xs font-black px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">--</span>
-                <select id="formationOverrideSelect" onchange="handleFormationOverride(this.value)" class="bg-gray-900 border border-gray-700 text-xs font-bold text-gray-200 px-2 py-1 rounded focus:outline-none focus:border-emerald-500 cursor-pointer">
-                  <option value="auto">⚡ Auto-Detect from Match</option>
-                  <option value="4-1-2-1-2">4-1-2-1-2 Diamond</option>
-                  <option value="4-1-2-1-2 Wide">4-1-2-1-2 Wide</option>
-                  <option value="4-2-2-2">4-2-2-2</option>
-                  <option value="4-2-3-1 Narrow">4-2-3-1 Narrow</option>
-                  <option value="4-3-3 Attack">4-3-3 Attack</option>
-                  <option value="4-3-3 Holding">4-3-3 Holding</option>
-                  <option value="4-4-2 Flat">4-4-2 Flat</option>
-                  <option value="3-5-2">3-5-2</option>
-                  <option value="5-3-2">5-3-2</option>
-                </select>
-              </div>
-              <p id="formationSubtitle" class="text-xs text-gray-400 mt-1">Tap any player on the grass to inspect their FC27 Card</p>
-            </div>
-            <div class="flex flex-wrap items-center gap-1.5 bg-gray-900 p-1 rounded-lg border border-gray-800">
-              <button id="btnModeLastMatch" onclick="switchPitchMode('lastMatch')" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition shadow"><i class="fa-solid fa-clock-rotate-left mr-1"></i>Last Match XI</button>
-              <button id="btnModeSuggested" onclick="switchPitchMode('suggestedXI')" class="flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition"><i class="fa-solid fa-wand-magic-sparkles mr-1 text-yellow-400"></i>Suggested Best XI</button>
-            </div>
-          </div>
-          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-            <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between"><span class="text-[10px] uppercase font-bold text-gray-400">Humans</span><span id="pitchMetricHumans" class="text-xs sm:text-sm font-black text-emerald-400">-- / 11</span></div>
-            <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between"><span class="text-[10px] uppercase font-bold text-gray-400">Avg OVR</span><span id="pitchMetricOvr" class="text-xs sm:text-sm font-black text-yellow-400">--</span></div>
-            <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between"><span class="text-[10px] uppercase font-bold text-gray-400">Avg Rat</span><span id="pitchMetricRating" class="text-xs sm:text-sm font-black text-white">--</span></div>
-            <div class="bg-gray-900/70 border border-gray-800/90 rounded-lg px-3 py-2 flex items-center justify-between"><span class="text-[10px] uppercase font-bold text-gray-400">Top Unit</span><span id="pitchMetricZone" class="text-[10px] sm:text-xs font-black text-purple-400 uppercase">--</span></div>
-          </div>
-          <div class="pitch-bg w-full h-[500px] sm:h-[620px] py-4 sm:py-6 px-1 sm:px-4 flex flex-col justify-between relative shadow-inner">
-            <div class="pitch-penalty-top"></div><div class="pitch-center-line"></div><div class="pitch-center-circle"></div><div class="pitch-penalty-bottom"></div>
-            <div class="flex justify-around items-center z-10 w-full px-1" id="rowAttack"></div>
-            <div class="flex justify-around items-center z-10 w-full px-2 sm:px-6" id="rowCAM"></div>
-            <div class="flex justify-around items-center z-10 w-full px-1 sm:px-4" id="rowMidfield"></div>
-            <div class="flex justify-around items-center z-10 w-full px-0.5 sm:px-2" id="rowDefense"></div>
-            <div class="flex justify-center items-center z-10 w-full" id="rowGK"></div>
-          </div>
         </section>
       </div>
     </div>
@@ -541,7 +485,7 @@
     </div>
   </div>
 
-  <!-- FC27 UT Card Modal -->
+  <!-- FC27 UT Card Modal (100% Real EA Telemetry Only — Zero Synthetic PlayStyles) -->
   <div id="futModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center z-50 p-2 overflow-y-auto" onclick="closeFutModal()">
     <div class="ut-modal-scaler flex flex-col items-center gap-2.5 my-auto" onclick="event.stopPropagation()">
       <div id="futCardExportTarget" class="fc27-card-wrapper">
@@ -562,24 +506,23 @@
           <path d="M 58 24 Q 172.5 -2 287 24 C 300 40 316 48 330 54 L 330 385 C 330 437 248 469 172.5 488 C 97 469 15 437 15 385 L 15 54 C 29 48 45 40 58 24 Z" fill="none" stroke="url(#fc27BorderRim)" stroke-width="4.5"/>
           <path d="M 62 30 Q 172.5 6 283 30 C 295 44 309 51 322 57 L 322 382 C 322 430 244 461 172.5 479 C 101 461 23 430 23 382 L 23 57 C 36 51 50 44 62 30 Z" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.55"/>
         </svg>
-        <div id="futLeftPlaystylesStack" class="absolute left-[-6px] top-[140px] z-30 flex flex-col items-center gap-1.5"></div>
         <div id="futTopLeftText" class="absolute top-[48px] left-[38px] z-20 flex flex-col items-center leading-none text-[#2b2108]"><div id="futOvr" class="fc27-font text-[56px] font-extrabold tracking-tighter leading-none">85</div><div id="futPos" class="fc27-font text-[22px] font-bold uppercase tracking-wider mt-1">CAM</div></div>
         <div class="absolute top-[36px] right-[24px] w-[205px] h-[232px] z-10 flex items-end justify-center overflow-hidden pointer-events-none"><img id="futAvatar" src="" crossorigin="anonymous" class="w-[195px] h-[195px] object-contain drop-shadow-[0_12px_12px_rgba(0,0,0,0.45)] transform translate-y-2" alt="Pro"></div>
         <div id="futLowerTextContainer" class="absolute top-[272px] inset-x-[24px] bottom-[18px] z-20 flex flex-col justify-between items-center text-[#2b2108]">
-          <div class="w-full text-center border-b border-current/25 pb-1"><div id="futArchetypeBadge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/75 text-yellow-300 text-[9px] font-black uppercase tracking-widest shadow-sm">MAESTRO</div><div id="futName" class="text-[26px] font-black tracking-tight truncate px-2 leading-tight mt-0.5">PLAYER</div></div>
+          <div class="w-full text-center border-b border-current/25 pb-1"><div id="futArchetypeBadge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/75 text-yellow-300 text-[9px] font-black uppercase tracking-widest shadow-sm">★ 7.8 AVG RATING</div><div id="futName" class="text-[26px] font-black tracking-tight truncate px-2 leading-tight mt-0.5">PLAYER</div></div>
           <div class="w-full grid grid-cols-6 gap-1 px-1 text-center fc27-font my-0.5">
-            <div class="flex flex-col items-center"><span class="text-[13px] font-bold opacity-85">PAC</span><span id="futPac" class="text-[25px] font-extrabold leading-tight">75</span></div>
-            <div class="flex flex-col items-center"><span class="text-[13px] font-bold opacity-85">SHO</span><span id="futSho" class="text-[25px] font-extrabold leading-tight">84</span></div>
-            <div class="flex flex-col items-center"><span class="text-[13px] font-bold opacity-85">PAS</span><span id="futPas" class="text-[25px] font-extrabold leading-tight">85</span></div>
-            <div class="flex flex-col items-center"><span class="text-[13px] font-bold opacity-85">DRI</span><span id="futDri" class="text-[25px] font-extrabold leading-tight">89</span></div>
-            <div class="flex flex-col items-center"><span class="text-[13px] font-bold opacity-85">DEF</span><span id="futDef" class="text-[25px] font-extrabold leading-tight">32</span></div>
-            <div class="flex flex-col items-center"><span class="text-[13px] font-bold opacity-85">PHY</span><span id="futPhy" class="text-[25px] font-extrabold leading-tight">62</span></div>
+            <div class="flex flex-col items-center"><span class="text-[12px] font-bold opacity-85">GP</span><span id="futStat1" class="text-[22px] font-extrabold leading-tight">0</span></div>
+            <div class="flex flex-col items-center"><span class="text-[12px] font-bold opacity-85">GOALS</span><span id="futStat2" class="text-[22px] font-extrabold leading-tight">0</span></div>
+            <div class="flex flex-col items-center"><span class="text-[12px] font-bold opacity-85">AST</span><span id="futStat3" class="text-[22px] font-extrabold leading-tight">0</span></div>
+            <div class="flex flex-col items-center"><span class="text-[12px] font-bold opacity-85">PASS%</span><span id="futStat4" class="text-[22px] font-extrabold leading-tight">0%</span></div>
+            <div class="flex flex-col items-center"><span class="text-[12px] font-bold opacity-85">TKL</span><span id="futStat5" class="text-[22px] font-extrabold leading-tight">0</span></div>
+            <div class="flex flex-col items-center"><span class="text-[12px] font-bold opacity-85">MOTM</span><span id="futStat6" class="text-[22px] font-extrabold leading-tight">0</span></div>
           </div>
           <div class="flex items-center justify-center gap-5 pb-1 pt-0.5"><img id="futFlag" src="" crossorigin="anonymous" class="w-7 h-4.5 object-cover rounded-[2px] shadow-sm border border-current/30" alt="Nation"><div class="flex flex-col items-center opacity-90"><i class="fa-solid fa-shield-halved text-lg leading-none"></i><span class="text-[6px] font-black tracking-widest uppercase mt-0.5">CLUBS</span></div><img id="futClubCrest" src="" crossorigin="anonymous" class="w-7 h-7 object-contain drop-shadow-sm" alt="Club Crest"></div>
         </div>
       </div>
       <div class="bg-gray-900/95 border border-gray-700 rounded-xl px-4 py-2.5 w-[345px] shadow-2xl flex items-center justify-between">
-        <span class="text-[10px] text-gray-400 font-medium">Unofficial Fan Card • Not affiliated with EA</span>
+        <span class="text-[10px] text-gray-400 font-medium">100% Real EA Telemetry • Unofficial Fan Card</span>
         <button onclick="shareElementAsPng('futCardExportTarget', ACTIVE_MODAL_PLAYER || 'FUT-Card')" class="bg-yellow-500 hover:bg-yellow-400 text-black font-black px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 shadow"><i class="fa-solid fa-share-nodes"></i> Share PNG</button>
       </div>
     </div>
