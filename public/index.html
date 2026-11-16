@@ -294,7 +294,7 @@
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2.5">
             <div>
               <h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-clock-rotate-left text-emerald-400"></i> Recent 10 Matches</h3>
-              <span class="text-xs text-gray-400">Tap any row for full player box-score, Super-Subs, Cards & Shot Conv %</span>
+              <span class="text-xs text-gray-400">Tap any row for full player box-score, MVP 👑, Wooden Spoon 🥄 & Cards</span>
             </div>
             <div class="flex items-center bg-gray-900 p-1 rounded-lg border border-gray-800">
               <button id="btnFilterAll" onclick="filterRecentMatches('ALL')" class="px-2.5 py-1 rounded text-xs font-black bg-emerald-500 text-black transition shadow">All</button>
@@ -319,19 +319,18 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5" id="shameBoardGrid"></div>
         </section>
 
-        <!-- Clean, Streamlined Full Squad Performance Table with Inline Rating Trend Sparklines -->
+        <!-- Clean 10-Column Squad Table: Player | Rating & Form | OVR | GP (Win%) | Goals | Assists | G+A/G | Tackles | Pass % | MoTM -->
         <section class="card p-4 sm:p-6 space-y-4">
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1"><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance</h3><span class="text-xs text-gray-400">Tap any column header to sort • Tap any player row for their <b class="text-yellow-400">FC27 UT Card</b></span></div>
           <div class="overflow-x-auto touch-scroll"><table class="w-full text-left text-xs sm:text-sm whitespace-nowrap"><thead class="border-b border-gray-800 text-gray-400 uppercase text-[10px] sm:text-xs select-none"><tr>
             <th onclick="sortSquadBy('name')" class="py-2.5 px-2 cursor-pointer hover:text-white transition">Player <span id="sortIcon_name" class="text-[9px] text-gray-600"></span></th>
+            <th onclick="sortSquadBy('rating')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Rating & Form <span id="sortIcon_rating" class="text-[9px] text-gray-600"></span></th>
             <th onclick="sortSquadBy('ovr')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">OVR <span id="sortIcon_ovr" class="text-[9px] text-gray-600"></span></th>
-            <th class="py-2.5 px-2 text-center">Pos</th>
-            <th onclick="sortSquadBy('games')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">GP <span id="sortIcon_games" class="text-[9px] text-emerald-400">▼</span></th>
+            <th onclick="sortSquadBy('games')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">GP (Win%) <span id="sortIcon_games" class="text-[9px] text-emerald-400">▼</span></th>
             <th onclick="sortSquadBy('goals')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Goals <span id="sortIcon_goals" class="text-[9px] text-gray-600"></span></th>
             <th onclick="sortSquadBy('assists')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Assists <span id="sortIcon_assists" class="text-[9px] text-gray-600"></span></th>
             <th onclick="sortSquadBy('gapg')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">G+A/G <span id="sortIcon_gapg" class="text-[9px] text-gray-600"></span></th>
             <th onclick="sortSquadBy('tackles')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Tackles <span id="sortIcon_tackles" class="text-[9px] text-gray-600"></span></th>
-            <th onclick="sortSquadBy('rating')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Rating & Form Trend <span id="sortIcon_rating" class="text-[9px] text-gray-600"></span></th>
             <th onclick="sortSquadBy('pass')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">Pass % <span id="sortIcon_pass" class="text-[9px] text-gray-600"></span></th>
             <th onclick="sortSquadBy('motm')" class="py-2.5 px-2 text-center cursor-pointer hover:text-white transition">MoTM <span id="sortIcon_motm" class="text-[9px] text-gray-600"></span></th>
           </tr></thead><tbody id="membersTable" class="divide-y border-gray-800"></tbody></table></div>
