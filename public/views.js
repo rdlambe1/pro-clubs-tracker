@@ -1,7 +1,50 @@
 let SQUAD_SORT_COL = 'games';
 let SQUAD_SORT_ASC = false;
 
-// Compact Hero Sparkline Renderer for Skill Rating Progression (Fits neatly inside the Hero Card)
+// Self-contained PlayStyle Diamond Renderer (Guarantees Gold PlayStyle+ & Silver PlayStyles render cleanly even if passed strings or objects)
+function renderPlaystyleBadgeSafe(psInput, isPlus = false) {
+  const ps = typeof resolvePlaystyleEntry === 'function'
+    ? resolvePlaystyleEntry(psInput, isPlus)
+    : (typeof psInput === 'object' && psInput !== null ? psInput : { name: String(psInput || 'PlayStyle'), icon: 'fa-bolt', desc: 'Signature Pro Clubs PlayStyle' });
+
+  const label = ps.name || 'PlayStyle';
+  const icon = ps.icon || 'fa-bolt';
+  const desc = ps.desc || 'Signature Pro Clubs PlayStyle';
+
+  if (isPlus) {
+    return `<div class="ps-plus-badge group cursor-help" title="${label}: ${desc}">
+      <svg viewBox="0 0 48 44" class="w-full h-full absolute inset-0">
+        <defs>
+          <linearGradient id="psGoldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#fef08a"/>
+            <stop offset="50%" stop-color="#eab308"/>
+            <stop offset="100%" stop-color="#a16207"/>
+          </linearGradient>
+        </defs>
+        <polygon points="24,2 45,16 37,41 11,41 3,16" fill="url(#psGoldGrad)" stroke="#ffffff" stroke-width="1.8"/>
+      </svg>
+      <i class="fa-solid ${icon} text-[#1e1b08] text-sm relative z-10 drop-shadow"></i>
+      <span class="pointer-events-none absolute left-full ml-1.5 px-2 py-0.5 rounded bg-gray-950/95 border border-yellow-400/60 text-yellow-300 text-[9px] font-black uppercase tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-xl z-50">${label}</span>
+    </div>`;
+  }
+
+  return `<div class="ps-silver-badge group cursor-help" title="${label}: ${desc}">
+    <svg viewBox="0 0 40 36" class="w-full h-full absolute inset-0">
+      <defs>
+        <linearGradient id="psSilverGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="#f8fafc"/>
+          <stop offset="55%" stop-color="#cbd5e1"/>
+          <stop offset="100%" stop-color="#475569"/>
+        </linearGradient>
+      </defs>
+      <polygon points="20,2 37,13 31,34 9,34 3,13" fill="url(#psSilverGrad)" stroke="#0f172a" stroke-width="1.5"/>
+    </svg>
+    <i class="fa-solid ${icon} text-[#0f172a] text-xs relative z-10"></i>
+    <span class="pointer-events-none absolute left-full ml-1.5 px-2 py-0.5 rounded bg-gray-950/95 border border-slate-400/50 text-slate-200 text-[9px] font-bold uppercase tracking-wider whitespace-nowrap opacity-0 group-hover:opacity-100 transition shadow-xl z-50">${label}</span>
+  </div>`;
+}
+
+// Compact Hero Sparkline Renderer for Skill Rating Progression
 function renderSkillRatingGraph(clubId, clubData = {}, matches = []) {
   const sec = document.getElementById('srGraphSection'), chartBox = document.getElementById('srChartContainer'), badge = document.getElementById('srTrendBadge'), metaEl = document.getElementById('srPeakLowMeta');
   const matchArr = Array.isArray(matches) ? matches.slice(0, 10) : [];
@@ -153,7 +196,7 @@ function switchBanterMode(mode) {
   renderShameBoard(SHAME_LIST_CACHE);
 }
 
-// Dressing Room Banter Board (Includes GK-only Golden Glove Clean Sheets Card if a GK exists)
+// Dressing Room Banter Board (Removed "Allergy to Passing", Kept 9 Core Banter Cards + GK Golden Glove if applicable)
 function renderShameBoard(shameList = []) {
   const sec = document.getElementById('shameBoardSection');
   if (!shameList.length && !GLOBAL_MEMBERS.length) return sec.classList.add('hidden');
@@ -176,20 +219,19 @@ function renderShameBoard(shameList = []) {
       const careerBlocks = Math.max(r10.blocks || 0, Math.round(r10.games > 0 ? (r10.blocks / r10.games) * games : tkl * (isAnchor ? 0.68 : 0.35) + cs * 0.8));
       const careerInterceptions = Math.max(r10.interceptions || 0, Math.round(r10.games > 0 ? (r10.interceptions / r10.games) * games : tkl * (isAnchor ? 0.85 : 0.40) + cs * 0.6));
       const careerWoodwork = Math.max(r10.woodwork || 0, Math.round(r10.games > 0 && r10.woodwork > 0 ? (r10.woodwork / r10.games) * games : missedS * 0.11));
-      return { name, normPos, exactPos, isAnchor, games, goals, assists, missedP, estShots, missedS, sConv, tkl, tPct, missedTackles, reds, skills, careerBlocks, careerInterceptions, careerWoodwork, allergyScore: estShots - assists * 2.5, superSubGA: r10.superSubGA || 0, gkCs };
+      return { name, normPos, exactPos, isAnchor, games, goals, assists, missedP, estShots, missedS, sConv, tkl, tPct, missedTackles, reds, skills, careerBlocks, careerInterceptions, careerWoodwork, superSubGA: r10.superSubGA || 0, gkCs };
     });
 
     const gks = cList.filter(x => x.normPos === 'GK' || x.exactPos === 'GK' || x.gkCs > 0).sort((a, b) => b.gkCs - a.gkCs);
     const nonFwds = cList.filter(x => x.normPos !== 'FWD' && x.normPos !== 'GK');
     const byInt = (nonFwds.length ? nonFwds : [...cList]).sort((a, b) => b.careerInterceptions - a.careerInterceptions)[0];
-    const [bySub, byMeat, byWood, bySkill, byPass, byBarn, byAllergy, byBluetooth, byRed] = [
+    const [bySub, byMeat, byWood, bySkill, byPass, byBarn, byBluetooth, byRed] = [
       [...cList].sort((a, b) => (b.superSubGA * 25 + ((b.goals + b.assists) / b.games) * 10) - (a.superSubGA * 25 + ((a.goals + a.assists) / a.games) * 10))[0],
       [...cList].sort((a, b) => b.careerBlocks - a.careerBlocks)[0],
       [...cList].sort((a, b) => (b.careerWoodwork * 10 + b.missedS * 0.2) - (a.careerWoodwork * 10 + a.missedS * 0.2))[0],
       [...cList].sort((a, b) => b.skills - a.skills)[0],
       [...cList].sort((a, b) => b.missedP - a.missedP)[0],
       [...cList].sort((a, b) => b.missedS - a.missedS)[0],
-      [...cList].sort((a, b) => b.allergyScore - a.allergyScore)[0],
       [...cList].sort((a, b) => b.missedTackles - a.missedTackles)[0],
       [...cList].sort((a, b) => (b.reds * 25 + b.tkl * 0.4) - (a.reds * 25 + a.tkl * 0.4))[0]
     ];
@@ -202,7 +244,6 @@ function renderShameBoard(shameList = []) {
       { title: '🌀 All-Time Fidget Spinner', w: bySkill.name, st: `~${bySkill.skills} Career Skill Moves`, sub: `Averaging ${(bySkill.skills/bySkill.games).toFixed(1)} skill beats per match`, b: 'border-fuchsia-500/40', c: 'text-fuchsia-400' },
       { title: '🏥 All-Time Hospital Pass', w: byPass.name, st: `${byPass.missedP} Career Missed Passes`, sub: `Across ${byPass.games} all-time club appearances`, b: 'border-amber-500/40', c: 'text-amber-400' },
       { title: '🚪 All-Time Barn Door Award', w: byBarn.name, st: `${byBarn.missedS} Unconverted Shots`, sub: `${byBarn.goals} goals from ~${byBarn.estShots} shots (${byBarn.sConv}% conv)`, b: 'border-rose-500/40', c: 'text-rose-400' },
-      { title: '🚫 All-Time Allergy to Passing', w: byAllergy.name, st: `~${byAllergy.estShots} Shots vs. ${byAllergy.assists} Assists`, sub: 'Pass button is purely decorative', b: 'border-pink-500/40', c: 'text-pink-400' },
       { title: '💨 All-Time Bluetooth Tackler', w: byBluetooth.name, st: `${byBluetooth.missedTackles} Missed Tackles`, sub: `Lunging at thin air (${byBluetooth.tPct}% tackle win rate)`, b: 'border-indigo-500/40', c: 'text-indigo-400' },
       { title: '🟥 All-Time Sunday League Butcher', w: byRed.name, st: byRed.reds > 0 ? `${byRed.reds} Career Red Cards` : `${byRed.tkl} Career Tackles`, sub: `Club enforcer across ${byRed.games} GP`, b: 'border-red-500/40', c: 'text-red-400' }
     ];
@@ -215,14 +256,13 @@ function renderShameBoard(shameList = []) {
     const gks = shameList.filter(x => x.normPos === 'GK' || x.exactPos === 'GK' || x.saves > 0).sort((a, b) => (b.recentCleanSheets * 10 + b.saves) - (a.recentCleanSheets * 10 + a.saves));
     const nonFwds = shameList.filter(x => x.normPos !== 'FWD' && x.normPos !== 'GK');
     const byInt = (nonFwds.length ? nonFwds : [...shameList]).sort((a, b) => (b.interceptions * 10 + b.tackles) - (a.interceptions * 10 + a.tackles))[0];
-    const [bySub, byMeat, byWood, bySkill, byPass, byBarn, byAllergy, byBluetooth, byRed] = [
+    const [bySub, byMeat, byWood, bySkill, byPass, byBarn, byBluetooth, byRed] = [
       [...shameList].sort((a, b) => (b.superSubGA * 10 + b.subGames) - (a.superSubGA * 10 + a.subGames))[0],
       [...shameList].sort((a, b) => (b.blocks * 10 + b.tackles) - (a.blocks * 10 + a.tackles))[0],
       [...shameList].sort((a, b) => (b.woodwork * 15 + (b.shots - b.goals)) - (a.woodwork * 15 + (a.shots - a.goals)))[0],
       [...shameList].sort((a, b) => b.skillMoves - a.skillMoves)[0],
       [...shameList].sort((a, b) => b.missedPasses - a.missedPasses)[0],
       [...shameList].sort((a, b) => (b.shots - b.goals) - (a.shots - a.goals))[0],
-      [...shameList].sort((a, b) => (b.shots - b.assists * 2.5) - (a.shots - a.assists * 2.5))[0],
       [...shameList].sort((a, b) => b.missedTackles - a.missedTackles)[0],
       [...shameList].sort((a, b) => (b.reds * 15 + b.yellows * 6 + b.tackles * 0.5) - (a.reds * 15 + a.yellows * 6 + a.tackles * 0.5))[0]
     ];
@@ -235,7 +275,6 @@ function renderShameBoard(shameList = []) {
       { title: '🌀 Fidget Spinner', w: bySkill.name, st: `${bySkill.skillMoves} Skill Moves`, sub: `${bySkill.dribblesCompleted} dribbles completed (Last 10)`, b: 'border-fuchsia-500/40', c: 'text-fuchsia-400' },
       { title: '🏥 Hospital Pass Award', w: byPass.name, st: `${byPass.missedPasses} Missed Passes`, sub: `Across ${byPass.games} recent appearances`, b: 'border-amber-500/40', c: 'text-amber-400' },
       { title: '🚪 The Barn Door Award', w: byBarn.name, st: `${byBarn.shots} Shots (${byBarn.goals}G)`, sub: `${byBarn.shots>0?Math.round((byBarn.goals/byBarn.shots)*100):0}% shot conversion in last 10`, b: 'border-rose-500/40', c: 'text-rose-400' },
-      { title: '🚫 The Allergy to Passing Award', w: byAllergy.name, st: `${byAllergy.shots} Shots vs. ${byAllergy.assists} Assists`, sub: 'Pass button is purely decorative (Last 10)', b: 'border-pink-500/40', c: 'text-pink-400' },
       { title: '💨 The Bluetooth Tackler Award', w: byBluetooth.name, st: `${byBluetooth.missedTackles} Missed Tackles`, sub: `Lunging at thin air (${byBluetooth.tackleWinPct}% tackle win rate)`, b: 'border-indigo-500/40', c: 'text-indigo-400' },
       { title: '🟥 Sunday League Butcher', w: byRed.name, st: (byRed.reds > 0 || byRed.yellows > 0) ? `${byRed.yellows}🟨 ${byRed.reds}🟥 Cards` : `${byRed.tackles} Tackles Won`, sub: 'Midfield enforcer in last 10', b: 'border-red-500/40', c: 'text-red-400' }
     ];
@@ -272,7 +311,7 @@ function sortSquadBy(col) {
   renderMembers(GLOBAL_MEMBERS);
 }
 
-// Inline SVG Sparkline Generator for Player Match Rating Trends
+// Contained Inline SVG Sparkline (Strict bounding box so it never bleeds into the username on mobile)
 function buildPlayerRatingSparkline(playerName, careerRat) {
   const r10 = RECENT_10_STATS_MAP[playerName];
   let pts = Array.isArray(r10?.ratings) ? [...r10.ratings] : [];
@@ -282,11 +321,11 @@ function buildPlayerRatingSparkline(playerName, careerRat) {
     if (rAvg !== undefined && careerRat > 0) {
       pts = [careerRat, +(careerRat * 0.6 + rAvg * 0.4).toFixed(2), +(careerRat * 0.3 + rAvg * 0.7).toFixed(2), rAvg];
     } else {
-      return `<span class="text-[10px] text-gray-600 font-mono ml-1.5">--</span>`;
+      return `<span class="text-[10px] text-gray-600 font-mono w-[48px] text-center inline-block">--</span>`;
     }
   }
 
-  const w = 54, h = 18, pad = 2.5;
+  const w = 48, h = 16, pad = 3;
   const minR = Math.min(5.5, ...pts) - 0.2;
   const maxR = Math.max(9.2, ...pts) + 0.2;
   const range = Math.max(1.0, maxR - minR);
@@ -304,9 +343,9 @@ function buildPlayerRatingSparkline(playerName, careerRat) {
   const strokeCol = diff >= 0.12 ? '#10b981' : (diff <= -0.12 ? '#f43f5e' : '#f59e0b');
   const tip = `Last ${pts.length} Ratings: ${pts.map(n => n.toFixed(1)).join(' → ')} (Avg ${recentMean.toFixed(2)} vs Career ${careerRat.toFixed(2)})`;
 
-  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="inline-block ml-1.5 overflow-visible" title="${tip}">
+  return `<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" class="inline-block flex-shrink-0 overflow-hidden align-middle" title="${tip}">
     <path d="${pathD}" fill="none" stroke="${strokeCol}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-    <circle cx="${last.x}" cy="${last.y}" r="2.3" fill="${strokeCol}"/>
+    <circle cx="${last.x}" cy="${last.y}" r="2.2" fill="${strokeCol}"/>
   </svg>`;
 }
 
@@ -353,7 +392,9 @@ function renderMembers(data) {
 
   tbody.innerHTML = rawList.map(m => {
     const name = m.name || m.proName || 'Unknown', proNick = (m.proName && m.proName !== name) ? m.proName : '';
-    const ovr = Number(m.proOverall || 85), tierInfo = getCardTierTheme(ovr);
+    const rawOvr = Number(m.proOverall || 0);
+    const ovr = rawOvr > 0 ? rawOvr : 80;
+    const tierInfo = getCardTierTheme(ovr);
     const normPos = normalizePosition(m.favoritePosition || m.pos || 'MID'), exactPos = EA_PRO_POS_MAP[String(m.proPos ?? '')] || normPos;
     const games = Number(m.gamesPlayed ?? 0), goals = Number(m.goals ?? 0), assists = Number(m.assists ?? 0);
     const careerRat = parseFloat(m.ratingAve || m.rating || 0), pass = m.passSuccessRate ?? 0, motm = Number(m.manOfTheMatch ?? 0);
@@ -364,7 +405,6 @@ function renderMembers(data) {
     const r10TklWin = (sm && sm.tackleAtt > 0) ? Math.round((sm.tackles / sm.tackleAtt) * 100) : 0;
     const tWin = Number(m.tackleSuccessRate ?? m.tacklesuccessrate ?? r10TklWin ?? 0);
 
-    // Resolve Player Win % (Uses EA member winRate/wins if present, otherwise blends club win % with player's recent 10 win rate)
     let winPct = Number(m.winRate ?? m.winPct ?? 0);
     if (!winPct && Number(m.wins ?? 0) > 0 && games > 0) {
       winPct = Math.round((Number(m.wins) / games) * 100);
@@ -384,9 +424,9 @@ function renderMembers(data) {
     const sparklineSvg = buildPlayerRatingSparkline(name, careerRat);
 
     return `<tr onclick="openFutModal('${escName}')" class="hover:bg-gray-800/50 transition border-b border-gray-800/60 cursor-pointer">
-      <td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-2.5">${renderAvatarWithFlagHtml(name, 'w-8 h-8 sm:w-9 sm:h-9', 'border-emerald-500/40', 'w-3.5 h-2.5')}<div class="leading-tight"><div class="hover:text-yellow-400 font-bold">${name}</div>${proNick?`<div class="text-[10px] text-gray-500 font-medium">"${proNick}"</div>`:''}</div></div></td>
-      <td class="py-2.5 px-2 text-center"><div class="inline-flex items-center justify-center"><span class="text-yellow-400 font-black font-mono">${careerRat.toFixed(1)}</span>${sparklineSvg}</div></td>
-      <td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded border font-black text-xs ${tierInfo.badgeClass}">${ovr}</span></td>
+      <td class="py-2.5 pl-2 pr-3 font-medium text-white max-w-[148px] sm:max-w-[210px] overflow-hidden"><div class="flex items-center gap-2.5 min-w-0">${renderAvatarWithFlagHtml(name, 'w-8 h-8 sm:w-9 sm:h-9', 'border-emerald-500/40', 'w-3.5 h-2.5')}<div class="leading-tight min-w-0 flex-1 overflow-hidden"><div class="hover:text-yellow-400 font-bold truncate" title="${name}">${name}</div>${proNick?`<div class="text-[10px] text-gray-500 font-medium truncate">"${proNick}"</div>`:''}</div></div></td>
+      <td class="py-2.5 pl-3 pr-2 text-left whitespace-nowrap"><div class="inline-flex items-center gap-2 bg-gray-900/70 border border-gray-800/90 px-2 py-1 rounded-lg"><span class="text-yellow-400 font-black font-mono text-xs sm:text-sm w-7 text-right">${careerRat.toFixed(1)}</span>${sparklineSvg}</div></td>
+      <td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded border font-black text-xs ${tierInfo.badgeClass}">${rawOvr > 0 ? rawOvr : '--'}</span></td>
       <td class="py-2.5 px-2 text-center text-gray-200 font-mono font-semibold">${games} <span class="text-[10px] text-sky-400 font-normal">(${winPct}%)</span></td>
       <td class="py-2.5 px-2 text-center font-bold text-emerald-400">${goals} ${shotConv!=='--'?`<span class="text-[10px] text-gray-500 font-mono font-normal">(${shotConv}%)</span>`:''}</td>
       <td class="py-2.5 px-2 text-center text-gray-200 font-semibold">${assists}</td>
@@ -425,7 +465,10 @@ function openFutModal(playerName) {
   const p = GLOBAL_MEMBERS.find(m => (m.name || m.proName || m.gamertag) === playerName);
   if (!p) return;
   ACTIVE_MODAL_PLAYER = playerName;
-  const name = p.name || p.proName || 'Player', ovr = Number(p.proOverall || 85), pos = EA_PRO_POS_MAP[String(p.proPos ?? '')] || (p._rawPos?.length <= 4 ? p._rawPos.toUpperCase() : p._normalizedPos);
+  const name = p.name || p.proName || 'Player';
+  const rawOvr = Number(p.proOverall || 0);
+  const ovr = rawOvr > 0 ? rawOvr : 82;
+  const pos = EA_PRO_POS_MAP[String(p.proPos ?? '')] || (p._rawPos?.length <= 4 ? p._rawPos.toUpperCase() : p._normalizedPos);
   const metrics = getPlayerRadarMetrics(p), buildInfo = computeArchetypeAndPlaystyles(p), theme = getCardTierTheme(ovr);
 
   ['1','2','3','4','5'].forEach((n, i) => document.getElementById(`stopBase${n}`).setAttribute('stop-color', theme.baseStops[i]));
@@ -435,8 +478,12 @@ function openFutModal(playerName) {
   document.getElementById('futLowerTextContainer').style.color = theme.textColor;
 
   document.getElementById('futArchetypeBadge').innerHTML = `<i class="fa-solid fa-crown text-[8px]"></i> ${buildInfo.archetype}`;
-  document.getElementById('futLeftPlaystylesStack').innerHTML = [renderPlaystyleDiamondHtml(buildInfo.psPlus, true), ...buildInfo.activePlaystyles.map(ps => renderPlaystyleDiamondHtml(ps, false))].join('');
-  document.getElementById('futOvr').innerText = ovr; document.getElementById('futPos').innerText = pos;
+  document.getElementById('futLeftPlaystylesStack').innerHTML = [
+    renderPlaystyleBadgeSafe(buildInfo.psPlus, true),
+    ...(buildInfo.activePlaystyles || []).map(ps => renderPlaystyleBadgeSafe(ps, false))
+  ].join('');
+  document.getElementById('futOvr').innerText = ovr;
+  document.getElementById('futPos').innerText = pos;
   document.getElementById('futAvatar').src = getPlayerAvatarUrl(name, true);
   document.getElementById('futName').innerText = name;
   ['Pac','Sho','Pas','Dri','Def','Phy'].forEach((k, i) => document.getElementById(`fut${k}`).innerText = metrics.attributes[i].raw);
