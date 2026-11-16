@@ -15,6 +15,53 @@ let CURRENT_RECAP_MODE = 'session';
 let CURRENT_BANTER_MODE = 'last10';
 let CURRENT_PITCH_MODE = 'lastMatch';
 
+const PLAYSTYLE_META_MAP = {
+  'FINESSE SHOT': { name: 'Finesse Shot', icon: 'fa-bullseye', desc: 'Curved finesse shots with deadly accuracy' },
+  'INCISIVE PASS': { name: 'Incisive Pass', icon: 'fa-compass-drafting', desc: ' clinical through-balls that split defenses' },
+  'INTERCEPT': { name: 'Intercept', icon: 'fa-magnet', desc: 'Extended reach to cut out passing lanes' },
+  'FAR REACH': { name: 'Far Reach', icon: 'fa-hand-paper', desc: 'Acrobatic top-corner goalkeeper saves' },
+  'RAPID': { name: 'Rapid', icon: 'fa-bolt', desc: 'Explosive knock-ons and sprint speed on the ball' },
+  'FIRST TOUCH': { name: 'First Touch', icon: 'fa-feather', desc: 'Instant ball control under heavy pressure' },
+  'TECHNICAL': { name: 'Technical', icon: 'fa-wand-magic-sparkles', desc: 'High-speed R1 controlled dribbling' },
+  'TIKI TAKA': { name: 'Tiki Taka', icon: 'fa-diagram-project', desc: 'Crisp one-touch ground passing accuracy' },
+  'RELENTLESS': { name: 'Relentless', icon: 'fa-heart-pulse', desc: 'Endless stamina recovery into the 90th minute' },
+  'ANTICIPATE': { name: 'Anticipate', icon: 'fa-shield-halved', desc: 'Clean standing tackles that retain possession' },
+  'BRUISER': { name: 'Bruiser', icon: 'fa-dumbbell', desc: 'Dominant physical shoulder-to-shoulder challenges' },
+  'LONG BALL PASS': { name: 'Long Ball Pass', icon: 'fa-route', desc: 'Pinpoint lofted switches and over-the-top balls' },
+  'FOOTWORK': { name: 'Footwork', icon: 'fa-shoe-prints', desc: 'Lightning reflex saves with feet in 1v1s' },
+  'CROSS CLAIMER': { name: 'Cross Claimer', icon: 'fa-hands-holding-circle', desc: 'Commands the 6-yard box on high crosses' },
+  'POWER SHOT': { name: 'Power Shot', icon: 'fa-meteor', desc: 'Thunderous long-range strikes' },
+  'WHIPPED PASS': { name: 'Whipped Pass', icon: 'fa-wind', desc: ' venomous driven crosses into the box' },
+  'JOCKEY': { name: 'Jockey', icon: 'fa-person-running', desc: 'Rapid lateral defensive strafing speed' },
+  'AERIAL': { name: 'Aerial', icon: 'fa-plane-up', desc: 'Towering vertical leap on headers' },
+  'PINGED PASS': { name: 'Pinged Pass', icon: 'fa-location-arrow', desc: 'Laser-guided driven ground passes' },
+  'TRIVELA': { name: 'Trivela', icon: 'fa-circle-nodes', desc: 'Outside-of-the-boot curl passes and shots' },
+  'PRESS PROVEN': { name: 'Press Proven', icon: 'fa-lock', desc: 'Shields the ball effortlessly against tight presses' },
+  'QUICK STEP': { name: 'Quick Step', icon: 'fa-forward-fast', desc: 'Instant acceleration burst from standing starts' },
+  'BLOCK': { name: 'Block', icon: 'fa-Ban', desc: 'Elastic leg reach to block goal-bound shots' }
+};
+
+function resolvePlaystyleEntry(keyOrObj, isPlus = false) {
+  if (keyOrObj && typeof keyOrObj === 'object' && keyOrObj.name) return keyOrObj;
+  const raw = String(keyOrObj || 'TECHNICAL').replace(/\+$/g, '').trim().toUpperCase();
+  if (typeof PLAYSTYLE_CATALOG !== 'undefined' && PLAYSTYLE_CATALOG[raw]) {
+    const cat = PLAYSTYLE_CATALOG[raw];
+    return {
+      key: raw,
+      name: isPlus && !String(cat.name).endsWith('+') ? `${cat.name}+` : cat.name,
+      icon: cat.icon || 'fa-bolt',
+      desc: cat.desc || 'Signature Pro Clubs PlayStyle'
+    };
+  }
+  const meta = PLAYSTYLE_META_MAP[raw] || { name: raw.charAt(0) + raw.slice(1).toLowerCase(), icon: 'fa-star', desc: 'Signature Pro Clubs PlayStyle' };
+  return {
+    key: raw,
+    name: isPlus ? `${meta.name}+` : meta.name,
+    icon: meta.icon,
+    desc: meta.desc
+  };
+}
+
 function slugifyClubName(name) {
   return String(name || '')
     .toLowerCase()
@@ -72,7 +119,6 @@ function hexLuminance(hex) {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
 }
 
-// Automatically ensures high-contrast readable text & trim on any kit color (e.g., black ink on bright yellow/gold kits)
 function getReadableJerseyPalette(homeKit = []) {
   const primary = homeKit[0] || '#f59e0b';
   const rawSec = homeKit[1] || '#111827';
@@ -80,7 +126,6 @@ function getReadableJerseyPalette(homeKit = []) {
   const sLum = hexLuminance(rawSec);
 
   if (pLum > 0.52) {
-    // Bright shirt (Yellow, Gold, White, Light Cyan, Neon Green) -> Force deep dark lettering & dark collar trim
     return {
       shirtFill: primary,
       textFill: '#0b0f19',
@@ -88,7 +133,6 @@ function getReadableJerseyPalette(homeKit = []) {
       trimStroke: sLum < 0.35 ? rawSec : '#0f172a'
     };
   }
-  // Dark shirt (Navy, Black, Crimson, Forest Green) -> Force crisp white/light lettering
   return {
     shirtFill: primary,
     textFill: sLum > 0.65 ? rawSec : '#ffffff',
@@ -97,7 +141,6 @@ function getReadableJerseyPalette(homeKit = []) {
   };
 }
 
-// High-Contrast Jersey-Back SVG Avatar with Player Name & Kit Number
 function getPlayerAvatarUrl(name, highRes = false) {
   if (typeof CUSTOM_PLAYER_AVATARS !== 'undefined' && CUSTOM_PLAYER_AVATARS[name]) {
     return CUSTOM_PLAYER_AVATARS[name];
@@ -314,7 +357,7 @@ function getChaosEmoji(myG, oppG, oppSR) {
 }
 
 function getPlayerRadarMetrics(m = {}) {
-  const ovr = Number(m.proOverall || 85);
+  const ovr = Math.max(75, Number(m.proOverall || 82));
   const games = Math.max(1, Number(m.gamesPlayed ?? 1));
   const goals = Number(m.goals ?? 0);
   const assists = Number(m.assists ?? 0);
@@ -360,33 +403,37 @@ function getPlayerRadarMetrics(m = {}) {
 
 function computeArchetypeAndPlaystyles(m = {}) {
   const metrics = getPlayerRadarMetrics(m);
-  const [pac, sho, pas, dri, def, phy] = metrics.attributes.map(a => a.raw);
+  const [pac, sho, pas, dri, def] = metrics.attributes.map(a => a.raw);
   const normPos = normalizePosition(m.favoritePosition || m.pos || 'MID');
   const exactPos = (typeof EA_PRO_POS_MAP !== 'undefined' && EA_PRO_POS_MAP[String(m.proPos ?? '')]) || normPos;
   const games = Math.max(1, Number(m.gamesPlayed ?? 1));
   const isAnchor = isDefensiveAnchorRole(normPos, exactPos, Number(m.tacklesMade ?? 0) / games, Number(m.goals ?? 0) / games, 2);
 
   if (normPos === 'GK') {
-    return { archetype: 'SHOT STOPPER', psPlus: 'FAR REACH+', activePlaystyles: ['FOOTWORK', 'CROSS CLAIMER'] };
+    return {
+      archetype: 'SHOT STOPPER',
+      psPlus: resolvePlaystyleEntry('FAR REACH', true),
+      activePlaystyles: ['FOOTWORK', 'CROSS CLAIMER', 'LONG BALL PASS'].map(k => resolvePlaystyleEntry(k, false))
+    };
   }
   if (isAnchor) {
     return {
       archetype: def >= 84 ? 'BALL-WINNING ANCHOR' : 'DEEP-LYING SHIELD',
-      psPlus: 'INTERCEPT+',
-      activePlaystyles: ['ANTICIPATE', 'BRUISER', 'LONG BALL PASS']
+      psPlus: resolvePlaystyleEntry('INTERCEPT', true),
+      activePlaystyles: ['ANTICIPATE', 'BRUISER', 'LONG BALL PASS'].map(k => resolvePlaystyleEntry(k, false))
     };
   }
   if (normPos === 'FWD' || sho >= pas + 4) {
     return {
       archetype: pac >= 88 ? 'POACHER / SPEEDSTER' : 'CLINICAL FINISHER',
-      psPlus: 'FINESSE SHOT+',
-      activePlaystyles: ['RAPID', 'FIRST TOUCH', 'TECHNICAL']
+      psPlus: resolvePlaystyleEntry('FINESSE SHOT', true),
+      activePlaystyles: ['RAPID', 'FIRST TOUCH', 'TECHNICAL'].map(k => resolvePlaystyleEntry(k, false))
     };
   }
   return {
     archetype: pas >= 84 ? 'PLAYMAKER MAESTRO' : 'BOX-TO-BOX ENGINE',
-    psPlus: 'INCISIVE PASS+',
-    activePlaystyles: ['TIKI TAKA', 'TECHNICAL', 'RELENTLESS']
+    psPlus: resolvePlaystyleEntry('INCISIVE PASS', true),
+    activePlaystyles: ['TIKI TAKA', 'TECHNICAL', 'RELENTLESS'].map(k => resolvePlaystyleEntry(k, false))
   };
 }
 
