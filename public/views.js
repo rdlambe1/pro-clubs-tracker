@@ -196,7 +196,7 @@ function switchBanterMode(mode) {
   renderShameBoard(SHAME_LIST_CACHE);
 }
 
-// Dressing Room Banter Board (Removed "Allergy to Passing", Kept 9 Core Banter Cards + GK Golden Glove if applicable)
+// Dressing Room Banter Board (Removed Bluetooth Tackler & Allergy to Passing; Sunday League Butcher includes Yellows, Reds & Tackles)
 function renderShameBoard(shameList = []) {
   const sec = document.getElementById('shameBoardSection');
   if (!shameList.length && !GLOBAL_MEMBERS.length) return sec.classList.add('hidden');
@@ -209,9 +209,10 @@ function renderShameBoard(shameList = []) {
       const name = m.name || m.proName || 'Pro', games = Math.max(1, Number(m.gamesPlayed ?? m.games ?? 1)), goals = Number(m.goals ?? 0), assists = Number(m.assists ?? 0);
       const pm = Number(m.passesMade ?? m.passesmade ?? 0), pPct = Math.max(1, Number(m.passSuccessRate ?? 75)), missedP = Math.max(0, Math.round(pm / (pPct / 100)) - pm);
       const sConv = Math.max(5, Number(m.shotConvRate ?? m.shotSuccessRate ?? 25)), estShots = goals > 0 ? Math.round(goals / (sConv / 100)) : games * 2, missedS = Math.max(0, estShots - goals);
-      const tkl = Number(m.tacklesMade ?? m.tacklesmade ?? m.tackles ?? 0), tPct = Math.max(10, Number(m.tackleSuccessRate ?? m.tacklesuccessrate ?? 25)), estTAtt = Math.round(tkl / (tPct / 100));
-      const missedTackles = Math.max(0, estTAtt - tkl), reds = Number(m.redCards ?? m.redcards ?? 0), cs = Number(m.totalCleanSheets ?? 0);
-      const gkCs = Number(m.cleanSheetsGK ?? 0), r10 = RECENT_10_STATS_MAP[name] || {};
+      const tkl = Number(m.tacklesMade ?? m.tacklesmade ?? m.tackles ?? 0), r10 = RECENT_10_STATS_MAP[name] || {};
+      const reds = Math.max(Number(m.redCards ?? m.redcards ?? 0), Number(r10.reds || 0));
+      const yellows = Math.max(Number(m.yellowCards ?? m.yellowcards ?? 0), Number(r10.yellows || 0), Math.round(reds * 2.5 + (r10.games > 0 ? (r10.yellows / r10.games) * games : tkl * 0.04)));
+      const cs = Number(m.totalCleanSheets ?? 0), gkCs = Number(m.cleanSheetsGK ?? 0);
       const skills = Math.max(r10.skillMoves || 0, Math.round((r10.games > 0 ? r10.skillMoves / r10.games : ((goals + assists) / games) * 2.2) * games));
       const normPos = normalizePosition(m.favoritePosition || m.pos);
       const exactPos = EA_PRO_POS_MAP[String(m.proPos ?? '')] || '';
@@ -219,21 +220,20 @@ function renderShameBoard(shameList = []) {
       const careerBlocks = Math.max(r10.blocks || 0, Math.round(r10.games > 0 ? (r10.blocks / r10.games) * games : tkl * (isAnchor ? 0.68 : 0.35) + cs * 0.8));
       const careerInterceptions = Math.max(r10.interceptions || 0, Math.round(r10.games > 0 ? (r10.interceptions / r10.games) * games : tkl * (isAnchor ? 0.85 : 0.40) + cs * 0.6));
       const careerWoodwork = Math.max(r10.woodwork || 0, Math.round(r10.games > 0 && r10.woodwork > 0 ? (r10.woodwork / r10.games) * games : missedS * 0.11));
-      return { name, normPos, exactPos, isAnchor, games, goals, assists, missedP, estShots, missedS, sConv, tkl, tPct, missedTackles, reds, skills, careerBlocks, careerInterceptions, careerWoodwork, superSubGA: r10.superSubGA || 0, gkCs };
+      return { name, normPos, exactPos, isAnchor, games, goals, assists, missedP, estShots, missedS, sConv, tkl, yellows, reds, skills, careerBlocks, careerInterceptions, careerWoodwork, superSubGA: r10.superSubGA || 0, gkCs };
     });
 
     const gks = cList.filter(x => x.normPos === 'GK' || x.exactPos === 'GK' || x.gkCs > 0).sort((a, b) => b.gkCs - a.gkCs);
     const nonFwds = cList.filter(x => x.normPos !== 'FWD' && x.normPos !== 'GK');
     const byInt = (nonFwds.length ? nonFwds : [...cList]).sort((a, b) => b.careerInterceptions - a.careerInterceptions)[0];
-    const [bySub, byMeat, byWood, bySkill, byPass, byBarn, byBluetooth, byRed] = [
+    const [bySub, byMeat, byWood, bySkill, byPass, byBarn, byRed] = [
       [...cList].sort((a, b) => (b.superSubGA * 25 + ((b.goals + b.assists) / b.games) * 10) - (a.superSubGA * 25 + ((a.goals + a.assists) / a.games) * 10))[0],
       [...cList].sort((a, b) => b.careerBlocks - a.careerBlocks)[0],
       [...cList].sort((a, b) => (b.careerWoodwork * 10 + b.missedS * 0.2) - (a.careerWoodwork * 10 + a.missedS * 0.2))[0],
       [...cList].sort((a, b) => b.skills - a.skills)[0],
       [...cList].sort((a, b) => b.missedP - a.missedP)[0],
       [...cList].sort((a, b) => b.missedS - a.missedS)[0],
-      [...cList].sort((a, b) => b.missedTackles - a.missedTackles)[0],
-      [...cList].sort((a, b) => (b.reds * 25 + b.tkl * 0.4) - (a.reds * 25 + a.tkl * 0.4))[0]
+      [...cList].sort((a, b) => (b.reds * 25 + b.yellows * 8 + b.tkl * 0.4) - (a.reds * 25 + a.yellows * 8 + a.tkl * 0.4))[0]
     ];
 
     cards = [
@@ -244,26 +244,23 @@ function renderShameBoard(shameList = []) {
       { title: '🌀 All-Time Fidget Spinner', w: bySkill.name, st: `~${bySkill.skills} Career Skill Moves`, sub: `Averaging ${(bySkill.skills/bySkill.games).toFixed(1)} skill beats per match`, b: 'border-fuchsia-500/40', c: 'text-fuchsia-400' },
       { title: '🏥 All-Time Hospital Pass', w: byPass.name, st: `${byPass.missedP} Career Missed Passes`, sub: `Across ${byPass.games} all-time club appearances`, b: 'border-amber-500/40', c: 'text-amber-400' },
       { title: '🚪 All-Time Barn Door Award', w: byBarn.name, st: `${byBarn.missedS} Unconverted Shots`, sub: `${byBarn.goals} goals from ~${byBarn.estShots} shots (${byBarn.sConv}% conv)`, b: 'border-rose-500/40', c: 'text-rose-400' },
-      { title: '💨 All-Time Bluetooth Tackler', w: byBluetooth.name, st: `${byBluetooth.missedTackles} Missed Tackles`, sub: `Lunging at thin air (${byBluetooth.tPct}% tackle win rate)`, b: 'border-indigo-500/40', c: 'text-indigo-400' },
-      { title: '🟥 All-Time Sunday League Butcher', w: byRed.name, st: byRed.reds > 0 ? `${byRed.reds} Career Red Cards` : `${byRed.tkl} Career Tackles`, sub: `Club enforcer across ${byRed.games} GP`, b: 'border-red-500/40', c: 'text-red-400' }
+      { title: '🟥 All-Time Sunday League Butcher', w: byRed.name, st: `${byRed.yellows}🟨 ${byRed.reds}🟥 • ${byRed.tkl} Tackles`, sub: `Cards & crunching challenges across ${byRed.games} career GP`, b: 'border-red-500/40', c: 'text-red-400' }
     ];
     if (gks.length) {
       cards.unshift({ title: '🧤 Golden Glove (GK Clean Sheets)', w: gks[0].name, st: `${gks[0].gkCs} GK Clean Sheets`, sub: `Shot-stopper shutouts across ${gks[0].games} career appearances`, b: 'border-teal-500/40', c: 'text-teal-400' });
     }
   } else if (shameList.length) {
     document.getElementById('shameBoardSubtext').innerText = 'Last 10 Matches Awards & Banter • Hover over any award for details';
-    shameList.forEach(i => { i.missedTackles = Math.max(0, i.tackleAtt - i.tackles); i.tackleWinPct = i.tackleAtt > 0 ? Math.round((i.tackles / i.tackleAtt) * 100) : 0; });
     const gks = shameList.filter(x => x.normPos === 'GK' || x.exactPos === 'GK' || x.saves > 0).sort((a, b) => (b.recentCleanSheets * 10 + b.saves) - (a.recentCleanSheets * 10 + a.saves));
     const nonFwds = shameList.filter(x => x.normPos !== 'FWD' && x.normPos !== 'GK');
     const byInt = (nonFwds.length ? nonFwds : [...shameList]).sort((a, b) => (b.interceptions * 10 + b.tackles) - (a.interceptions * 10 + a.tackles))[0];
-    const [bySub, byMeat, byWood, bySkill, byPass, byBarn, byBluetooth, byRed] = [
+    const [bySub, byMeat, byWood, bySkill, byPass, byBarn, byRed] = [
       [...shameList].sort((a, b) => (b.superSubGA * 10 + b.subGames) - (a.superSubGA * 10 + a.subGames))[0],
       [...shameList].sort((a, b) => (b.blocks * 10 + b.tackles) - (a.blocks * 10 + a.tackles))[0],
       [...shameList].sort((a, b) => (b.woodwork * 15 + (b.shots - b.goals)) - (a.woodwork * 15 + (a.shots - a.goals)))[0],
       [...shameList].sort((a, b) => b.skillMoves - a.skillMoves)[0],
       [...shameList].sort((a, b) => b.missedPasses - a.missedPasses)[0],
       [...shameList].sort((a, b) => (b.shots - b.goals) - (a.shots - a.goals))[0],
-      [...shameList].sort((a, b) => b.missedTackles - a.missedTackles)[0],
       [...shameList].sort((a, b) => (b.reds * 15 + b.yellows * 6 + b.tackles * 0.5) - (a.reds * 15 + a.yellows * 6 + a.tackles * 0.5))[0]
     ];
 
@@ -275,8 +272,7 @@ function renderShameBoard(shameList = []) {
       { title: '🌀 Fidget Spinner', w: bySkill.name, st: `${bySkill.skillMoves} Skill Moves`, sub: `${bySkill.dribblesCompleted} dribbles completed (Last 10)`, b: 'border-fuchsia-500/40', c: 'text-fuchsia-400' },
       { title: '🏥 Hospital Pass Award', w: byPass.name, st: `${byPass.missedPasses} Missed Passes`, sub: `Across ${byPass.games} recent appearances`, b: 'border-amber-500/40', c: 'text-amber-400' },
       { title: '🚪 The Barn Door Award', w: byBarn.name, st: `${byBarn.shots} Shots (${byBarn.goals}G)`, sub: `${byBarn.shots>0?Math.round((byBarn.goals/byBarn.shots)*100):0}% shot conversion in last 10`, b: 'border-rose-500/40', c: 'text-rose-400' },
-      { title: '💨 The Bluetooth Tackler Award', w: byBluetooth.name, st: `${byBluetooth.missedTackles} Missed Tackles`, sub: `Lunging at thin air (${byBluetooth.tackleWinPct}% tackle win rate)`, b: 'border-indigo-500/40', c: 'text-indigo-400' },
-      { title: '🟥 Sunday League Butcher', w: byRed.name, st: (byRed.reds > 0 || byRed.yellows > 0) ? `${byRed.yellows}🟨 ${byRed.reds}🟥 Cards` : `${byRed.tackles} Tackles Won`, sub: 'Midfield enforcer in last 10', b: 'border-red-500/40', c: 'text-red-400' }
+      { title: '🟥 Sunday League Butcher', w: byRed.name, st: `${byRed.yellows}🟨 ${byRed.reds}🟥 • ${byRed.tackles} Tackles`, sub: `Yellow/Red cards & crunching tackles in last 10`, b: 'border-red-500/40', c: 'text-red-400' }
     ];
     if (gks.length) {
       cards.unshift({ title: '🧤 Golden Glove (GK Clean Sheets)', w: gks[0].name, st: `${gks[0].recentCleanSheets} CS • ${gks[0].saves} Saves`, sub: `Goalkeeper shutouts & saves in the last 10 matches`, b: 'border-teal-500/40', c: 'text-teal-400' });
