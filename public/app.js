@@ -135,14 +135,22 @@ function handleHomeSearch() {
   handleSearch(q, false);
 }
 
+// 2-Tab Navigation Switcher (Team Overview & Squad/Banter)
 function switchDashboardTab(tabKey) {
-  ACTIVE_TAB = tabKey;
-  const borders = { team: 'border-emerald-500 bg-emerald-500/10 shadow-lg', players: 'border-sky-500 bg-sky-500/10 shadow-lg', pitch: 'border-amber-500 bg-amber-500/10 shadow-lg' };
-  ['team', 'players', 'pitch'].forEach(k => {
-    document.getElementById(`tabPane_${k}`).classList.toggle('hidden', k !== tabKey);
-    document.getElementById(`tabBtn_${k}`).className = k === tabKey
-      ? `card p-3 sm:p-4 flex items-center justify-center gap-2.5 sm:gap-3.5 border-2 ${borders[k]} transition group cursor-pointer`
-      : `card p-3 sm:p-4 flex items-center justify-center gap-2.5 sm:gap-3.5 border border-gray-800 hover:border-gray-700 transition group cursor-pointer opacity-75 hover:opacity-100`;
+  ACTIVE_TAB = tabKey === 'players' ? 'players' : 'team';
+  const borders = {
+    team: 'border-emerald-500 bg-emerald-500/10 shadow-lg',
+    players: 'border-sky-500 bg-sky-500/10 shadow-lg'
+  };
+  ['team', 'players'].forEach(k => {
+    const pane = document.getElementById(`tabPane_${k}`);
+    const btn = document.getElementById(`tabBtn_${k}`);
+    if (pane) pane.classList.toggle('hidden', k !== ACTIVE_TAB);
+    if (btn) {
+      btn.className = k === ACTIVE_TAB
+        ? `card p-3 sm:p-4 flex items-center justify-center gap-2.5 sm:gap-3.5 border-2 ${borders[k]} transition group cursor-pointer`
+        : `card p-3 sm:p-4 flex items-center justify-center gap-2.5 sm:gap-3.5 border border-gray-800 hover:border-gray-700 transition group cursor-pointer opacity-75 hover:opacity-100`;
+    }
   });
 }
 
@@ -288,7 +296,7 @@ function switchRecapMode(mode) {
   updateRecapMetricsDisplay(GLOBAL_CLUB_ID, mode === 'session' ? SESSION_MATCHES_CACHE : GLOBAL_MATCHES.slice(0, 10), mode);
 }
 
-// Self-Explanatory Party Size Win % Card (Shows Our Pros Win% & Record clearly without confusing dual numbers)
+// Self-Explanatory Party Size Win % Card
 function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const sec = document.getElementById('sessionRecapSection');
   if (!fixtures.length) return sec.classList.add('hidden');
@@ -400,7 +408,6 @@ async function loadClub(clubId, platform = 'common-gen5', updateHistory = true) 
     renderSkillRatingGraph(clubId, combined, GLOBAL_MATCHES);
     renderClubReviewReport(combined, membersList, GLOBAL_MATCHES, shameList);
     renderCareerMilestones(membersList);
-    buildDynamicPitchTactic(membersList, GLOBAL_MATCHES);
     initRadarComparison(membersList);
     CURRENT_MATCH_FILTER = 'ALL';
     renderRecentMatches(clubId, GLOBAL_MATCHES);
@@ -573,136 +580,6 @@ function renderRecentMatches(clubId, matches) {
 
     return `<tr onclick="document.getElementById('boxScore_${idx}').classList.toggle('hidden')" class="hover:bg-gray-800/40 transition border-b border-gray-800/60 cursor-pointer"><td class="py-2.5 px-2"><span class="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-800 text-gray-300 border border-gray-700">${m._inferredCategory||'League'}</span></td><td class="py-2.5 px-2 font-medium text-white"><div class="flex items-center gap-1.5">${renderCrestHtml(oppName, oppClub.crestId||oppClub.TEAM||oppClub.details?.crestAssetId, 'w-6 h-6 sm:w-7 sm:h-7', oppId)}<span>${oppName}</span>${oppCnt>0?`<span class="text-[10px] text-gray-400 font-mono">(${oppCnt}p)</span>`:''}${rqBadge}<i class="fa-solid fa-chevron-down text-[9px] text-gray-500"></i></div></td><td class="py-2.5 px-2 text-center" title="${chaos.label}">${chaos.emoji}</td><td class="py-2.5 px-2 text-center">${renderDivisionShieldHtml(oppClub.division||'Div 5','sm')}</td><td class="py-2.5 px-2 text-center">${oppSR?`<span class="inline-block font-mono font-bold text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/30">${oppSR}</span>`:'--'}</td><td class="py-2.5 px-2 text-center font-bold text-white">${myG} - ${oppG}</td><td class="py-2.5 px-2 text-center"><div class="inline-flex items-center gap-1.5"><span class="w-6 h-5 rounded flex items-center justify-center text-[11px] font-black border ${mg.gradeCls}">${mg.grade}</span><span class="text-[10px] font-mono text-emerald-400">A:${mg.atk}</span><span class="text-[10px] font-mono text-sky-400">D:${mg.def}</span></div></td><td class="py-2.5 px-2 text-center">${renderCardBadgesHtml(matchYellows, matchReds)}</td><td class="py-2.5 px-2 text-center"><span class="px-2 py-0.5 rounded text-[11px] font-bold border ${resCls}">${resLbl}</span></td><td class="py-2.5 px-2 text-right text-gray-400 text-xs">${dateText}</td></tr><tr id="boxScore_${idx}" class="hidden bg-gray-900/60 border-b border-gray-800"><td colspan="10" class="p-3"><div class="overflow-x-auto touch-scroll rounded border border-gray-800 bg-gray-950/80"><table class="w-full text-left text-xs whitespace-nowrap"><thead class="bg-gray-900 text-gray-400 uppercase text-[10px]"><tr><th class="py-1.5 px-2">Player</th><th class="py-1.5 px-2 text-center">Rat</th><th class="py-1.5 px-2 text-center">G</th><th class="py-1.5 px-2 text-center">A</th><th class="py-1.5 px-2 text-center">Shots (Conv%)</th><th class="py-1.5 px-2 text-center">Passes</th><th class="py-1.5 px-2 text-center">Missed</th><th class="py-1.5 px-2 text-center">Skills</th><th class="py-1.5 px-2 text-center">Tkl (Blk/Int)</th><th class="py-1.5 px-2 text-center">Cards</th><th class="py-1.5 px-2 text-right">Award</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></td></tr>`;
   }).join('');
-}
-
-function getExactPlayerRole(m = {}, mp = {}) {
-  const proRole = EA_PRO_POS_MAP[String(m.proPos ?? '')] || '';
-  const matchBucket = mp.pos ? normalizePosition(mp.pos) : null;
-
-  if (matchBucket === 'FWD') {
-    return ['ST','LS','RS','CF','LW','RW','LF','RF'].includes(proRole) ? proRole : 'ST';
-  }
-  if (matchBucket === 'MID') {
-    return ['CAM','LAM','RAM','CM','LCM','RCM','CDM','LDM','RDM','LM','RM'].includes(proRole) ? proRole : 'CAM';
-  }
-  if (matchBucket === 'DEF') {
-    return ['CB','LCB','RCB','LB','RB','LWB','RWB'].includes(proRole) ? proRole : 'CB';
-  }
-  if (matchBucket === 'GK') return 'GK';
-
-  if (proRole) return proRole;
-  const raw = String(m.favoritePosition || 'MID').toLowerCase();
-  return raw === 'forward' ? 'ST' : raw === 'midfielder' ? 'CAM' : raw === 'defender' ? 'CB' : raw === 'goalkeeper' ? 'GK' : raw.toUpperCase();
-}
-
-function handleFormationOverride(val) { localStorage.setItem(`clubFormation_${GLOBAL_CLUB_ID || 'default'}`, val); buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES); }
-
-function switchPitchMode(mode) {
-  CURRENT_PITCH_MODE = mode;
-  document.getElementById('btnModeLastMatch').className = mode === 'lastMatch' ? 'flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition shadow' : 'flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition';
-  document.getElementById('btnModeSuggested').className = mode === 'suggestedXI' ? 'flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold bg-emerald-500 text-black transition shadow' : 'flex-1 sm:flex-initial px-3 py-1.5 rounded-md text-xs font-bold text-gray-300 hover:text-white transition';
-  buildDynamicPitchTactic(GLOBAL_MEMBERS, GLOBAL_MATCHES);
-}
-
-function buildDynamicPitchTactic(members = [], matches = []) {
-  const rows = ['rowAttack','rowCAM','rowMidfield','rowDefense','rowGK'].map(id => { const el = document.getElementById(id); el.innerHTML = ''; return el; });
-  if (!members.length) return;
-
-  const latestMatch = matches[0] || null;
-  let latestPlayersMap = {}, latestOpp = 'Opponent';
-  if (latestMatch) {
-    const clubs = latestMatch.clubs || latestMatch.aggregate || {}, cIds = Object.keys(clubs);
-    const myId = cIds.find(id => String(id) === String(GLOBAL_CLUB_ID)) || cIds[0], oppId = cIds.find(id => String(id) !== String(GLOBAL_CLUB_ID)) || cIds[1];
-    latestPlayersMap = latestMatch.players?.[myId] || {};
-    latestOpp = clubs[oppId]?.details?.name || clubs[oppId]?.name || 'Opponent';
-  }
-
-  const scored = members.map(m => {
-    const name = m.name || 'Player';
-    const lm = Object.values(latestPlayersMap).find(lp => String(lp.playername || lp.name || '').toLowerCase().trim() === String(name).toLowerCase().trim());
-    const matchNormPos = lm?.pos ? normalizePosition(lm.pos) : null;
-    return {
-      ...m, _displayName: name, _proNickname: m.proName && m.proName !== name ? `"${m.proName}"` : '',
-      _matchNormPos: matchNormPos,
-      _exactRole: getExactPlayerRole(m, lm || {}),
-      _activeNormPos: CURRENT_PITCH_MODE === 'lastMatch' && matchNormPos ? matchNormPos : m._normalizedPos,
-      _buildScore: Number(m.proOverall || 85) * 4 + parseFloat(m.ratingAve || 7.0) * 12,
-      _archetype: computeArchetypeAndPlaystyles(m).archetype,
-      _lmScore: lm ? 1000 + parseFloat(lm.rating || 0) * 20 : -1,
-      _lmRat: lm ? parseFloat(lm.rating || 0) : null,
-      _lmGA: lm ? Number(lm.goals || 0) + Number(lm.assists || 0) : 0
-    };
-  });
-
-  const savedOverride = localStorage.getItem(`clubFormation_${GLOBAL_CLUB_ID || 'default'}`) || 'auto';
-  const selectEl = document.getElementById('formationOverrideSelect'); if (selectEl) selectEl.value = savedOverride;
-
-  let tpl = FORMATION_TEMPLATES['4-1-2-1-2'];
-  if (savedOverride !== 'auto' && FORMATION_TEMPLATES[savedOverride]) {
-    tpl = FORMATION_TEMPLATES[savedOverride];
-  } else {
-    const rawMatchPlayers = Object.values(latestPlayersMap);
-    const actualMatchFwds = rawMatchPlayers.filter(lp => normalizePosition(lp.pos) === 'FWD');
-
-    let maxFwdsRecent5 = actualMatchFwds.length;
-    matches.slice(0, 5).forEach(m => {
-      const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
-      const myId = cIds.find(id => String(id) === String(GLOBAL_CLUB_ID)) || cIds[0];
-      const fCnt = Object.values(m.players?.[myId] || {}).filter(lp => normalizePosition(lp.pos) === 'FWD').length;
-      if (fCnt > maxFwdsRecent5) maxFwdsRecent5 = fCnt;
-    });
-
-    if (actualMatchFwds.length === 2) {
-      tpl = FORMATION_TEMPLATES['4-1-2-1-2'];
-    } else if (actualMatchFwds.length >= 3) {
-      tpl = FORMATION_TEMPLATES['4-3-3 Attack'];
-    } else if (actualMatchFwds.length === 1) {
-      const squadFwds = scored.filter(m => m._normalizedPos === 'FWD').length;
-      tpl = (maxFwdsRecent5 === 2 || squadFwds >= 2) ? FORMATION_TEMPLATES['4-1-2-1-2'] : FORMATION_TEMPLATES['4-2-3-1 Narrow'];
-    } else {
-      tpl = FORMATION_TEMPLATES['4-1-2-1-2'];
-    }
-  }
-
-  document.getElementById('formationBadge').innerText = tpl.name;
-  document.getElementById('formationSubtitle').innerText = CURRENT_PITCH_MODE === 'lastMatch' ? `Active Lineup from your most recent match vs ${latestOpp} (${Object.keys(latestPlayersMap).length} Human Pros)` : `Suggested Best XI based on Pro OVR, Exact Position (proPos) & Build Attributes`;
-
-  const pool = CURRENT_PITCH_MODE === 'lastMatch' ? scored.filter(m => m._lmScore > 0).sort((a, b) => b._lmScore - a._lmScore) : [...scored].sort((a, b) => b._buildScore - a._buildScore);
-  const used = new Set(), assigned = [];
-
-  const claim = (groupPos, slotLabel, fb = true) => {
-    let i = pool.findIndex(p => !used.has(p._displayName) && p._activeNormPos === groupPos && p._exactRole === slotLabel);
-    if (i === -1) i = pool.findIndex(p => !used.has(p._displayName) && p._activeNormPos === groupPos);
-    if (i === -1 && fb && groupPos !== 'GK') i = pool.findIndex(p => !used.has(p._displayName));
-    if (i !== -1) { used.add(pool[i]._displayName); return pool[i]; }
-    return null;
-  };
-
-  const nodeHtml = (p, slot) => {
-    if (!p) return `<div class="flex flex-col items-center opacity-35 select-none w-16 sm:w-24"><div class="w-9 h-9 sm:w-11 sm:h-11 rounded-full border-2 border-dashed border-gray-400 bg-gray-950/70 flex items-center justify-center text-[9px] text-gray-300 font-black">AI</div><span class="text-[9px] font-bold text-gray-300 mt-1">CPU</span><span class="text-[8px] text-gray-400 uppercase font-extrabold">${slot}</span></div>`;
-    assigned.push(p);
-    const name = p._displayName, ovr = Number(p.proOverall || 85), tier = getCardTierTheme(ovr);
-    const rat = (CURRENT_PITCH_MODE === 'lastMatch' && p._lmRat !== null ? p._lmRat : parseFloat(p.ratingAve || 7.0)).toFixed(1);
-    const pill = CURRENT_PITCH_MODE === 'lastMatch' && p._lmRat !== null ? `${p._lmGA} G+A` : p._archetype;
-    const shirt = getShirtLabel(name);
-    const flagUrl = resolvePlayerFlagUrl(p);
-    const flagNode = flagUrl ? `<img src="${flagUrl}" class="absolute -top-0.5 -right-1 w-3.5 h-2.5 sm:w-4 sm:h-3 object-cover rounded-[2px] border border-gray-950 shadow-md z-10" alt="Nation">` : '';
-
-    return `<div onclick="openFutModal('${name.replace(/'/g,"\\'")}')" class="flex flex-col items-center hover:scale-105 transition cursor-pointer group w-[74px] sm:w-24"><div class="relative"><img src="${getPlayerAvatarUrl(name)}" class="w-10 h-10 sm:w-[52px] sm:h-[52px] rounded-full avatar-circle border-2 border-emerald-400 bg-gray-900 object-cover shadow-xl"><span class="absolute -top-1 -left-1.5 bg-gray-950 ${tier.badgeClass} border font-black text-[8px] sm:text-[9px] px-1 rounded z-10">${ovr}</span>${flagNode}<span class="absolute -bottom-1 -left-1.5 bg-yellow-500 text-black font-black text-[8px] sm:text-[9px] px-1 rounded-sm z-10">${rat}</span></div><span class="text-[10px] sm:text-xs font-extrabold text-white mt-1 drop-shadow max-w-[70px] sm:max-w-[96px] truncate" title="${p._proNickname || shirt}">${name}</span><div class="flex items-center gap-0.5 mt-0.5"><span class="text-[8px] sm:text-[9px] bg-black/60 text-emerald-300 px-1 rounded uppercase font-black">${slot || p._exactRole}</span><span class="hidden sm:inline text-[9px] bg-black/60 text-gray-200 px-1 rounded font-semibold truncate max-w-[60px]">${pill}</span></div></div>`;
-  };
-
-  tpl.atk.forEach(s => rows[0].innerHTML += nodeHtml(claim('FWD', s, true), s));
-  rows[1].classList.toggle('hidden', !tpl.cam.length);
-  tpl.cam.forEach(s => rows[1].innerHTML += nodeHtml(claim('MID', s, true), s));
-  tpl.mid.forEach(s => rows[2].innerHTML += nodeHtml(claim('MID', s, true), s));
-  tpl.def.forEach(s => rows[3].innerHTML += nodeHtml(claim('DEF', s, true), s));
-  rows[4].innerHTML = nodeHtml(claim('GK', 'GK', false), 'GK');
-
-  const hCnt = assigned.length;
-  document.getElementById('pitchMetricHumans').innerText = `${hCnt} / 11 Pros`;
-  document.getElementById('pitchMetricOvr').innerText = hCnt ? `${Math.round(assigned.reduce((a,b)=>a+Number(b.proOverall||85),0)/hCnt)} OVR` : '--';
-  document.getElementById('pitchMetricRating').innerText = hCnt ? (assigned.reduce((a,b)=>a+parseFloat(b.ratingAve||7.0),0)/hCnt).toFixed(2) : '--';
-  document.getElementById('pitchMetricZone').innerText = 'Midfield Engine';
 }
 
 function checkInitialUrlRoute() {
