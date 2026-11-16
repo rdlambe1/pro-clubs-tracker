@@ -41,16 +41,64 @@ function findMemberMeta(playerName) {
 }
 
 function getShirtLabel(name) {
-  const parts = String(name || 'PRO').trim().split(/[\s_-]+/);
-  return (parts[parts.length - 1] || name || 'PRO').substring(0, 10).toUpperCase();
+  const clean = String(name || 'PRO').replace(/[0-9_.-]+$/g, '').trim() || String(name || 'PRO').trim();
+  const parts = clean.split(/[\s_-]+/);
+  return (parts[parts.length - 1] || clean || 'PRO').substring(0, 9).toUpperCase();
 }
 
+function getShirtNumber(name, memberMeta = null) {
+  const str = String(name || 'PRO');
+  const numMatch = str.match(/(\d{1,2})$/);
+  if (numMatch && Number(numMatch[1]) > 0) return numMatch[1];
+
+  const pos = normalizePosition(memberMeta?.favoritePosition || memberMeta?.pos || 'MID');
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+  const abs = Math.abs(hash);
+
+  if (pos === 'GK') return '1';
+  if (pos === 'FWD') return String([9, 11, 7, 10, 14, 19][abs % 6]);
+  if (pos === 'DEF') return String([2, 3, 4, 5, 6, 15, 23][abs % 7]);
+  return String([8, 10, 6, 16, 17, 20, 21][abs % 7]);
+}
+
+// Custom Jersey-Back SVG Avatar with Player Name & Kit Number on the Back
 function getPlayerAvatarUrl(name, highRes = false) {
   if (typeof CUSTOM_PLAYER_AVATARS !== 'undefined' && CUSTOM_PLAYER_AVATARS[name]) {
     return CUSTOM_PLAYER_AVATARS[name];
   }
-  const sz = highRes ? 240 : 96;
-  return `https://api.dicebear.com/7.x/bottts-neutral/svg?seed=${encodeURIComponent(name || 'Pro')}&size=${sz}`;
+  const m = findMemberMeta(name);
+  const shirtName = getShirtLabel(m?.proName || name);
+  const shirtNum = getShirtNumber(name, m);
+
+  const homeKit = GLOBAL_COMBINED_DATA?.kits?.home || ['#f59e0b', '#111827', '#ffffff'];
+  let primary = homeKit[0] || '#f59e0b';
+  let secondary = homeKit[1] || '#111827';
+  if (primary.toLowerCase() === secondary.toLowerCase()) secondary = '#ffffff';
+
+  const nameFontSize = shirtName.length >= 8 ? 11.5 : (shirtName.length >= 6 ? 13 : 14.5);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="${highRes ? 240 : 96}" height="${highRes ? 240 : 96}">
+    <defs>
+      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#1e293b"/>
+        <stop offset="100%" stop-color="#0b0f19"/>
+      </linearGradient>
+      <linearGradient id="kit" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="${primary}"/>
+        <stop offset="100%" stop-color="${primary}" stop-opacity="0.86"/>
+      </linearGradient>
+    </defs>
+    <rect width="120" height="120" rx="60" fill="url(#bg)"/>
+    <circle cx="60" cy="18" r="11" fill="#cbd5e1" opacity="0.85"/>
+    <path d="M35 28 L47 24 Q60 30 73 24 L85 28 L104 46 L91 61 L82 52 L82 108 L38 108 L38 52 L29 61 L16 46 Z" fill="url(#kit)" stroke="${secondary}" stroke-width="2.8" stroke-linejoin="round"/>
+    <path d="M46 24 Q60 31 74 24" fill="none" stroke="${secondary}" stroke-width="4" stroke-linecap="round"/>
+    <line x1="25" y1="56" x2="34" y2="47" stroke="${secondary}" stroke-width="2.5"/>
+    <line x1="95" y1="56" x2="86" y2="47" stroke="${secondary}" stroke-width="2.5"/>
+    <text x="60" y="50" font-family="'Oswald', 'Arial Black', sans-serif" font-size="${nameFontSize}" font-weight="900" fill="${secondary}" text-anchor="middle" letter-spacing="0.6">${shirtName}</text>
+    <text x="60" y="88" font-family="'Oswald', 'Impact', sans-serif" font-size="36" font-weight="900" fill="${secondary}" text-anchor="middle">${shirtNum}</text>
+  </svg>`;
+
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
 function resolvePlayerFlagUrl(memberOrName) {
@@ -227,7 +275,7 @@ function getChaosEmoji(myG, oppG, oppSR) {
   const tot = myG + oppG, diff = myG - oppG;
   if (diff >= 3) return { emoji: '🔥', label: 'Total Demolition' };
   if (diff <= -3) return { emoji: '💀', label: 'Defensive Collapse' };
-  if (tot >= 6) return { emoji: '🍿', label: ' basketball Scoreline' };
+  if (tot >= 6) return { emoji: '🍿', label: 'Basketball Scoreline' };
   if (myG === 0 && oppG === 0) return { emoji: '🧱', label: 'Tactical Chess Match' };
   if (diff === 1 && Number(oppSR || 0) >= 1750) return { emoji: '🧊', label: 'Ice-Cold Giant Killing' };
   return { emoji: '⚔️', label: 'Competitive Battle' };
@@ -354,7 +402,6 @@ function computeMatchIntelligence(clubId, matches = []) {
     return [];
   }
 
-  // Group Latest Session Matches (within 3.5 hours between consecutive matches)
   const sessionMatches = [recent10[0]];
   for (let i = 1; i < recent10.length; i++) {
     const prevTs = Number(recent10[i - 1].timestamp || 0);
@@ -371,7 +418,6 @@ function computeMatchIntelligence(clubId, matches = []) {
   const duoMap = {};
   const oppList = [];
 
-  // Iterate oldest-to-newest so chronological ratings array is in exact time order
   [...recent10].reverse().forEach(m => {
     const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
     const myId = cIds.find(id => String(id) === String(clubId)) || cIds[0];
@@ -402,7 +448,7 @@ function computeMatchIntelligence(clubId, matches = []) {
 
       if (!pMap[n]) {
         pMap[n] = {
-          name: n, normPos, exactPos, games: 0, subGames: 0, superSubGA: 0, ratSum: 0, ratings: [],
+          name: n, normPos, exactPos, games: 0, wins: 0, subGames: 0, superSubGA: 0, ratSum: 0, ratings: [],
           goals: 0, assists: 0, shots: 0, passesMade: 0, passAtt: 0, missedPasses: 0,
           tackles: 0, tackleAtt: 0, blocks: 0, interceptions: 0, skillMoves: 0, dribblesCompleted: 0,
           woodwork: 0, saves: 0, goalsConceded: 0, offsides: 0, yellows: 0, reds: 0, recentCleanSheets: 0
@@ -410,6 +456,7 @@ function computeMatchIntelligence(clubId, matches = []) {
       }
       const u = pMap[n];
       u.games++; u.ratSum += rat; u.ratings.push(rat);
+      if (myG > oppG) u.wins++;
       if (isSub) { u.subGames++; u.superSubGA += (goals + assists); }
       u.goals += goals; u.assists += assists; u.shots += shots;
       u.passesMade += pm; u.passAtt += pa; u.missedPasses += Math.max(0, pa - pm);
@@ -421,7 +468,6 @@ function computeMatchIntelligence(clubId, matches = []) {
       if (oppG === 0) u.recentCleanSheets++;
     });
 
-    // Build Dynamic Duo Pairs
     const uniqueNames = [...new Set(activeNames)].sort();
     for (let i = 0; i < uniqueNames.length; i++) {
       for (let j = i + 1; j < uniqueNames.length; j++) {
@@ -443,7 +489,6 @@ function computeMatchIntelligence(clubId, matches = []) {
 
   SHAME_LIST_CACHE = Object.values(pMap);
 
-  // Render Dynamic Duo & Toughest Opponent Intel Cards
   const intelSec = document.getElementById('intelSection');
   if (intelSec) {
     intelSec.classList.remove('hidden');
