@@ -494,6 +494,10 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
   const stadEl = document.getElementById('clubStadiumName');
   if (stadEl) stadEl.innerText = data.stadiumName || 'Pro Clubs Arena';
 
+  const rep = data.clubRep || { level: 5, tierTitle: 'Up and Coming' };
+  const lvlEl = document.getElementById('clubLevelBadgeText');
+  if (lvlEl) lvlEl.innerText = `Lvl ${rep.level} • ${rep.tierTitle}`;
+
   const kits = data.kits || { home: ['#10b981','#ffffff','#064e3b'], away: ['#1e293b','#38bdf8','#0f172a'], third: ['#f59e0b','#111827','#ffffff'] };
   const kitsBox = document.getElementById('clubKitsContainer');
   if (kitsBox) kitsBox.innerHTML = `${renderMiniJerseySvg(kits.home,'Home')}<span class="text-gray-700">|</span>${renderMiniJerseySvg(kits.away,'Away')}<span class="text-gray-700">|</span>${renderMiniJerseySvg(kits.third,'3rd')}`;
@@ -532,7 +536,7 @@ function filterRecentMatches(category) {
   renderRecentMatches(GLOBAL_CLUB_ID, GLOBAL_MATCHES);
 }
 
-// Recent 10 Matches Renderer (Awards 👑 MVP to highest impact and 🥄 SPOON to lowest impact player; Saves replaces Missed)
+// Recent 10 Matches Renderer (Awards 👑 MVP to highest impact and 💩 to lowest impact player; Saves replaces Missed)
 function renderRecentMatches(clubId, matches) {
   const tbody = document.getElementById('recentMatchesTable'), formContainer = document.getElementById('formBadges');
   if (!tbody) return;
@@ -612,7 +616,7 @@ function renderRecentMatches(clubId, matches) {
         awardBadge = `<span class="px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-400 border border-yellow-500/40 text-[10px] font-black">👑 MVP</span>`;
         crownGiven = true;
       } else if (!spoonGiven && playerStats.length > 1 && pName === worstSpoon && worstSpoon !== bestMvp) {
-        awardBadge = `<span class="px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-300 border border-amber-600/50 text-[10px] font-black" title="Match Wooden Spoon (Lowest Impact Score)">🥄 SPOON</span>`;
+        awardBadge = `<span class="px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-300 border border-amber-600/50 text-[10px] font-black" title="Lowest Match Impact Score">💩</span>`;
         spoonGiven = true;
       }
 
