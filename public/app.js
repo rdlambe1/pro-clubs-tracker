@@ -177,17 +177,77 @@ function renderCardBadgesHtml(yellows = 0, reds = 0) {
   </div>`;
 }
 
-async function shareElementAsPng(elementId, filenamePrefix = 'ClubsTracker') {
+// Masks a canvas with true alpha rounded corners so html2canvas never leaves white corners on mobile exports
+function applyRoundedCornerMask(sourceCanvas, radiusPx = 40) {
+  if (!radiusPx || radiusPx <= 0) return sourceCanvas;
+  const w = sourceCanvas.width, h = sourceCanvas.height;
+  const out = document.createElement('canvas');
+  out.width = w; out.height = h;
+  const ctx = out.getContext('2d');
+  const r = Math.min(radiusPx, w / 2, h / 2);
+
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.lineTo(w - r, 0);
+  ctx.quadraticCurveTo(w, 0, w, r);
+  ctx.lineTo(w, h - r);
+  ctx.quadraticCurveTo(w, h, w - r, h);
+  ctx.lineTo(r, h);
+  ctx.quadraticCurveTo(0, h, 0, h - r);
+  ctx.lineTo(0, r);
+  ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(sourceCanvas, 0, 0);
+  return out;
+}
+
+// High-DPI PNG Exporter with html2canvas text-clipping fix & true transparent rounded corners
+async function shareElementAsPng(elementId, filenamePrefix = 'ClubsTracker', cornerRadiusCssPx = 20) {
   const el = document.getElementById(elementId);
   if (!el || typeof html2canvas === 'undefined') return;
   try {
-    const canvas = await html2canvas(el, { backgroundColor: null, useCORS: true, scale: 2 });
-    canvas.toBlob(async (blob) => {
+    const scaleFactor = 2;
+    const rawCanvas = await html2canvas(el, {
+      backgroundColor: null,
+      useCORS: true,
+      scale: scaleFactor,
+      onclone: (clonedDoc) => {
+        // 1. Remove mobile modal scale transform during snapshot so line-heights & font baselines aren't shifted
+        clonedDoc.querySelectorAll('.ut-modal-scaler').forEach(s => {
+          s.style.transform = 'none';
+        });
+        // 2. Prevent html2canvas from clipping bottom of descenders on any text node inside the export target
+        const target = clonedDoc.getElementById(elementId);
+        if (target) {
+          target.querySelectorAll('.truncate, .poster-safe-text, h2, h3, div, span').forEach(node => {
+            if (node.children.length === 0 && node.textContent.trim().length > 0) {
+              node.style.overflow = 'visible';
+              node.style.lineHeight = '1.35';
+              node.style.paddingBottom = '2px';
+            }
+          });
+        }
+      }
+    });
+
+    const finalCanvas = cornerRadiusCssPx > 0
+      ? applyRoundedCornerMask(rawCanvas, cornerRadiusCssPx * scaleFactor)
+      : rawCanvas;
+
+    finalCanvas.toBlob(async (blob) => {
       if (!blob) return;
       const file = new File([blob], `${filenamePrefix}.png`, { type: 'image/png' });
-      if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: filenamePrefix }); return; } catch (_) {} }
-      if (navigator.clipboard && window.ClipboardItem) { try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); alert('📸 Copied to clipboard!'); return; } catch (_) {} }
-      const a = document.createElement('a'); a.download = `${filenamePrefix}.png`; a.href = URL.createObjectURL(blob); a.click();
+      if (navigator.canShare?.({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: filenamePrefix }); return; } catch (_) {}
+      }
+      if (navigator.clipboard && window.ClipboardItem) {
+        try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); alert('📸 Copied to clipboard!'); return; } catch (_) {}
+      }
+      const a = document.createElement('a');
+      a.download = `${filenamePrefix}.png`;
+      a.href = URL.createObjectURL(blob);
+      a.click();
     }, 'image/png');
   } catch (e) { console.error(e); }
 }
@@ -327,7 +387,60 @@ function switchRecapMode(mode) {
   updateRecapMetricsDisplay(GLOBAL_CLUB_ID, mode === 'session' ? SESSION_MATCHES_CACHE : GLOBAL_MATCHES.slice(0, 10), mode);
 }
 
-// Upgraded Session Recap & Broadcast Poster Engine (Match Ticker, Net SR Delta, Crown/Poop Tallies, Highlights & Poster Modal)
+// Visual SVG Match Results & Goal Differential Trajectory Graph (Works cleanly on both Dashboard & Poster Export)
+function buildSessionResultsGraphSvg(matchLogChrono = [], isCompactPoster = false) {
+  if (!matchLogChrono.length) return '';
+  const n = matchLogChrono.length;
+  const w = isCompactPoster ? 335 : 640;
+  const h = isCompactPoster ? 82 : 76;
+  const midY = isCompactPoster ? 41 : 38;
+  const maxBarH = isCompactPoster ? 20 : 18;
+  const maxGd = Math.max(2, ...matchLogChrono.map(m => Math.abs(m.gd || 0)));
+
+  const stepX = w / n;
+  const coords = matchLogChrono.map((item, i) => {
+    const cx = +(stepX * i + stepX / 2).toFixed(1);
+    const gd = Number(item.gd || 0);
+    const norm = Math.min(1, Math.abs(gd) / maxGd);
+    const barH = Math.max(5, Math.round(norm * maxBarH));
+    const cy = gd > 0 ? +(midY - barH).toFixed(1) : (gd < 0 ? +(midY + barH).toFixed(1) : midY);
+    return { ...item, cx, cy, barH, gd };
+  });
+
+  const linePath = coords.length > 1
+    ? `<path d="${coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.cx} ${c.cy}`).join(' ')}" fill="none" stroke="#334155" stroke-width="1.8" stroke-linecap="round"/>`
+    : '';
+
+  const nodes = coords.map((c) => {
+    const col = c.resChar === 'W' ? '#10b981' : (c.resChar === 'L' ? '#f43f5e' : '#f59e0b');
+    const barY = c.gd >= 0 ? c.cy : midY;
+    const barHeight = c.gd === 0 ? 3 : Math.abs(c.cy - midY);
+    const barW = Math.min(28, Math.max(12, Math.round(stepX * 0.34)));
+
+    const maxChars = n <= 3 ? 12 : (n <= 5 ? 8 : (n <= 7 ? 6 : 4));
+    const shortOpp = c.oppName.length > maxChars ? c.oppName.substring(0, maxChars - 1) + '…' : c.oppName;
+    const scoreY = c.gd >= 0 ? Math.max(11, c.cy - 6) : Math.min(h - 15, c.cy + 11);
+    const oppY = h - 3;
+    const scoreFont = n > 7 ? 8.5 : 9.5;
+    const oppFont = n > 7 ? 7.5 : 8.5;
+
+    return `<g>
+      <title>${c.resChar} ${c.score} vs ${c.oppName}</title>
+      <rect x="${(c.cx - barW / 2).toFixed(1)}" y="${barY}" width="${barW}" height="${barHeight}" rx="3" fill="${col}" fill-opacity="0.28" stroke="${col}" stroke-width="1.3"/>
+      <circle cx="${c.cx}" cy="${c.cy}" r="3.2" fill="${col}" stroke="#0b0f19" stroke-width="1.2"/>
+      <text x="${c.cx}" y="${scoreY}" fill="${col}" font-size="${scoreFont}" font-family="monospace" font-weight="900" text-anchor="middle">${c.resChar} ${c.score}${c.isRageQuit ? '💨' : ''}</text>
+      <text x="${c.cx}" y="${oppY}" fill="#94a3b8" font-size="${oppFont}" font-family="Inter, sans-serif" font-weight="700" text-anchor="middle">${shortOpp}</text>
+    </g>`;
+  }).join('');
+
+  return `<svg viewBox="0 0 ${w} ${h}" class="w-full h-full overflow-visible select-none">
+    <line x1="8" y1="${midY}" x2="${w - 8}" y2="${midY}" stroke="#1e293b" stroke-width="1.2" stroke-dasharray="3 3"/>
+    ${linePath}
+    ${nodes}
+  </svg>`;
+}
+
+// Upgraded Session Recap & Broadcast Poster Engine (Visual Results Graph, Net SR Delta, Crown/Poop Tallies, Highlights & Poster Modal)
 function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const sec = document.getElementById('sessionRecapSection');
   if (!sec) return;
@@ -352,7 +465,6 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     const resChar = isWin ? 'W' : (isLoss ? 'L' : 'D');
     sGF += mG; sGA += oG; if (isWin) sW++; else if (isLoss) sL++; else sD++;
 
-    // Calculate Elo SR Delta for this match
     const gdAbs = Math.abs(mG - oG);
     const srDiff = Math.max(-350, Math.min(350, oppSr - runningSr));
     const expected = 1 / (1 + Math.pow(10, srDiff / 400));
@@ -369,7 +481,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     const maxSecs = myPlayers.reduce((mx, p) => Math.max(mx, Number(p.secondsPlayed || 0)), 0);
     const isRageQuit = isWin && ((maxSecs > 0 && maxSecs < 4100) || (mG - oG >= 4 && maxSecs < 4800) || Number(oppClub.winnerByDnf || myClub.winnerByDnf || 0) === 1);
 
-    matchLogChrono.unshift({ resChar, score: `${mG}-${oG}`, oppName, isRageQuit, delta });
+    matchLogChrono.unshift({ resChar, score: `${mG}-${oG}`, gd: mG - oG, oppName, isRageQuit, delta });
 
     if (myPlayers.length > 0) {
       const obk = myPlayers.length <= 2 ? 2 : myPlayers.length === 3 ? 3 : myPlayers.length === 4 ? 4 : 5;
@@ -441,18 +553,9 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     srDeltaEl.innerText = netSrDelta > 0 ? `▲ +${netSrDelta} SR` : (netSrDelta < 0 ? `▼ ${netSrDelta} SR` : `⚖️ 0 SR`);
   }
 
-  // Render Match-by-Match Results Ticker Strip
-  const tickerHtml = matchLogChrono.map(item => {
-    const cls = item.resChar === 'W'
-      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
-      : item.resChar === 'L'
-      ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
-      : 'bg-yellow-500/15 border-yellow-500/40 text-yellow-300';
-    const shortOpp = item.oppName.length > 13 ? item.oppName.substring(0, 12) + '…' : item.oppName;
-    return `<div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border ${cls} text-[10px] font-bold whitespace-nowrap flex-shrink-0"><span class="font-black">${item.resChar} ${item.score}</span><span class="text-gray-300 font-normal">vs ${shortOpp}</span>${item.isRageQuit ? '<span title="Opponent Rage Quit">💨</span>' : ''}</div>`;
-  }).join('');
+  // Render Visual SVG Match Results & Goal Margin Graph
   const tickerBox = document.getElementById('sessionMatchTicker');
-  if (tickerBox) tickerBox.innerHTML = tickerHtml;
+  if (tickerBox) tickerBox.innerHTML = buildSessionResultsGraphSvg(matchLogChrono, false);
 
   const tb = document.getElementById('sessionTiltBadge');
   const tiltText = sL > sW && sL >= 2 ? '🚨 HIGH TILT' : sW > sL ? '🔥 VIBES IMMACULATE' : '⚖️ MIXED BAG';
@@ -482,11 +585,12 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     }
   }
 
-  // Compute 3 Session Highlights & Crimes (Top Threat, Defensive Rock, Crime of the Stint)
+  // Compute 3 Session Highlights & Crimes (Ensures variety across players when multiple pros are in the session)
   const highlights = [];
   if (arr.length) {
     const topThreat = [...arr].sort((a, b) => (b.goals * 3 + b.assists * 2) - (a.goals * 3 + a.assists * 2))[0];
-    const topRock = [...arr].sort((a, b) => (b.tackles + b.interceptions + b.blocks) - (a.tackles + a.interceptions + a.blocks))[0];
+    const rockPool = arr.length > 1 ? arr.filter(p => p.name !== topThreat.name) : arr;
+    const topRock = [...rockPool].sort((a, b) => (b.tackles + b.interceptions + b.blocks) - (a.tackles + a.interceptions + a.blocks))[0] || arr[0];
     const topCrime = [...arr].sort((a, b) => (b.reds * 15 + b.missedPasses + Math.max(0, b.shots - b.goals) * 2) - (a.reds * 15 + a.missedPasses + Math.max(0, a.shots - a.goals) * 2))[0];
 
     if (topThreat) {
@@ -542,7 +646,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const pMode = document.getElementById('posterModeTag');
   if (pMode) pMode.innerText = mode === 'session' ? `${fixtures.length}-MATCH SESSION` : `LAST ${fixtures.length} MATCHES`;
   const pTilt = document.getElementById('posterTiltTag');
-  if (pTilt) { pTilt.className = tiltCls; pTilt.innerText = tiltText; }
+  if (pTilt) { pTilt.className = `${tiltCls} poster-safe-text`; pTilt.innerText = tiltText; }
   const pClub = document.getElementById('posterClubName');
   if (pClub) pClub.innerText = cName;
   const pDate = document.getElementById('posterDateSub');
@@ -557,7 +661,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   if (pWp) pWp.innerText = `${winPct}% Win Rate`;
   if (pSr) pSr.innerText = `${curSr} SR`;
   if (pSrD) {
-    pSrD.className = netSrDelta >= 0 ? 'text-[10px] font-black font-mono text-emerald-400' : 'text-[10px] font-black font-mono text-rose-400';
+    pSrD.className = netSrDelta >= 0 ? 'text-[10px] font-black font-mono text-emerald-400 poster-safe-text' : 'text-[10px] font-black font-mono text-rose-400 poster-safe-text';
     pSrD.innerText = netSrDelta > 0 ? `▲ +${netSrDelta} SR` : (netSrDelta < 0 ? `▼ ${netSrDelta} SR` : `0 SR Net`);
   }
   if (pGls) pGls.innerText = `${sGF}-${sGA} (${gd>=0?`+${gd}`:gd})`;
@@ -566,7 +670,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const pSweet = document.getElementById('posterLobbySweetSpot');
   if (pSweet) pSweet.innerText = ownTxt;
   const pTicker = document.getElementById('posterMatchTicker');
-  if (pTicker) pTicker.innerHTML = tickerHtml;
+  if (pTicker) pTicker.innerHTML = buildSessionResultsGraphSvg(matchLogChrono, true);
 
   if (mvp && liab) {
     const pmAv = document.getElementById('posterMvpAvatar'), pmNm = document.getElementById('posterMvpName'), pmSt = document.getElementById('posterMvpStats'), pmCr = document.getElementById('posterMvpCrowns');
@@ -584,7 +688,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
 
   const pHl = document.getElementById('posterHighlightsList');
   if (pHl) {
-    pHl.innerHTML = highlights.map(h => `<div class="flex items-center justify-between text-[11px] border-b border-gray-800/70 last:border-0 pb-1 last:pb-0"><span class="text-gray-300 font-bold truncate pr-2">${h.icon} ${h.label}: <b class="text-white">${h.player}</b></span><span class="font-mono font-black ${h.col} whitespace-nowrap">${h.stat}</span></div>`).join('');
+    pHl.innerHTML = highlights.map(h => `<div class="flex items-center justify-between text-[11px] border-b border-gray-800/70 last:border-0 pb-1.5 last:pb-0 poster-safe-text"><span class="text-gray-300 font-bold pr-2 poster-safe-text">${h.icon} ${h.label}: <b class="text-white">${h.player}</b></span><span class="font-mono font-black ${h.col} whitespace-nowrap poster-safe-text">${h.stat}</span></div>`).join('');
   }
 }
 
@@ -698,7 +802,6 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
   if (gSt) gSt.innerHTML = `${goals}/${conceded} <span class="text-xs text-gray-400 font-normal">(${gDiff>=0?`+${gDiff}`:gDiff})</span>`;
   if (gpgSub) gpgSub.innerText = `${totalGames > 0 ? (goals / totalGames).toFixed(1) : '0.0'} GF/g • ${totalGames > 0 ? (conceded / totalGames).toFixed(1) : '0.0'} GA/g`;
 
-  // Refresh Session Poster Header after club metadata is populated
   if (typeof updateRecapMetricsDisplay === 'function') {
     updateRecapMetricsDisplay(clubId, CURRENT_RECAP_MODE === 'session' ? SESSION_MATCHES_CACHE : matchesPayload.slice(0, 10), CURRENT_RECAP_MODE);
   }
