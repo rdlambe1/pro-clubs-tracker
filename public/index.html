@@ -276,7 +276,7 @@
                 <div id="clubDivShieldContainer" class="hidden flex items-center"></div>
               </div>
               <p id="clubMeta" class="text-gray-400 text-xs sm:text-sm mt-0.5">--</p>
-              <!-- Clean Identity Bar (Region, Stadium, Club Level & Tier Title, and Kits — No Fake Fan Count) -->
+              <!-- Clean Identity Bar -->
               <div id="clubIdentityBar" class="hidden flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2 pt-2 border-t border-gray-800/70 w-full">
                 <div class="flex items-center gap-1.5 bg-gray-900/80 border border-gray-800 px-2 py-1 rounded text-[11px]"><img id="clubRegionFlag" src="" class="w-4 h-3 object-cover rounded-[2px]" alt="Region"><span id="clubRegionName" class="font-bold text-gray-200">--</span></div>
                 <div class="flex items-center gap-1.5 bg-gray-900/80 border border-gray-800 px-2 py-1 rounded text-[11px]"><i class="fa-solid fa-landmark-dome text-emerald-400 text-[10px]"></i><span id="clubStadiumName" class="font-bold text-gray-200 truncate max-w-[140px] sm:max-w-none">--</span></div>
@@ -305,7 +305,7 @@
           </div>
         </div>
 
-        <!-- Clean Honours Strip (Promos, Relegs, Peak Div Only) + Embedded Skill Rating Sparkline -->
+        <!-- Clean Honours Strip + Embedded Skill Rating Sparkline -->
         <div id="trophyBar" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-3 pt-3.5 border-t border-gray-800/80 items-stretch">
           <div class="lg:col-span-4 bg-gray-900/60 border border-gray-800 rounded-xl p-3 flex items-center justify-around divide-x divide-gray-800/90">
             <div class="flex items-center gap-2 pr-3 flex-1 justify-center">
@@ -358,7 +358,7 @@
 
       <!-- TAB 1: TEAM -->
       <div id="tabPane_team" class="space-y-5">
-        <!-- UPGRADED SESSION RECAP CARD (With Visual Results Graph, Net SR Delta, Award Tallies & Poster Generator) -->
+        <!-- UPGRADED SESSION RECAP CARD (With Momentum Graph, Individual Player Mini-Reports & Poster Generator) -->
         <section id="sessionRecapSection" class="hidden card p-4 sm:p-5 border-l-4 border-l-amber-400 space-y-3.5">
           <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-gray-800 pb-3">
             <div class="flex flex-wrap items-center gap-2.5">
@@ -376,13 +376,13 @@
             </div>
           </div>
 
-          <!-- Visual Match Results & Goal Margin Graph (On-Page) -->
+          <!-- Visual Match Momentum & Scoreline Chain (On-Page) -->
           <div class="bg-gray-900/50 border border-gray-800/90 rounded-xl px-3 py-2">
             <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">
-              <span><i class="fa-solid fa-chart-column text-emerald-400 mr-1"></i>Match Results & Scoreline Trajectory</span>
-              <span class="text-[9px] text-gray-500 font-mono">Chronological (Oldest → Latest)</span>
+              <span><i class="fa-solid fa-bolt text-emerald-400 mr-1"></i>Session Momentum & Scorelines</span>
+              <span class="text-[9px] text-gray-500 font-mono">Chronological (M1 → Latest)</span>
             </div>
-            <div id="sessionMatchTicker" class="w-full h-[76px] flex items-center justify-center"></div>
+            <div id="sessionMatchTicker" class="w-full h-[78px] flex items-center justify-center"></div>
           </div>
 
           <!-- 4-Column Main Metrics Grid -->
@@ -425,6 +425,15 @@
               <div id="ownPartySizeGrid" class="grid grid-cols-2 gap-1.5 mt-1.5"></div>
               <div id="squadFactorVerdict" class="text-[10px] text-gray-400 mt-1 italic truncate">--</div>
             </div>
+          </div>
+
+          <!-- Individual Player Mini-Reports Grid (On-Page) -->
+          <div class="space-y-2 pt-1">
+            <div class="text-[10px] font-black uppercase tracking-wider text-gray-400 flex items-center justify-between">
+              <span><i class="fa-solid fa-user-check text-emerald-400 mr-1"></i>Squad Session Ratings & Verdicts</span>
+              <span class="text-[9px] text-gray-500 font-mono">Sorted by Match Impact</span>
+            </div>
+            <div id="sessionPlayerReportsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-2.5"></div>
           </div>
 
           <!-- Session Highlights & Crimes Mini-Strip -->
@@ -475,7 +484,7 @@
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5" id="shameBoardGrid"></div>
         </section>
 
-        <!-- Clean 10-Column Squad Table: Player | Rating & Form | OVR | GP (Win%) | Goals | Assists | G+A/G | Tackles | Pass % | MoTM -->
+        <!-- Clean 10-Column Squad Table -->
         <section class="card p-4 sm:p-6 space-y-4">
           <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-1"><h3 class="text-base sm:text-lg font-bold text-white flex items-center gap-2"><i class="fa-solid fa-users text-emerald-400"></i> Full Squad Performance</h3><span class="text-xs text-gray-400">Tap any column header to sort • Tap any player row for their <b class="text-yellow-400">FC27 UT Card</b></span></div>
           <div class="overflow-x-auto touch-scroll"><table class="w-full text-left text-xs sm:text-sm whitespace-nowrap"><thead class="border-b border-gray-800 text-gray-400 uppercase text-[10px] sm:text-xs select-none"><tr>
@@ -522,14 +531,14 @@
     </footer>
   </div>
 
-  <!-- BROADCAST SESSION POSTER MODAL (True Alpha Rounded Corners, Unclipped Text & Visual Results Graph) -->
-  <div id="sessionPosterModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center z-50 p-2 overflow-y-auto" onclick="closeSessionPosterModal()">
-    <div class="ut-modal-scaler flex flex-col items-center gap-2.5 my-auto" onclick="event.stopPropagation()">
+  <!-- BROADCAST SESSION POSTER MODAL (Includes Momentum Chain, MVP/Passenger & Individual Squad Report Cards) -->
+  <div id="sessionPosterModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-start sm:items-center justify-center z-50 p-2 sm:p-4 overflow-y-auto" onclick="closeSessionPosterModal()">
+    <div class="ut-modal-scaler flex flex-col items-center gap-2.5 my-4 sm:my-auto" onclick="event.stopPropagation()">
       <div class="relative">
         <button onclick="closeSessionPosterModal()" data-html2canvas-ignore="true" class="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gray-900 border border-emerald-500/60 text-emerald-400 hover:bg-emerald-500 hover:text-black transition flex items-center justify-center z-40 shadow-lg"><i class="fa-solid fa-xmark"></i></button>
 
         <div id="sessionPosterExportTarget" class="poster-card-bg w-[375px] p-4 space-y-3 text-white select-none">
-          <!-- Poster Header: Club Crest, Name, Division Shield & Mode Pill -->
+          <!-- Poster Header -->
           <div class="flex items-center justify-between border-b border-gray-800/90 pb-3">
             <div class="flex items-center gap-2.5 min-w-0 pr-2">
               <div id="posterCrestBox" class="w-12 h-12 rounded-xl bg-gray-900 border border-gray-700 p-1 flex items-center justify-center flex-shrink-0 shadow-md"></div>
@@ -545,7 +554,7 @@
             <div id="posterDivShield" class="flex-shrink-0"></div>
           </div>
 
-          <!-- Poster Hero Scoreboard: Record, Win%, Net SR Delta & Goal Diff -->
+          <!-- Poster Hero Scoreboard -->
           <div class="grid grid-cols-3 gap-2 bg-gray-900/80 border border-gray-800 rounded-xl p-2.5 text-center">
             <div>
               <div class="text-[9px] uppercase font-bold text-gray-400 poster-safe-text">Record</div>
@@ -564,10 +573,10 @@
             </div>
           </div>
 
-          <!-- Poster Visual Match Results & Goal Margin Graph -->
+          <!-- Poster Momentum & Scoreline Chain -->
           <div class="bg-gray-900/75 border border-gray-800 rounded-xl p-2.5 space-y-1">
             <div class="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-gray-400 poster-safe-text">
-              <span><i class="fa-solid fa-chart-column text-emerald-400 mr-1"></i>Match Results Graph</span>
+              <span><i class="fa-solid fa-bolt text-emerald-400 mr-1"></i>Session Momentum & Scorelines</span>
               <span id="posterLobbySweetSpot" class="text-[9px] text-sky-400 font-mono poster-safe-text"></span>
             </div>
             <div id="posterMatchTicker" class="w-full h-[84px] flex items-center justify-center"></div>
@@ -594,6 +603,15 @@
               <div id="posterPoopName" class="text-[13px] font-black text-white poster-safe-text w-full break-words">--</div>
               <div id="posterPoopStats" class="text-[10px] text-rose-200/90 font-medium poster-safe-text">--</div>
             </div>
+          </div>
+
+          <!-- Poster Individual Player Mini-Reports -->
+          <div class="bg-gray-900/75 border border-gray-800 rounded-xl p-2.5 space-y-2">
+            <div class="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-gray-400 poster-safe-text">
+              <span><i class="fa-solid fa-user-check text-emerald-400 mr-1"></i>Squad Session Report Cards</span>
+              <span class="text-[8px] text-gray-500 font-mono">AVG RAT & VERDICT</span>
+            </div>
+            <div id="posterPlayerReportsList" class="space-y-1.5"></div>
           </div>
 
           <!-- Poster Highlights & Crimes List -->
