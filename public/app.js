@@ -1,5 +1,6 @@
 let CURRENT_LEADERBOARD_MODE = 'season';
 let CURRENT_MATCH_FILTER = 'ALL';
+let LATEST_POSTER_STATE = null;
 
 function applyStoredTheme() {
   const isLight = (localStorage.getItem('proClubsTheme') || 'dark') === 'light';
@@ -177,63 +178,453 @@ function renderCardBadgesHtml(yellows = 0, reds = 0) {
   </div>`;
 }
 
-// Masks a canvas with true alpha rounded corners so html2canvas never leaves white corners on mobile exports
+// Helper to draw rounded rectangles on a 2D Canvas
+function drawCanvasRoundRect(ctx, x, y, w, h, r) {
+  const rad = Math.min(r, w / 2, h / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + rad, y);
+  ctx.lineTo(x + w - rad, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + rad);
+  ctx.lineTo(x + w, y + h - rad);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - rad, y + h);
+  ctx.lineTo(x + rad, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - rad);
+  ctx.lineTo(x, y + rad);
+  ctx.quadraticCurveTo(x, y, x + rad, y);
+  ctx.closePath();
+}
+
+function loadImageAsync(url) {
+  return new Promise((resolve) => {
+    if (!url) return resolve(null);
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+// Native 2x Retina HTML5 Canvas Poster Renderer (Zero html2canvas bugs, zero text clipping, 100% transparent outer corners)
+async function buildNativeSessionPosterCanvas(st) {
+  const W = 750, H = 1040;
+  const canvas = document.createElement('canvas');
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+
+  // 1. True Alpha Rounded Outer Mask
+  drawCanvasRoundRect(ctx, 2, 2, W - 4, H - 4, 38);
+  ctx.save();
+  ctx.clip();
+
+  // Background radial gradient
+  const bgGrad = ctx.createRadialGradient(W / 2, 0, 20, W / 2, 0, 780);
+  bgGrad.addColorStop(0, '#1e293b');
+  bgGrad.addColorStop(0.75, '#0b111e');
+  bgGrad.addColorStop(1, '#090d16');
+  ctx.fillStyle = bgGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  // Outer Border Rim
+  drawCanvasRoundRect(ctx, 3, 3, W - 6, H - 6, 37);
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = 'rgba(16, 185, 129, 0.55)';
+  ctx.stroke();
+
+  // Load images in parallel (Crest, MVP Avatar & Flag, Passenger Avatar & Flag)
+  const [crestImg, mvpAvImg, mvpFlImg, liabAvImg, liabFlImg] = await Promise.all([
+    loadImageAsync(st.crestUrl),
+    loadImageAsync(st.mvp ? getPlayerAvatarUrl(st.mvp.name, true) : null),
+    loadImageAsync(st.mvp ? resolvePlayerFlagUrl(st.mvp.name) : null),
+    loadImageAsync(st.liab ? getPlayerAvatarUrl(st.liab.name, true) : null),
+    loadImageAsync(st.liab ? resolvePlayerFlagUrl(st.liab.name) : null)
+  ]);
+
+  // 2. Header Section
+  drawCanvasRoundRect(ctx, 34, 32, 92, 92, 20);
+  ctx.fillStyle = '#111827';
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#334155';
+  ctx.stroke();
+  if (crestImg) {
+    ctx.drawImage(crestImg, 42, 40, 76, 76);
+  }
+
+  // Mode Pill (Amber)
+  ctx.font = '900 15px Inter, sans-serif';
+  const modeW = Math.ceil(ctx.measureText(st.modeLabel).width) + 26;
+  drawCanvasRoundRect(ctx, 142, 32, modeW, 30, 8);
+  ctx.fillStyle = '#fbbf24';
+  ctx.fill();
+  ctx.fillStyle = '#0b0f19';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillText(st.modeLabel, 142 + modeW / 2, 47);
+
+  // Tilt Pill
+  const tiltX = 142 + modeW + 12;
+  const tiltW = Math.ceil(ctx.measureText(st.tiltText).width) + 28;
+  drawCanvasRoundRect(ctx, tiltX, 32, tiltW, 30, 15);
+  ctx.fillStyle = st.tiltBg;
+  ctx.fill();
+  ctx.lineWidth = 1.5;
+  ctx.strokeStyle = st.tiltBorder;
+  ctx.stroke();
+  ctx.fillStyle = st.tiltColor;
+  ctx.fillText(st.tiltText, tiltX + tiltW / 2, 47);
+
+  // Club Name & Date
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 36px Inter, sans-serif';
+  ctx.fillText(st.clubName.length > 20 ? st.clubName.substring(0, 19) + '…' : st.clubName, 142, 86);
+
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '600 19px Inter, sans-serif';
+  ctx.fillText(`${st.dateStr} • Division ${st.divNum} Telemetry`, 142, 115);
+
+  // Division Shield on Top Right
+  const shX = W - 72, shY = 78;
+  ctx.beginPath();
+  ctx.moveTo(shX, shY - 36);
+  ctx.lineTo(shX + 30, shY - 24);
+  ctx.lineTo(shX + 30, shY + 6);
+  ctx.quadraticCurveTo(shX + 30, shY + 28, shX, shY + 38);
+  ctx.quadraticCurveTo(shX - 30, shY + 28, shX - 30, shY + 6);
+  ctx.lineTo(shX - 30, shY - 24);
+  ctx.closePath();
+  ctx.fillStyle = '#1e293b';
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = '#eab308';
+  ctx.stroke();
+  ctx.fillStyle = '#facc15';
+  ctx.textAlign = 'center';
+  ctx.font = '900 11px Inter, sans-serif';
+  ctx.fillText('DIV', shX, shY - 12);
+  ctx.font = '900 24px Oswald, Inter, sans-serif';
+  ctx.fillText(String(st.divNum), shX, shY + 11);
+
+  // Header Divider
+  ctx.beginPath();
+  ctx.moveTo(34, 144);
+  ctx.lineTo(W - 34, 144);
+  ctx.strokeStyle = '#1e293b';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // 3. Scoreboard Strip (Record | Skill Rating | Goals)
+  drawCanvasRoundRect(ctx, 34, 162, W - 68, 126, 22);
+  ctx.fillStyle = 'rgba(17, 24, 39, 0.85)';
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#1f2937';
+  ctx.stroke();
+
+  const colW = (W - 68) / 3;
+  [1, 2].forEach(idx => {
+    ctx.beginPath();
+    ctx.moveTo(34 + colW * idx, 180);
+    ctx.lineTo(34 + colW * idx, 270);
+    ctx.strokeStyle = '#1f2937';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  });
+
+  // Col 1: Record
+  const c1X = 34 + colW * 0.5;
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '800 16px Inter, sans-serif';
+  ctx.fillText('RECORD', c1X, 188);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 32px Inter, sans-serif';
+  ctx.fillText(st.recordStr, c1X, 226);
+  ctx.fillStyle = '#38bdf8';
+  ctx.font = '800 19px monospace';
+  ctx.fillText(`${st.winPct}% Win Rate`, c1X, 260);
+
+  // Col 2: Skill Rating
+  const c2X = 34 + colW * 1.5;
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '800 16px Inter, sans-serif';
+  ctx.fillText('SKILL RATING', c2X, 188);
+  ctx.fillStyle = '#34d399';
+  ctx.font = '900 32px monospace';
+  ctx.fillText(`${st.curSr} SR`, c2X, 226);
+  ctx.fillStyle = st.netSrDelta >= 0 ? '#34d399' : '#fb7185';
+  ctx.font = '900 19px monospace';
+  ctx.fillText(st.srDeltaStr, c2X, 260);
+
+  // Col 3: Goals
+  const c3X = 34 + colW * 2.5;
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '800 16px Inter, sans-serif';
+  ctx.fillText('GOALS (GD)', c3X, 188);
+  ctx.fillStyle = '#ffffff';
+  ctx.font = '900 32px monospace';
+  ctx.fillText(st.goalsStr, c3X, 226);
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '700 18px monospace';
+  ctx.fillText(st.gpgStr, c3X, 260);
+
+  // 4. Match Momentum & Scoreline Step-Chain (No Opponent Names)
+  drawCanvasRoundRect(ctx, 34, 306, W - 68, 198, 22);
+  ctx.fillStyle = 'rgba(17, 24, 39, 0.85)';
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#1f2937';
+  ctx.stroke();
+
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '900 16px Inter, sans-serif';
+  ctx.fillText('⚡ SESSION MOMENTUM & SCORELINES', 54, 334);
+
+  if (st.sweetSpotText) {
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#38bdf8';
+    ctx.font = '800 15px monospace';
+    ctx.fillText(st.sweetSpotText.toUpperCase(), W - 54, 334);
+  }
+
+  // Draw Momentum Step-Chain Nodes
+  const matches = st.matchLogChrono || [];
+  if (matches.length) {
+    const plotL = 75, plotR = W - 75, plotT = 376, plotB = 456;
+    const plotW = plotR - plotL, plotH = plotB - plotT;
+    let level = 0;
+    const levels = matches.map(m => {
+      if (m.resChar === 'W') level += 1;
+      else if (m.resChar === 'L') level -= 1;
+      return level;
+    });
+    const minL = Math.min(-1, ...levels), maxL = Math.max(1, ...levels);
+    const rangeL = Math.max(2, maxL - minL);
+
+    const pts = matches.map((m, i) => {
+      const x = matches.length === 1 ? (plotL + plotR) / 2 : plotL + (i / (matches.length - 1)) * plotW;
+      const y = plotB - ((levels[i] - minL) / rangeL) * plotH;
+      return { x, y, ...m, idx: i + 1 };
+    });
+
+    // Midline
+    ctx.beginPath();
+    ctx.setLineDash([6, 6]);
+    ctx.moveTo(54, (plotT + plotB) / 2);
+    ctx.lineTo(W - 54, (plotT + plotB) / 2);
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Area & Connecting Line
+    if (pts.length > 1) {
+      ctx.beginPath();
+      pts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
+      ctx.strokeStyle = '#10b981';
+      ctx.lineWidth = 5;
+      ctx.stroke();
+    }
+
+    // Match Nodes & Score Badges (Zero Opponent Names)
+    pts.forEach(p => {
+      const col = p.resChar === 'W' ? '#10b981' : (p.resChar === 'L' ? '#f43f5e' : '#f59e0b');
+      const bgCol = p.resChar === 'W' ? '#064e3b' : (p.resChar === 'L' ? '#4c0519' : '#451a03');
+
+      // Score Pill Above Node
+      const scoreTxt = `${p.score}${p.isRageQuit ? ' 💨' : ''}`;
+      ctx.font = '900 16px monospace';
+      const sw = Math.max(54, Math.ceil(ctx.measureText(scoreTxt).width) + 18);
+      drawCanvasRoundRect(ctx, p.x - sw / 2, p.y - 46, sw, 24, 7);
+      ctx.fillStyle = bgCol;
+      ctx.fill();
+      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = col;
+      ctx.stroke();
+      ctx.fillStyle = '#ffffff';
+      ctx.textAlign = 'center';
+      ctx.fillText(scoreTxt, p.x, p.y - 34);
+
+      // Circle Node with W/D/L
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 17, 0, Math.PI * 2);
+      ctx.fillStyle = col;
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = '#0b111e';
+      ctx.stroke();
+      ctx.fillStyle = '#0b111e';
+      ctx.font = '900 17px Inter, sans-serif';
+      ctx.fillText(p.resChar, p.x, p.y + 1);
+
+      // Match Number & SR Delta Below Node
+      const dTxt = p.delta > 0 ? `+${p.delta}` : `${p.delta}`;
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '800 14px monospace';
+      ctx.fillText(`M${p.idx} (${dTxt})`, p.x, p.y + 32);
+    });
+  }
+
+  // 5. Head-to-Head Spotlight: 👑 MVP vs 💩 PASSENGER
+  const cardW = (W - 86) / 2, cardY = 522, cardH = 250;
+
+  const drawSpotlightCard = (x, title, titleCol, borderCol, bgCol, badgeTxt, badgeBg, badgeCol, player, avImg, flImg) => {
+    drawCanvasRoundRect(ctx, x, cardY, cardW, cardH, 22);
+    ctx.fillStyle = bgCol;
+    ctx.fill();
+    ctx.lineWidth = 2.5;
+    ctx.strokeStyle = borderCol;
+    ctx.stroke();
+
+    ctx.textAlign = 'left';
+    ctx.fillStyle = titleCol;
+    ctx.font = '900 18px Inter, sans-serif';
+    ctx.fillText(title, x + 22, cardY + 32);
+
+    if (badgeTxt) {
+      ctx.font = '900 15px Inter, sans-serif';
+      const bw = Math.ceil(ctx.measureText(badgeTxt).width) + 22;
+      drawCanvasRoundRect(ctx, x + cardW - bw - 18, cardY + 17, bw, 28, 8);
+      ctx.fillStyle = badgeBg;
+      ctx.fill();
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = borderCol;
+      ctx.stroke();
+      ctx.textAlign = 'center';
+      ctx.fillStyle = badgeCol;
+      ctx.fillText(badgeTxt, x + cardW - bw / 2 - 18, cardY + 31);
+    }
+
+    const cx = x + cardW / 2, cy = cardY + 104, rad = 46;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+    ctx.clip();
+    if (avImg) ctx.drawImage(avImg, cx - rad, cy - rad, rad * 2, rad * 2);
+    ctx.restore();
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = titleCol;
+    ctx.stroke();
+
+    if (flImg) {
+      ctx.drawImage(flImg, cx + 18, cy + 22, 30, 21);
+      ctx.strokeStyle = '#0b111e';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(cx + 18, cy + 22, 30, 21);
+    }
+
+    const pName = player?.name || '--';
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 26px Inter, sans-serif';
+    ctx.fillText(pName.length > 16 ? pName.substring(0, 15) + '…' : pName, cx, cardY + 184);
+
+    ctx.fillStyle = '#e2e8f0';
+    ctx.font = '700 17px Inter, sans-serif';
+    const statLine = player?.summary || '--';
+    ctx.fillText(statLine.length > 34 ? statLine.substring(0, 33) + '…' : statLine, cx, cardY + 218);
+  };
+
+  drawSpotlightCard(
+    34, '👑 MVP', '#34d399', 'rgba(16, 185, 129, 0.45)', 'rgba(6, 78, 59, 0.32)',
+    st.mvpBadge, 'rgba(234, 179, 8, 0.22)', '#fde047', st.mvp, mvpAvImg, mvpFlImg
+  );
+
+  drawSpotlightCard(
+    34 + cardW + 18, '💩 PASSENGER', '#fb7185', 'rgba(244, 63, 94, 0.45)', 'rgba(76, 5, 25, 0.32)',
+    st.liabBadge, 'rgba(120, 53, 15, 0.45)', '#fcd34d', st.liab, liabAvImg, liabFlImg
+  );
+
+  // 6. Highlights & Crimes Box
+  const hlY = 790, hlH = 172;
+  drawCanvasRoundRect(ctx, 34, hlY, W - 68, hlH, 22);
+  ctx.fillStyle = 'rgba(17, 24, 39, 0.85)';
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#1f2937';
+  ctx.stroke();
+
+  (st.highlights || []).slice(0, 3).forEach((h, i) => {
+    const rowY = hlY + 36 + i * 50;
+    if (i > 0) {
+      ctx.beginPath();
+      ctx.moveTo(54, rowY - 25);
+      ctx.lineTo(W - 54, rowY - 25);
+      ctx.strokeStyle = '#1f2937';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#cbd5e1';
+    ctx.font = '700 19px Inter, sans-serif';
+    const leftTxt = `${h.icon} ${h.label}: `;
+    ctx.fillText(leftTxt, 54, rowY);
+    const lw = ctx.measureText(leftTxt).width;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '900 20px Inter, sans-serif';
+    ctx.fillText(h.player, 54 + lw, rowY);
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = h.hexCol || '#34d399';
+    ctx.font = '900 19px monospace';
+    ctx.fillText(h.stat, W - 54, rowY);
+  });
+
+  // 7. Footer Watermark
+  ctx.textAlign = 'left';
+  ctx.fillStyle = '#34d399';
+  ctx.font = '900 18px Inter, sans-serif';
+  ctx.fillText('🛡️ CLUBSTRACKER', 38, H - 34);
+
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#64748b';
+  ctx.font = '800 15px monospace';
+  ctx.fillText('EA SPORTS FC™ OFFICIAL TELEMETRY', W - 38, H - 34);
+
+  ctx.restore();
+  return canvas;
+}
+
+// Masks a canvas with true alpha rounded corners
 function applyRoundedCornerMask(sourceCanvas, radiusPx = 40) {
   if (!radiusPx || radiusPx <= 0) return sourceCanvas;
   const w = sourceCanvas.width, h = sourceCanvas.height;
   const out = document.createElement('canvas');
   out.width = w; out.height = h;
   const ctx = out.getContext('2d');
-  const r = Math.min(radiusPx, w / 2, h / 2);
-
-  ctx.beginPath();
-  ctx.moveTo(r, 0);
-  ctx.lineTo(w - r, 0);
-  ctx.quadraticCurveTo(w, 0, w, r);
-  ctx.lineTo(w, h - r);
-  ctx.quadraticCurveTo(w, h, w - r, h);
-  ctx.lineTo(r, h);
-  ctx.quadraticCurveTo(0, h, 0, h - r);
-  ctx.lineTo(0, r);
-  ctx.quadraticCurveTo(0, 0, r, 0);
-  ctx.closePath();
+  drawCanvasRoundRect(ctx, 0, 0, w, h, radiusPx);
   ctx.clip();
   ctx.drawImage(sourceCanvas, 0, 0);
   return out;
 }
 
-// High-DPI PNG Exporter with html2canvas text-clipping fix & true transparent rounded corners
+// High-DPI PNG Exporter (Uses Native Vector Canvas for Session Poster so text/pills are never clipped)
 async function shareElementAsPng(elementId, filenamePrefix = 'ClubsTracker', cornerRadiusCssPx = 20) {
-  const el = document.getElementById(elementId);
-  if (!el || typeof html2canvas === 'undefined') return;
   try {
-    const scaleFactor = 2;
-    const rawCanvas = await html2canvas(el, {
-      backgroundColor: null,
-      useCORS: true,
-      scale: scaleFactor,
-      onclone: (clonedDoc) => {
-        // 1. Remove mobile modal scale transform during snapshot so line-heights & font baselines aren't shifted
-        clonedDoc.querySelectorAll('.ut-modal-scaler').forEach(s => {
-          s.style.transform = 'none';
-        });
-        // 2. Prevent html2canvas from clipping bottom of descenders on any text node inside the export target
-        const target = clonedDoc.getElementById(elementId);
-        if (target) {
-          target.querySelectorAll('.truncate, .poster-safe-text, h2, h3, div, span').forEach(node => {
-            if (node.children.length === 0 && node.textContent.trim().length > 0) {
-              node.style.overflow = 'visible';
-              node.style.lineHeight = '1.35';
-              node.style.paddingBottom = '2px';
-            }
-          });
+    let finalCanvas = null;
+    if (elementId === 'sessionPosterExportTarget' && LATEST_POSTER_STATE) {
+      finalCanvas = await buildNativeSessionPosterCanvas(LATEST_POSTER_STATE);
+    } else {
+      const el = document.getElementById(elementId);
+      if (!el || typeof html2canvas === 'undefined') return;
+      const scaleFactor = 2;
+      const rawCanvas = await html2canvas(el, {
+        backgroundColor: null,
+        useCORS: true,
+        scale: scaleFactor,
+        onclone: (clonedDoc) => {
+          clonedDoc.querySelectorAll('.ut-modal-scaler').forEach(s => { s.style.transform = 'none'; });
         }
-      }
-    });
-
-    const finalCanvas = cornerRadiusCssPx > 0
-      ? applyRoundedCornerMask(rawCanvas, cornerRadiusCssPx * scaleFactor)
-      : rawCanvas;
+      });
+      finalCanvas = cornerRadiusCssPx > 0
+        ? applyRoundedCornerMask(rawCanvas, cornerRadiusCssPx * scaleFactor)
+        : rawCanvas;
+    }
 
     finalCanvas.toBlob(async (blob) => {
       if (!blob) return;
@@ -387,60 +778,72 @@ function switchRecapMode(mode) {
   updateRecapMetricsDisplay(GLOBAL_CLUB_ID, mode === 'session' ? SESSION_MATCHES_CACHE : GLOBAL_MATCHES.slice(0, 10), mode);
 }
 
-// Visual SVG Match Results & Goal Differential Trajectory Graph (Works cleanly on both Dashboard & Poster Export)
+// Broadcast Match Momentum & Scoreline Step-Chain SVG (No Opponent Names, Pure W/D/L Nodes + Scorelines + SR Deltas)
 function buildSessionResultsGraphSvg(matchLogChrono = [], isCompactPoster = false) {
   if (!matchLogChrono.length) return '';
   const n = matchLogChrono.length;
   const w = isCompactPoster ? 335 : 640;
-  const h = isCompactPoster ? 82 : 76;
-  const midY = isCompactPoster ? 41 : 38;
-  const maxBarH = isCompactPoster ? 20 : 18;
-  const maxGd = Math.max(2, ...matchLogChrono.map(m => Math.abs(m.gd || 0)));
+  const h = isCompactPoster ? 84 : 78;
+  const padL = isCompactPoster ? 32 : 44;
+  const padR = isCompactPoster ? 32 : 44;
+  const plotT = 26, plotB = h - 22;
+  const plotW = w - padL - padR, plotH = Math.max(18, plotB - plotT);
 
-  const stepX = w / n;
-  const coords = matchLogChrono.map((item, i) => {
-    const cx = +(stepX * i + stepX / 2).toFixed(1);
-    const gd = Number(item.gd || 0);
-    const norm = Math.min(1, Math.abs(gd) / maxGd);
-    const barH = Math.max(5, Math.round(norm * maxBarH));
-    const cy = gd > 0 ? +(midY - barH).toFixed(1) : (gd < 0 ? +(midY + barH).toFixed(1) : midY);
-    return { ...item, cx, cy, barH, gd };
+  let lvl = 0;
+  const levels = matchLogChrono.map(m => {
+    if (m.resChar === 'W') lvl += 1;
+    else if (m.resChar === 'L') lvl -= 1;
+    return lvl;
+  });
+  const minL = Math.min(-1, ...levels), maxL = Math.max(1, ...levels);
+  const rangeL = Math.max(2, maxL - minL);
+
+  const pts = matchLogChrono.map((item, i) => {
+    const cx = n === 1 ? +(w / 2).toFixed(1) : +(padL + (i / (n - 1)) * plotW).toFixed(1);
+    const cy = +(plotB - ((levels[i] - minL) / rangeL) * plotH).toFixed(1);
+    return { ...item, cx, cy, idx: i + 1 };
   });
 
-  const linePath = coords.length > 1
-    ? `<path d="${coords.map((c, i) => `${i === 0 ? 'M' : 'L'} ${c.cx} ${c.cy}`).join(' ')}" fill="none" stroke="#334155" stroke-width="1.8" stroke-linecap="round"/>`
+  const linePath = pts.length > 1
+    ? pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.cx} ${p.cy}`).join(' ')
+    : '';
+  const areaPath = pts.length > 1
+    ? `${linePath} L ${pts[pts.length - 1].cx} ${h - 6} L ${pts[0].cx} ${h - 6} Z`
     : '';
 
-  const nodes = coords.map((c) => {
-    const col = c.resChar === 'W' ? '#10b981' : (c.resChar === 'L' ? '#f43f5e' : '#f59e0b');
-    const barY = c.gd >= 0 ? c.cy : midY;
-    const barHeight = c.gd === 0 ? 3 : Math.abs(c.cy - midY);
-    const barW = Math.min(28, Math.max(12, Math.round(stepX * 0.34)));
-
-    const maxChars = n <= 3 ? 12 : (n <= 5 ? 8 : (n <= 7 ? 6 : 4));
-    const shortOpp = c.oppName.length > maxChars ? c.oppName.substring(0, maxChars - 1) + '…' : c.oppName;
-    const scoreY = c.gd >= 0 ? Math.max(11, c.cy - 6) : Math.min(h - 15, c.cy + 11);
-    const oppY = h - 3;
-    const scoreFont = n > 7 ? 8.5 : 9.5;
-    const oppFont = n > 7 ? 7.5 : 8.5;
+  const nodes = pts.map(p => {
+    const col = p.resChar === 'W' ? '#10b981' : (p.resChar === 'L' ? '#f43f5e' : '#f59e0b');
+    const bgCol = p.resChar === 'W' ? '#064e3b' : (p.resChar === 'L' ? '#4c0519' : '#451a03');
+    const scoreTxt = `${p.score}${p.isRageQuit ? '💨' : ''}`;
+    const pillW = isCompactPoster ? (n > 6 ? 26 : 32) : (n > 6 ? 34 : 40);
+    const pillH = isCompactPoster ? 13 : 15;
+    const r = isCompactPoster ? (n > 7 ? 7.5 : 9) : 10.5;
+    const dStr = p.delta > 0 ? `+${p.delta}` : `${p.delta}`;
 
     return `<g>
-      <title>${c.resChar} ${c.score} vs ${c.oppName}</title>
-      <rect x="${(c.cx - barW / 2).toFixed(1)}" y="${barY}" width="${barW}" height="${barHeight}" rx="3" fill="${col}" fill-opacity="0.28" stroke="${col}" stroke-width="1.3"/>
-      <circle cx="${c.cx}" cy="${c.cy}" r="3.2" fill="${col}" stroke="#0b0f19" stroke-width="1.2"/>
-      <text x="${c.cx}" y="${scoreY}" fill="${col}" font-size="${scoreFont}" font-family="monospace" font-weight="900" text-anchor="middle">${c.resChar} ${c.score}${c.isRageQuit ? '💨' : ''}</text>
-      <text x="${c.cx}" y="${oppY}" fill="#94a3b8" font-size="${oppFont}" font-family="Inter, sans-serif" font-weight="700" text-anchor="middle">${shortOpp}</text>
+      <rect x="${(p.cx - pillW / 2).toFixed(1)}" y="${(p.cy - r - pillH - 3).toFixed(1)}" width="${pillW}" height="${pillH}" rx="4" fill="${bgCol}" stroke="${col}" stroke-width="1.2"/>
+      <text x="${p.cx}" y="${(p.cy - r - pillH / 2 - 2.5).toFixed(1)}" fill="#ffffff" font-size="${isCompactPoster ? 8.5 : 9.5}" font-family="monospace" font-weight="900" text-anchor="middle" dominant-baseline="central">${scoreTxt}</text>
+      <circle cx="${p.cx}" cy="${p.cy}" r="${r}" fill="${col}" stroke="#0b111e" stroke-width="2"/>
+      <text x="${p.cx}" y="${p.cy}" fill="#0b111e" font-size="${isCompactPoster ? 8.5 : 9.5}" font-family="Inter, sans-serif" font-weight="900" text-anchor="middle" dominant-baseline="central">${p.resChar}</text>
+      <text x="${p.cx}" y="${(p.cy + r + 10).toFixed(1)}" fill="#94a3b8" font-size="${isCompactPoster ? 7.5 : 8.5}" font-family="monospace" font-weight="800" text-anchor="middle">M${p.idx}(${dStr})</text>
     </g>`;
   }).join('');
 
   return `<svg viewBox="0 0 ${w} ${h}" class="w-full h-full overflow-visible select-none">
-    <line x1="8" y1="${midY}" x2="${w - 8}" y2="${midY}" stroke="#1e293b" stroke-width="1.2" stroke-dasharray="3 3"/>
-    ${linePath}
+    <defs>
+      <linearGradient id="momAreaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" stop-color="#10b981" stop-opacity="0.28"/>
+        <stop offset="100%" stop-color="#10b981" stop-opacity="0.0"/>
+      </linearGradient>
+    </defs>
+    <line x1="12" y1="${((plotT + plotB) / 2).toFixed(1)}" x2="${w - 12}" y2="${((plotT + plotB) / 2).toFixed(1)}" stroke="#1e293b" stroke-width="1.2" stroke-dasharray="3 3"/>
+    ${areaPath ? `<path d="${areaPath}" fill="url(#momAreaGrad)"/>` : ''}
+    ${linePath ? `<path d="${linePath}" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>` : ''}
     ${nodes}
   </svg>`;
 }
 
-// Upgraded Session Recap & Broadcast Poster Engine (Visual Results Graph, Net SR Delta, Crown/Poop Tallies, Highlights & Poster Modal)
+// Upgraded Session Recap & Broadcast Poster Engine
 function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const sec = document.getElementById('sessionRecapSection');
   if (!sec) return;
@@ -544,32 +947,37 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   if (sGd) sGd.innerText = `${sGF} GF / ${sGA} GA (${gd>=0?`+${gd}`:gd} GD)`;
   if (sWp) sWp.innerText = `${winPct}% Win`;
 
+  const srDeltaStr = netSrDelta > 0 ? `▲ +${netSrDelta} SR` : (netSrDelta < 0 ? `▼ ${netSrDelta} SR` : `⚖️ 0 SR`);
   if (srDeltaEl) {
     srDeltaEl.className = netSrDelta > 0
       ? 'px-2 py-0.5 rounded-full text-[10px] font-black font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
       : netSrDelta < 0
       ? 'px-2 py-0.5 rounded-full text-[10px] font-black font-mono bg-rose-500/20 text-rose-400 border border-rose-500/40'
       : 'px-2 py-0.5 rounded-full text-[10px] font-black font-mono bg-gray-800 text-gray-300 border border-gray-700';
-    srDeltaEl.innerText = netSrDelta > 0 ? `▲ +${netSrDelta} SR` : (netSrDelta < 0 ? `▼ ${netSrDelta} SR` : `⚖️ 0 SR`);
+    srDeltaEl.innerText = srDeltaStr;
   }
 
-  // Render Visual SVG Match Results & Goal Margin Graph
   const tickerBox = document.getElementById('sessionMatchTicker');
   if (tickerBox) tickerBox.innerHTML = buildSessionResultsGraphSvg(matchLogChrono, false);
 
   const tb = document.getElementById('sessionTiltBadge');
-  const tiltText = sL > sW && sL >= 2 ? '🚨 HIGH TILT' : sW > sL ? '🔥 VIBES IMMACULATE' : '⚖️ MIXED BAG';
-  const tiltCls = sL > sW && sL >= 2 ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40' : sW > sL ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40';
+  const isHighTilt = sL > sW && sL >= 2;
+  const isImmaculate = sW > sL;
+  const tiltText = isHighTilt ? '🚨 HIGH TILT' : isImmaculate ? '🔥 VIBES IMMACULATE' : '⚖️ MIXED BAG';
+  const tiltCls = isHighTilt ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40' : isImmaculate ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40';
   if (tb) { tb.className = tiltCls; tb.innerText = tiltText; }
 
   const arr = Object.values(pMap).map(u => ({ ...u, imp: computePlayerImpactScore(u) })).sort((a, b) => b.imp - a.imp);
   let mvp = null, liab = null;
   if (arr.length) {
     mvp = arr[0]; liab = arr[arr.length - 1];
+    mvp.summary = formatHolisticPlayerSummary(mvp, false);
+    liab.summary = formatHolisticPlayerSummary(liab, arr.length > 1);
+
     const mN = document.getElementById('sessionMvpName'), mS = document.getElementById('sessionMvpStats'), mA = document.getElementById('sessionMvpAvatarBox'), mCr = document.getElementById('sessionMvpCrownsBadge');
     const lN = document.getElementById('sessionLiabilityName'), lS = document.getElementById('sessionLiabilityStats'), lA = document.getElementById('sessionLiabilityAvatarBox'), lPp = document.getElementById('sessionPoopCountBadge');
     if (mN) mN.innerText = mvp.name;
-    if (mS) mS.innerText = formatHolisticPlayerSummary(mvp, false);
+    if (mS) mS.innerText = mvp.summary;
     if (mA) mA.innerHTML = renderAvatarWithFlagHtml(mvp.name, 'w-11 h-11', 'border-emerald-400', 'w-4 h-3');
     if (mCr) {
       if (mvp.mvpCrowns > 0) { mCr.innerText = `${mvp.mvpCrowns}x 👑`; mCr.classList.remove('hidden'); }
@@ -577,7 +985,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     }
 
     if (lN) lN.innerText = liab.name;
-    if (lS) lS.innerText = formatHolisticPlayerSummary(liab, arr.length > 1);
+    if (lS) lS.innerText = liab.summary;
     if (lA) lA.innerHTML = renderAvatarWithFlagHtml(liab.name, 'w-11 h-11', 'border-rose-400', 'w-4 h-3');
     if (lPp) {
       if (liab.poopCount > 0) { lPp.innerText = `${liab.poopCount}x 💩`; lPp.classList.remove('hidden'); }
@@ -585,7 +993,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     }
   }
 
-  // Compute 3 Session Highlights & Crimes (Ensures variety across players when multiple pros are in the session)
+  // Compute 3 Session Highlights & Crimes
   const highlights = [];
   if (arr.length) {
     const topThreat = [...arr].sort((a, b) => (b.goals * 3 + b.assists * 2) - (a.goals * 3 + a.assists * 2))[0];
@@ -595,10 +1003,10 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
 
     if (topThreat) {
       const conv = topThreat.shots > 0 ? `${Math.round((topThreat.goals / topThreat.shots) * 100)}% Conv` : `${topThreat.games} GP`;
-      highlights.push({ icon: '🎯', label: 'Attacking Threat', player: topThreat.name, stat: `${topThreat.goals}G & ${topThreat.assists}A (${conv})`, col: 'text-emerald-400', border: 'border-emerald-500/30' });
+      highlights.push({ icon: '🎯', label: 'Attacking Threat', player: topThreat.name, stat: `${topThreat.goals}G & ${topThreat.assists}A (${conv})`, col: 'text-emerald-400', hexCol: '#34d399', border: 'border-emerald-500/30' });
     }
     if (topRock) {
-      highlights.push({ icon: '🧱', label: 'Defensive Rock', player: topRock.name, stat: `${topRock.tackles} Tkl • ${topRock.interceptions + topRock.blocks} Int/Blk`, col: 'text-sky-400', border: 'border-sky-500/30' });
+      highlights.push({ icon: '🧱', label: 'Defensive Rock', player: topRock.name, stat: `${topRock.tackles} Tkl • ${topRock.interceptions + topRock.blocks} Int/Blk`, col: 'text-sky-400', hexCol: '#38bdf8', border: 'border-sky-500/30' });
     }
     if (topCrime) {
       const missedS = Math.max(0, topCrime.shots - topCrime.goals);
@@ -607,7 +1015,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
         : topCrime.missedPasses >= missedS * 2
         ? `${topCrime.missedPasses} Missed Passes`
         : `${missedS} Missed Shots & ${topCrime.missedPasses} Turnovers`;
-      highlights.push({ icon: '🚨', label: 'Crime of the Stint', player: topCrime.name, stat: crimeStat, col: 'text-rose-400', border: 'border-rose-500/30' });
+      highlights.push({ icon: '🚨', label: 'Crime of the Stint', player: topCrime.name, stat: crimeStat, col: 'text-rose-400', hexCol: '#fb7185', border: 'border-rose-500/30' });
     }
   }
 
@@ -634,17 +1042,48 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const oppTxt = worstOpp.length ? `Toughest: ${worstOpp[0].label} (${Math.round((worstOpp[0].w / worstOpp[0].total) * 100)}% Win)` : '';
   if (pVerd) pVerd.innerText = [ownTxt, oppTxt].filter(Boolean).join(' • ') || 'Balanced squad size record';
 
-  // Populate Broadcast Session Poster Modal
+  // Populate Modal Preview & Store State for Native 2x Canvas PNG Exporter
   const cName = GLOBAL_COMBINED_DATA?.info?.name || document.getElementById('clubName')?.innerText || 'Pro Clubs';
   const curSr = GLOBAL_COMBINED_DATA?.overall?.skillRating ?? GLOBAL_COMBINED_DATA?.overall?.rating ?? '--';
-  const divNum = GLOBAL_COMBINED_DATA?.divisionNum ?? GLOBAL_COMBINED_DATA?.division ?? 'Div 5';
+  const rawDiv = GLOBAL_COMBINED_DATA?.divisionNum ?? GLOBAL_COMBINED_DATA?.division ?? '5';
+  const divNum = String(rawDiv).replace(/[^0-9]/g, '') || '5';
   const latestTs = Number(fixtures[0]?.timestamp || 0);
   const dateStr = latestTs > 0 ? new Date(latestTs * 1000).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : 'Latest Stint';
+  const modeLabel = mode === 'session' ? `${fixtures.length}-MATCH SESSION` : `LAST ${fixtures.length} MATCHES`;
+  const mvpBadge = mvp ? (mvp.mvpCrowns > 0 ? `${mvp.mvpCrowns}x 👑` : `${(mvp.ratingSum / mvp.games).toFixed(1)}★`) : '';
+  const liabBadge = liab ? (liab.poopCount > 0 ? `${liab.poopCount}x 💩` : `${(liab.ratingSum / liab.games).toFixed(1)}★`) : '';
 
+  LATEST_POSTER_STATE = {
+    clubName: cName,
+    crestUrl: CURRENT_CLUB_CREST_URL || `${API_BASE}/crest/0?name=FC`,
+    divNum,
+    dateStr,
+    modeLabel,
+    tiltText,
+    tiltBg: isHighTilt ? 'rgba(244, 63, 94, 0.2)' : isImmaculate ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+    tiltBorder: isHighTilt ? 'rgba(244, 63, 94, 0.45)' : isImmaculate ? 'rgba(16, 185, 129, 0.45)' : 'rgba(245, 158, 11, 0.45)',
+    tiltColor: isHighTilt ? '#fb7185' : isImmaculate ? '#34d399' : '#fcd34d',
+    recordStr: `${sW}W-${sD}D-${sL}L`,
+    winPct,
+    curSr,
+    netSrDelta,
+    srDeltaStr,
+    goalsStr: `${sGF}-${sGA} (${gd >= 0 ? `+${gd}` : gd})`,
+    gpgStr: `${(sGF / totGames).toFixed(1)} GF / ${(sGA / totGames).toFixed(1)} GA`,
+    sweetSpotText: ownTxt,
+    matchLogChrono,
+    mvp,
+    liab,
+    mvpBadge,
+    liabBadge,
+    highlights
+  };
+
+  // Update Live Modal Preview DOM
   const pCrest = document.getElementById('posterCrestBox');
-  if (pCrest) pCrest.innerHTML = `<img src="${CURRENT_CLUB_CREST_URL || `${API_BASE}/crest/0?name=FC`}" crossorigin="anonymous" class="w-full h-full object-contain" alt="${cName}">`;
+  if (pCrest) pCrest.innerHTML = `<img src="${LATEST_POSTER_STATE.crestUrl}" crossorigin="anonymous" class="w-full h-full object-contain" alt="${cName}">`;
   const pMode = document.getElementById('posterModeTag');
-  if (pMode) pMode.innerText = mode === 'session' ? `${fixtures.length}-MATCH SESSION` : `LAST ${fixtures.length} MATCHES`;
+  if (pMode) pMode.innerText = modeLabel;
   const pTilt = document.getElementById('posterTiltTag');
   if (pTilt) { pTilt.className = `${tiltCls} poster-safe-text`; pTilt.innerText = tiltText; }
   const pClub = document.getElementById('posterClubName');
@@ -652,20 +1091,20 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const pDate = document.getElementById('posterDateSub');
   if (pDate) pDate.innerText = `${dateStr} • Official EA Match Telemetry`;
   const pDiv = document.getElementById('posterDivShield');
-  if (pDiv && typeof renderDivisionShieldHtml === 'function') pDiv.innerHTML = renderDivisionShieldHtml(divNum, 'sm');
+  if (pDiv && typeof renderDivisionShieldHtml === 'function') pDiv.innerHTML = renderDivisionShieldHtml(rawDiv, 'sm');
 
   const pRec = document.getElementById('posterRecord'), pWp = document.getElementById('posterWinPct');
   const pSr = document.getElementById('posterCurrentSr'), pSrD = document.getElementById('posterSrDelta');
   const pGls = document.getElementById('posterGoals'), pGpg = document.getElementById('posterGpg');
-  if (pRec) pRec.innerText = `${sW}W-${sD}D-${sL}L`;
+  if (pRec) pRec.innerText = LATEST_POSTER_STATE.recordStr;
   if (pWp) pWp.innerText = `${winPct}% Win Rate`;
   if (pSr) pSr.innerText = `${curSr} SR`;
   if (pSrD) {
     pSrD.className = netSrDelta >= 0 ? 'text-[10px] font-black font-mono text-emerald-400 poster-safe-text' : 'text-[10px] font-black font-mono text-rose-400 poster-safe-text';
-    pSrD.innerText = netSrDelta > 0 ? `▲ +${netSrDelta} SR` : (netSrDelta < 0 ? `▼ ${netSrDelta} SR` : `0 SR Net`);
+    pSrD.innerText = srDeltaStr;
   }
-  if (pGls) pGls.innerText = `${sGF}-${sGA} (${gd>=0?`+${gd}`:gd})`;
-  if (pGpg) pGpg.innerText = `${(sGF / totGames).toFixed(1)} GF / ${(sGA / totGames).toFixed(1)} GA`;
+  if (pGls) pGls.innerText = LATEST_POSTER_STATE.goalsStr;
+  if (pGpg) pGpg.innerText = LATEST_POSTER_STATE.gpgStr;
 
   const pSweet = document.getElementById('posterLobbySweetSpot');
   if (pSweet) pSweet.innerText = ownTxt;
@@ -677,13 +1116,13 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     const ppAv = document.getElementById('posterPoopAvatar'), ppNm = document.getElementById('posterPoopName'), ppSt = document.getElementById('posterPoopStats'), ppCt = document.getElementById('posterPoopCount');
     if (pmAv) pmAv.innerHTML = renderAvatarWithFlagHtml(mvp.name, 'w-12 h-12', 'border-emerald-400', 'w-4 h-3');
     if (pmNm) pmNm.innerText = mvp.name;
-    if (pmSt) pmSt.innerText = formatHolisticPlayerSummary(mvp, false);
-    if (pmCr) pmCr.innerText = mvp.mvpCrowns > 0 ? `${mvp.mvpCrowns}x 👑` : `${(mvp.ratingSum / mvp.games).toFixed(1)}★`;
+    if (pmSt) pmSt.innerText = mvp.summary;
+    if (pmCr) pmCr.innerText = mvpBadge;
 
     if (ppAv) ppAv.innerHTML = renderAvatarWithFlagHtml(liab.name, 'w-12 h-12', 'border-rose-400', 'w-4 h-3');
     if (ppNm) ppNm.innerText = liab.name;
-    if (ppSt) ppSt.innerText = formatHolisticPlayerSummary(liab, arr.length > 1);
-    if (ppCt) ppCt.innerText = liab.poopCount > 0 ? `${liab.poopCount}x 💩` : `${(liab.ratingSum / liab.games).toFixed(1)}★`;
+    if (ppSt) ppSt.innerText = liab.summary;
+    if (ppCt) ppCt.innerText = liabBadge;
   }
 
   const pHl = document.getElementById('posterHighlightsList');
