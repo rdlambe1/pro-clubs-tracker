@@ -26,7 +26,8 @@
     .ut-modal-scaler { transform-origin: center center; transition: transform 0.2s; }
     @media (max-width: 400px) { .ut-modal-scaler { transform: scale(0.84); } }
     @media (min-width: 401px) and (max-width: 480px) { .ut-modal-scaler { transform: scale(0.91); } }
-    .poster-card-bg { background: radial-gradient(circle at 50% 0%, #1e293b 0%, #0b0f19 72%); border: 2px solid rgba(16, 185, 129, 0.4); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9); }
+    .poster-card-bg { background-color: #0b111e; background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, #0b111e 74%); border: 2px solid rgba(16, 185, 129, 0.45); border-radius: 20px; overflow: hidden; }
+    .poster-safe-text { line-height: 1.35 !important; padding-bottom: 2px; overflow: visible !important; }
     .touch-scroll { -webkit-overflow-scrolling: touch; }
   </style>
 </head>
@@ -357,7 +358,7 @@
 
       <!-- TAB 1: TEAM -->
       <div id="tabPane_team" class="space-y-5">
-        <!-- UPGRADED SESSION RECAP CARD (With Match Ticker, Net SR Delta, Award Tallies & Poster Generator) -->
+        <!-- UPGRADED SESSION RECAP CARD (With Visual Results Graph, Net SR Delta, Award Tallies & Poster Generator) -->
         <section id="sessionRecapSection" class="hidden card p-4 sm:p-5 border-l-4 border-l-amber-400 space-y-3.5">
           <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 border-b border-gray-800 pb-3">
             <div class="flex flex-wrap items-center gap-2.5">
@@ -375,8 +376,14 @@
             </div>
           </div>
 
-          <!-- Match-by-Match Results Receipt Strip -->
-          <div class="flex items-center gap-1.5 overflow-x-auto touch-scroll pb-1" id="sessionMatchTicker"></div>
+          <!-- Visual Match Results & Goal Margin Graph (On-Page) -->
+          <div class="bg-gray-900/50 border border-gray-800/90 rounded-xl px-3 py-2">
+            <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-gray-400 mb-1">
+              <span><i class="fa-solid fa-chart-column text-emerald-400 mr-1"></i>Match Results & Scoreline Trajectory</span>
+              <span class="text-[9px] text-gray-500 font-mono">Chronological (Oldest → Latest)</span>
+            </div>
+            <div id="sessionMatchTicker" class="w-full h-[76px] flex items-center justify-center"></div>
+          </div>
 
           <!-- 4-Column Main Metrics Grid -->
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -515,92 +522,94 @@
     </footer>
   </div>
 
-  <!-- BROADCAST SESSION POSTER MODAL (Portrait Graphic for WhatsApp / Discord Image Sharing) -->
+  <!-- BROADCAST SESSION POSTER MODAL (True Alpha Rounded Corners, Unclipped Text & Visual Results Graph) -->
   <div id="sessionPosterModal" class="fixed inset-0 bg-black/85 backdrop-blur-md hidden items-center justify-center z-50 p-2 overflow-y-auto" onclick="closeSessionPosterModal()">
     <div class="ut-modal-scaler flex flex-col items-center gap-2.5 my-auto" onclick="event.stopPropagation()">
-      <div id="sessionPosterExportTarget" class="poster-card-bg w-[370px] rounded-2xl p-4 space-y-3.5 relative text-white select-none">
+      <div class="relative">
         <button onclick="closeSessionPosterModal()" data-html2canvas-ignore="true" class="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-gray-900 border border-emerald-500/60 text-emerald-400 hover:bg-emerald-500 hover:text-black transition flex items-center justify-center z-40 shadow-lg"><i class="fa-solid fa-xmark"></i></button>
 
-        <!-- Poster Header: Club Crest, Name, Division Shield & Mode Pill -->
-        <div class="flex items-center justify-between border-b border-gray-800/90 pb-3">
-          <div class="flex items-center gap-2.5 min-w-0">
-            <div id="posterCrestBox" class="w-12 h-12 rounded-xl bg-gray-900 border border-gray-700 p-1 flex items-center justify-center flex-shrink-0 shadow-md"></div>
-            <div class="min-w-0">
-              <div class="flex items-center gap-1.5">
-                <span id="posterModeTag" class="px-1.5 py-0.5 rounded bg-amber-400 text-black text-[8px] font-black uppercase tracking-wider">SESSION REPORT</span>
-                <span id="posterTiltTag" class="px-1.5 py-0.5 rounded text-[8px] font-black uppercase">--</span>
+        <div id="sessionPosterExportTarget" class="poster-card-bg w-[375px] p-4 space-y-3 text-white select-none">
+          <!-- Poster Header: Club Crest, Name, Division Shield & Mode Pill -->
+          <div class="flex items-center justify-between border-b border-gray-800/90 pb-3">
+            <div class="flex items-center gap-2.5 min-w-0 pr-2">
+              <div id="posterCrestBox" class="w-12 h-12 rounded-xl bg-gray-900 border border-gray-700 p-1 flex items-center justify-center flex-shrink-0 shadow-md"></div>
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span id="posterModeTag" class="px-2 py-0.5 rounded bg-amber-400 text-black text-[8px] font-black uppercase tracking-wider poster-safe-text">SESSION REPORT</span>
+                  <span id="posterTiltTag" class="px-2 py-0.5 rounded text-[8px] font-black uppercase poster-safe-text">--</span>
+                </div>
+                <div id="posterClubName" class="text-[19px] font-black text-white poster-safe-text mt-0.5">--</div>
+                <div id="posterDateSub" class="text-[10px] text-gray-400 font-medium poster-safe-text">--</div>
               </div>
-              <h3 id="posterClubName" class="text-lg font-black text-white truncate mt-0.5">--</h3>
-              <div id="posterDateSub" class="text-[10px] text-gray-400 font-medium">--</div>
+            </div>
+            <div id="posterDivShield" class="flex-shrink-0"></div>
+          </div>
+
+          <!-- Poster Hero Scoreboard: Record, Win%, Net SR Delta & Goal Diff -->
+          <div class="grid grid-cols-3 gap-2 bg-gray-900/80 border border-gray-800 rounded-xl p-2.5 text-center">
+            <div>
+              <div class="text-[9px] uppercase font-bold text-gray-400 poster-safe-text">Record</div>
+              <div id="posterRecord" class="text-[15px] font-black text-white poster-safe-text mt-0.5">--</div>
+              <div id="posterWinPct" class="text-[10px] font-bold text-sky-400 font-mono poster-safe-text">--% Win</div>
+            </div>
+            <div class="border-x border-gray-800 px-1">
+              <div class="text-[9px] uppercase font-bold text-gray-400 poster-safe-text">Skill Rating</div>
+              <div id="posterCurrentSr" class="text-[15px] font-black text-emerald-400 font-mono poster-safe-text mt-0.5">--</div>
+              <div id="posterSrDelta" class="text-[10px] font-black font-mono poster-safe-text">--</div>
+            </div>
+            <div>
+              <div class="text-[9px] uppercase font-bold text-gray-400 poster-safe-text">Goals (GD)</div>
+              <div id="posterGoals" class="text-[15px] font-black text-white font-mono poster-safe-text mt-0.5">--</div>
+              <div id="posterGpg" class="text-[10px] font-bold text-gray-400 font-mono poster-safe-text">-- GF/g</div>
             </div>
           </div>
-          <div id="posterDivShield" class="flex-shrink-0"></div>
-        </div>
 
-        <!-- Poster Hero Scoreboard: Record, Win%, Net SR Delta & Goal Diff -->
-        <div class="grid grid-cols-3 gap-2 bg-gray-900/80 border border-gray-800 rounded-xl p-2.5 text-center">
-          <div>
-            <div class="text-[9px] uppercase font-bold text-gray-400">Record</div>
-            <div id="posterRecord" class="text-base font-black text-white mt-0.5">--</div>
-            <div id="posterWinPct" class="text-[10px] font-bold text-sky-400 font-mono">--% Win</div>
-          </div>
-          <div class="border-x border-gray-800 px-1">
-            <div class="text-[9px] uppercase font-bold text-gray-400">Skill Rating</div>
-            <div id="posterCurrentSr" class="text-base font-black text-emerald-400 font-mono mt-0.5">--</div>
-            <div id="posterSrDelta" class="text-[10px] font-black font-mono">--</div>
-          </div>
-          <div>
-            <div class="text-[9px] uppercase font-bold text-gray-400">Goals (GD)</div>
-            <div id="posterGoals" class="text-base font-black text-white font-mono mt-0.5">--</div>
-            <div id="posterGpg" class="text-[10px] font-bold text-gray-400 font-mono">-- GF/g</div>
-          </div>
-        </div>
-
-        <!-- Poster Match-by-Match Results Ticker -->
-        <div class="space-y-1">
-          <div class="text-[9px] font-black uppercase tracking-widest text-gray-400 flex items-center justify-between">
-            <span><i class="fa-solid fa-receipt text-emerald-400 mr-1"></i>Match Log (Chronological)</span>
-            <span id="posterLobbySweetSpot" class="text-[9px] text-sky-400 font-mono"></span>
-          </div>
-          <div id="posterMatchTicker" class="flex flex-wrap gap-1.5"></div>
-        </div>
-
-        <!-- Poster Head-to-Head Spotlight: 👑 MVP vs 💩 Passenger -->
-        <div class="grid grid-cols-2 gap-2.5">
-          <div class="bg-emerald-950/35 border border-emerald-500/40 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1">
-            <div class="w-full flex items-center justify-between">
-              <span class="text-[9px] font-black uppercase text-emerald-400">👑 MVP</span>
-              <span id="posterMvpCrowns" class="text-[8px] font-black px-1.5 py-0.2 rounded bg-yellow-500/20 text-yellow-300 border border-yellow-500/40"></span>
+          <!-- Poster Visual Match Results & Goal Margin Graph -->
+          <div class="bg-gray-900/75 border border-gray-800 rounded-xl p-2.5 space-y-1">
+            <div class="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-gray-400 poster-safe-text">
+              <span><i class="fa-solid fa-chart-column text-emerald-400 mr-1"></i>Match Results Graph</span>
+              <span id="posterLobbySweetSpot" class="text-[9px] text-sky-400 font-mono poster-safe-text"></span>
             </div>
-            <div id="posterMvpAvatar" class="my-0.5"></div>
-            <div id="posterMvpName" class="text-xs font-black text-white truncate w-full">--</div>
-            <div id="posterMvpStats" class="text-[10px] text-emerald-200/90 font-medium leading-tight">--</div>
+            <div id="posterMatchTicker" class="w-full h-[84px] flex items-center justify-center"></div>
           </div>
 
-          <div class="bg-rose-950/35 border border-rose-500/40 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1">
-            <div class="w-full flex items-center justify-between">
-              <span class="text-[9px] font-black uppercase text-rose-400">💩 PASSENGER</span>
-              <span id="posterPoopCount" class="text-[8px] font-black px-1.5 py-0.2 rounded bg-amber-900/40 text-amber-300 border border-amber-600/50"></span>
+          <!-- Poster Head-to-Head Spotlight: 👑 MVP vs 💩 Passenger -->
+          <div class="grid grid-cols-2 gap-2.5">
+            <div class="bg-emerald-950/35 border border-emerald-500/40 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1">
+              <div class="w-full flex items-center justify-between">
+                <span class="text-[9px] font-black uppercase text-emerald-400 poster-safe-text">👑 MVP</span>
+                <span id="posterMvpCrowns" class="text-[8px] font-black px-1.5 py-0.5 rounded bg-yellow-500/20 text-yellow-300 border border-yellow-500/40 poster-safe-text"></span>
+              </div>
+              <div id="posterMvpAvatar" class="my-0.5"></div>
+              <div id="posterMvpName" class="text-[13px] font-black text-white poster-safe-text w-full break-words">--</div>
+              <div id="posterMvpStats" class="text-[10px] text-emerald-200/90 font-medium poster-safe-text">--</div>
             </div>
-            <div id="posterPoopAvatar" class="my-0.5"></div>
-            <div id="posterPoopName" class="text-xs font-black text-white truncate w-full">--</div>
-            <div id="posterPoopStats" class="text-[10px] text-rose-200/90 font-medium leading-tight">--</div>
+
+            <div class="bg-rose-950/35 border border-rose-500/40 rounded-xl p-2.5 flex flex-col items-center text-center space-y-1">
+              <div class="w-full flex items-center justify-between">
+                <span class="text-[9px] font-black uppercase text-rose-400 poster-safe-text">💩 PASSENGER</span>
+                <span id="posterPoopCount" class="text-[8px] font-black px-1.5 py-0.5 rounded bg-amber-900/40 text-amber-300 border border-amber-600/50 poster-safe-text"></span>
+              </div>
+              <div id="posterPoopAvatar" class="my-0.5"></div>
+              <div id="posterPoopName" class="text-[13px] font-black text-white poster-safe-text w-full break-words">--</div>
+              <div id="posterPoopStats" class="text-[10px] text-rose-200/90 font-medium poster-safe-text">--</div>
+            </div>
           </div>
-        </div>
 
-        <!-- Poster Highlights & Crimes List -->
-        <div id="posterHighlightsList" class="space-y-1.5 bg-gray-900/75 border border-gray-800 rounded-xl p-2.5"></div>
+          <!-- Poster Highlights & Crimes List -->
+          <div id="posterHighlightsList" class="space-y-2 bg-gray-900/75 border border-gray-800 rounded-xl p-3"></div>
 
-        <!-- Poster Watermark Footer -->
-        <div class="flex items-center justify-between pt-1 border-t border-gray-800/80 text-[9px] text-gray-400 font-bold">
-          <span class="flex items-center gap-1"><i class="fa-solid fa-shield-halved text-emerald-400"></i> CLUBS<b class="text-emerald-400">TRACKER</b></span>
-          <span class="font-mono text-[8px] text-gray-500">EA SPORTS FC™ TELEMETRY</span>
+          <!-- Poster Watermark Footer -->
+          <div class="flex items-center justify-between pt-1.5 border-t border-gray-800/80 text-[9px] text-gray-400 font-bold poster-safe-text">
+            <span class="flex items-center gap-1"><i class="fa-solid fa-shield-halved text-emerald-400"></i> CLUBS<b class="text-emerald-400">TRACKER</b></span>
+            <span class="font-mono text-[8px] text-gray-500">EA SPORTS FC™ TELEMETRY</span>
+          </div>
         </div>
       </div>
 
-      <div class="bg-gray-900/95 border border-gray-700 rounded-xl px-4 py-2.5 w-[370px] shadow-2xl flex items-center justify-between">
+      <div class="bg-gray-900/95 border border-gray-700 rounded-xl px-4 py-2.5 w-[375px] shadow-2xl flex items-center justify-between">
         <span class="text-[10px] text-gray-400 font-medium">Ready for WhatsApp & Discord</span>
-        <button onclick="shareElementAsPng('sessionPosterExportTarget', 'Session-Report')" class="bg-emerald-500 hover:bg-emerald-400 text-black font-black px-3.5 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 shadow"><i class="fa-solid fa-share-nodes"></i> Share PNG</button>
+        <button onclick="shareElementAsPng('sessionPosterExportTarget', 'Session-Report', 20)" class="bg-emerald-500 hover:bg-emerald-400 text-black font-black px-3.5 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 shadow"><i class="fa-solid fa-share-nodes"></i> Share PNG</button>
       </div>
     </div>
   </div>
@@ -645,7 +654,7 @@
           </div>
         </div>
         <div id="futLowerTextContainer" class="absolute top-[272px] inset-x-[24px] bottom-[18px] z-20 flex flex-col justify-between items-center text-[#2b2108]">
-          <div class="w-full text-center border-b border-current/25 pb-1"><div id="futArchetypeBadge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/75 text-yellow-300 text-[9px] font-black uppercase tracking-widest shadow-sm">★ 7.9 AVG RATING</div><div id="futName" class="text-[26px] font-black tracking-tight truncate px-2 leading-tight mt-0.5">PLAYER</div></div>
+          <div class="w-full text-center border-b border-current/25 pb-1"><div id="futArchetypeBadge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-black/75 text-yellow-300 text-[9px] font-black uppercase tracking-widest shadow-sm">★ 7.9 AVG RATING</div><div id="futName" class="text-[26px] font-black tracking-tight px-2 leading-normal mt-0.5">PLAYER</div></div>
           <div class="w-full grid grid-cols-6 gap-1 px-1 text-center fc27-font my-0.5">
             <div class="flex flex-col items-center"><span class="text-[13px] font-bold opacity-85">PAC</span><span id="futPac" class="text-[25px] font-extrabold leading-tight">82</span></div>
             <div class="flex flex-col items-center"><span class="text-[13px] font-bold opacity-85">SHO</span><span id="futSho" class="text-[25px] font-extrabold leading-tight">84</span></div>
@@ -659,7 +668,7 @@
       </div>
       <div class="bg-gray-900/95 border border-gray-700 rounded-xl px-4 py-2.5 w-[345px] shadow-2xl flex items-center justify-between">
         <span class="text-[10px] text-gray-400 font-medium">Unofficial Fan Card • Not affiliated with EA</span>
-        <button onclick="shareElementAsPng('futCardExportTarget', ACTIVE_MODAL_PLAYER || 'FUT-Card')" class="bg-yellow-500 hover:bg-yellow-400 text-black font-black px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 shadow"><i class="fa-solid fa-share-nodes"></i> Share PNG</button>
+        <button onclick="shareElementAsPng('futCardExportTarget', ACTIVE_MODAL_PLAYER || 'FUT-Card', 0)" class="bg-yellow-500 hover:bg-yellow-400 text-black font-black px-3 py-1.5 rounded-lg text-xs transition flex items-center gap-1.5 shadow"><i class="fa-solid fa-share-nodes"></i> Share PNG</button>
       </div>
     </div>
   </div>
