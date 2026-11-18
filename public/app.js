@@ -178,7 +178,75 @@ function renderCardBadgesHtml(yellows = 0, reds = 0) {
   </div>`;
 }
 
-// Helper to draw rounded rectangles on a 2D Canvas
+// Generates a concise, accurate 1-line tactical/banter verdict for each player's session performance
+function buildPlayerSessionMiniReport(u = {}, rankIdx = 0, totalPlayers = 1) {
+  const g = Math.max(1, Number(u.games || 1));
+  const avgRat = +(u.ratingSum / g).toFixed(1);
+  const pPct = u.passAttempts > 0 ? Math.round((u.passesMade / u.passAttempts) * 100) : 78;
+  const conv = u.shots > 0 ? Math.round((u.goals / u.shots) * 100) : 0;
+  const defActions = (u.tackles || 0) + (u.interceptions || 0) + (u.blocks || 0);
+  const ga = (u.goals || 0) + (u.assists || 0);
+  const missedS = Math.max(0, (u.shots || 0) - (u.goals || 0));
+
+  let verdict = 'Solid Shift';
+  let vCol = 'text-sky-400';
+  let hexCol = '#38bdf8';
+
+  if (u.reds > 0) {
+    verdict = `Walking Red Card (${u.reds}🟥 & ${u.missedPasses} Turnovers)`;
+    vCol = 'text-rose-400'; hexCol = '#fb7185';
+  } else if (rankIdx === 0 && ga >= g && avgRat >= 8.0) {
+    verdict = u.goals >= u.assists ? `Clinical Carry (${ga} G+A, ${pPct}% Pass)` : `Maestro Pulling Strings (${u.assists}A, ${pPct}% Pass)`;
+    vCol = 'text-emerald-400'; hexCol = '#34d399';
+  } else if (u.normPos === 'GK' || u.saves >= 3) {
+    verdict = `Shot-Stopper (${u.saves} Saves, ${u.cleanSheets} CS)`;
+    vCol = 'text-teal-400'; hexCol = '#2dd4bf';
+  } else if (u.goals >= g && conv >= 30) {
+    verdict = `Lethal Finisher (${conv}% Shot Conv)`;
+    vCol = 'text-emerald-400'; hexCol = '#34d399';
+  } else if (u.assists >= g) {
+    verdict = `Chief Creator (${u.assists} Assists, ${pPct}% Pass)`;
+    vCol = 'text-emerald-400'; hexCol = '#34d399';
+  } else if (defActions >= g * 3) {
+    verdict = `Midfield Destroyer (${u.tackles} Tkl, ${u.interceptions + u.blocks} Int/Blk)`;
+    vCol = 'text-sky-400'; hexCol = '#38bdf8';
+  } else if (pPct >= 85 && u.passesMade >= g * 12) {
+    verdict = `Metronome (${pPct}% Pass Accuracy)`;
+    vCol = 'text-cyan-400'; hexCol = '#22d3ee';
+  } else if (missedS >= g * 2.5 && u.goals === 0) {
+    verdict = `Barn Door (${u.shots} Shots, 0 Goals)`;
+    vCol = 'text-amber-400'; hexCol = '#fbbf24';
+  } else if (u.missedPasses >= g * 6.5 || pPct < 70) {
+    verdict = `Hospital Pass Merchant (${u.missedPasses} Turnovers)`;
+    vCol = 'text-rose-400'; hexCol = '#fb7185';
+  } else if (rankIdx === totalPlayers - 1 && totalPlayers > 1 && avgRat < 7.2) {
+    verdict = `Quiet Passenger (${u.missedPasses} Turnovers)`;
+    vCol = 'text-rose-400'; hexCol = '#fb7185';
+  } else if (avgRat >= 7.8) {
+    verdict = `All-Action Engine (${pPct}% Pass, ${defActions} Def)`;
+    vCol = 'text-emerald-400'; hexCol = '#34d399';
+  } else {
+    verdict = `Steady Shift (${pPct}% Pass, ${u.tackles} Tkl)`;
+    vCol = 'text-gray-300'; hexCol = '#cbd5e1';
+  }
+
+  const statLine = u.normPos === 'GK' || u.saves > 0
+    ? `${u.saves} Sv • ${u.cleanSheets} CS • ${pPct}% Pass`
+    : `${u.goals}G • ${u.assists}A • ${pPct}% Pass • ${u.tackles} Tkl`;
+
+  return {
+    name: u.name,
+    games: g,
+    avgRat: avgRat.toFixed(1),
+    mvpCrowns: u.mvpCrowns || 0,
+    poopCount: u.poopCount || 0,
+    statLine,
+    verdict,
+    vCol,
+    hexCol
+  };
+}
+
 function drawCanvasRoundRect(ctx, x, y, w, h, r) {
   const rad = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
@@ -205,9 +273,14 @@ function loadImageAsync(url) {
   });
 }
 
-// Native 2x Retina HTML5 Canvas Poster Renderer (Zero html2canvas bugs, zero text clipping, 100% transparent outer corners)
+// Native 2x Retina HTML5 Canvas Poster Renderer (Dynamically scales height to fit every player's mini-report cleanly)
 async function buildNativeSessionPosterCanvas(st) {
-  const W = 750, H = 1040;
+  const reports = (st.playerReports || []).slice(0, 8);
+  const repRowH = 68;
+  const repBoxH = reports.length ? (56 + reports.length * repRowH) : 0;
+  const W = 750;
+  const H = 1044 + (repBoxH > 0 ? repBoxH + 18 : 0);
+
   const canvas = document.createElement('canvas');
   canvas.width = W; canvas.height = H;
   const ctx = canvas.getContext('2d');
@@ -218,7 +291,7 @@ async function buildNativeSessionPosterCanvas(st) {
   ctx.clip();
 
   // Background radial gradient
-  const bgGrad = ctx.createRadialGradient(W / 2, 0, 20, W / 2, 0, 780);
+  const bgGrad = ctx.createRadialGradient(W / 2, 0, 20, W / 2, 0, 900);
   bgGrad.addColorStop(0, '#1e293b');
   bgGrad.addColorStop(0.75, '#0b111e');
   bgGrad.addColorStop(1, '#090d16');
@@ -231,13 +304,17 @@ async function buildNativeSessionPosterCanvas(st) {
   ctx.strokeStyle = 'rgba(16, 185, 129, 0.55)';
   ctx.stroke();
 
-  // Load images in parallel (Crest, MVP Avatar & Flag, Passenger Avatar & Flag)
-  const [crestImg, mvpAvImg, mvpFlImg, liabAvImg, liabFlImg] = await Promise.all([
+  // Preload Crest, MVP/Passenger images, and all Squad Report Avatars + Flags in parallel
+  const [crestImg, mvpAvImg, mvpFlImg, liabAvImg, liabFlImg, ...repAssets] = await Promise.all([
     loadImageAsync(st.crestUrl),
     loadImageAsync(st.mvp ? getPlayerAvatarUrl(st.mvp.name, true) : null),
     loadImageAsync(st.mvp ? resolvePlayerFlagUrl(st.mvp.name) : null),
     loadImageAsync(st.liab ? getPlayerAvatarUrl(st.liab.name, true) : null),
-    loadImageAsync(st.liab ? resolvePlayerFlagUrl(st.liab.name) : null)
+    loadImageAsync(st.liab ? resolvePlayerFlagUrl(st.liab.name) : null),
+    ...reports.flatMap(r => [
+      loadImageAsync(getPlayerAvatarUrl(r.name, false)),
+      loadImageAsync(resolvePlayerFlagUrl(r.name))
+    ])
   ]);
 
   // 2. Header Section
@@ -247,11 +324,8 @@ async function buildNativeSessionPosterCanvas(st) {
   ctx.lineWidth = 2;
   ctx.strokeStyle = '#334155';
   ctx.stroke();
-  if (crestImg) {
-    ctx.drawImage(crestImg, 42, 40, 76, 76);
-  }
+  if (crestImg) ctx.drawImage(crestImg, 42, 40, 76, 76);
 
-  // Mode Pill (Amber)
   ctx.font = '900 15px Inter, sans-serif';
   const modeW = Math.ceil(ctx.measureText(st.modeLabel).width) + 26;
   drawCanvasRoundRect(ctx, 142, 32, modeW, 30, 8);
@@ -262,7 +336,6 @@ async function buildNativeSessionPosterCanvas(st) {
   ctx.textAlign = 'center';
   ctx.fillText(st.modeLabel, 142 + modeW / 2, 47);
 
-  // Tilt Pill
   const tiltX = 142 + modeW + 12;
   const tiltW = Math.ceil(ctx.measureText(st.tiltText).width) + 28;
   drawCanvasRoundRect(ctx, tiltX, 32, tiltW, 30, 15);
@@ -274,7 +347,6 @@ async function buildNativeSessionPosterCanvas(st) {
   ctx.fillStyle = st.tiltColor;
   ctx.fillText(st.tiltText, tiltX + tiltW / 2, 47);
 
-  // Club Name & Date
   ctx.textAlign = 'left';
   ctx.fillStyle = '#ffffff';
   ctx.font = '900 36px Inter, sans-serif';
@@ -284,7 +356,7 @@ async function buildNativeSessionPosterCanvas(st) {
   ctx.font = '600 19px Inter, sans-serif';
   ctx.fillText(`${st.dateStr} • Division ${st.divNum} Telemetry`, 142, 115);
 
-  // Division Shield on Top Right
+  // Division Shield
   const shX = W - 72, shY = 78;
   ctx.beginPath();
   ctx.moveTo(shX, shY - 36);
@@ -306,7 +378,6 @@ async function buildNativeSessionPosterCanvas(st) {
   ctx.font = '900 24px Oswald, Inter, sans-serif';
   ctx.fillText(String(st.divNum), shX, shY + 11);
 
-  // Header Divider
   ctx.beginPath();
   ctx.moveTo(34, 144);
   ctx.lineTo(W - 34, 144);
@@ -314,7 +385,7 @@ async function buildNativeSessionPosterCanvas(st) {
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // 3. Scoreboard Strip (Record | Skill Rating | Goals)
+  // 3. Scoreboard Strip
   drawCanvasRoundRect(ctx, 34, 162, W - 68, 126, 22);
   ctx.fillStyle = 'rgba(17, 24, 39, 0.85)';
   ctx.fill();
@@ -332,44 +403,23 @@ async function buildNativeSessionPosterCanvas(st) {
     ctx.stroke();
   });
 
-  // Col 1: Record
   const c1X = 34 + colW * 0.5;
   ctx.textAlign = 'center';
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '800 16px Inter, sans-serif';
-  ctx.fillText('RECORD', c1X, 188);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '900 32px Inter, sans-serif';
-  ctx.fillText(st.recordStr, c1X, 226);
-  ctx.fillStyle = '#38bdf8';
-  ctx.font = '800 19px monospace';
-  ctx.fillText(`${st.winPct}% Win Rate`, c1X, 260);
+  ctx.fillStyle = '#94a3b8'; ctx.font = '800 16px Inter, sans-serif'; ctx.fillText('RECORD', c1X, 188);
+  ctx.fillStyle = '#ffffff'; ctx.font = '900 32px Inter, sans-serif'; ctx.fillText(st.recordStr, c1X, 226);
+  ctx.fillStyle = '#38bdf8'; ctx.font = '800 19px monospace'; ctx.fillText(`${st.winPct}% Win Rate`, c1X, 260);
 
-  // Col 2: Skill Rating
   const c2X = 34 + colW * 1.5;
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '800 16px Inter, sans-serif';
-  ctx.fillText('SKILL RATING', c2X, 188);
-  ctx.fillStyle = '#34d399';
-  ctx.font = '900 32px monospace';
-  ctx.fillText(`${st.curSr} SR`, c2X, 226);
-  ctx.fillStyle = st.netSrDelta >= 0 ? '#34d399' : '#fb7185';
-  ctx.font = '900 19px monospace';
-  ctx.fillText(st.srDeltaStr, c2X, 260);
+  ctx.fillStyle = '#94a3b8'; ctx.font = '800 16px Inter, sans-serif'; ctx.fillText('SKILL RATING', c2X, 188);
+  ctx.fillStyle = '#34d399'; ctx.font = '900 32px monospace'; ctx.fillText(`${st.curSr} SR`, c2X, 226);
+  ctx.fillStyle = st.netSrDelta >= 0 ? '#34d399' : '#fb7185'; ctx.font = '900 19px monospace'; ctx.fillText(st.srDeltaStr, c2X, 260);
 
-  // Col 3: Goals
   const c3X = 34 + colW * 2.5;
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '800 16px Inter, sans-serif';
-  ctx.fillText('GOALS (GD)', c3X, 188);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = '900 32px monospace';
-  ctx.fillText(st.goalsStr, c3X, 226);
-  ctx.fillStyle = '#94a3b8';
-  ctx.font = '700 18px monospace';
-  ctx.fillText(st.gpgStr, c3X, 260);
+  ctx.fillStyle = '#94a3b8'; ctx.font = '800 16px Inter, sans-serif'; ctx.fillText('GOALS (GD)', c3X, 188);
+  ctx.fillStyle = '#ffffff'; ctx.font = '900 32px monospace'; ctx.fillText(st.goalsStr, c3X, 226);
+  ctx.fillStyle = '#94a3b8'; ctx.font = '700 18px monospace'; ctx.fillText(st.gpgStr, c3X, 260);
 
-  // 4. Match Momentum & Scoreline Step-Chain (No Opponent Names)
+  // 4. Match Momentum & Scoreline Step-Chain
   drawCanvasRoundRect(ctx, 34, 306, W - 68, 198, 22);
   ctx.fillStyle = 'rgba(17, 24, 39, 0.85)';
   ctx.fill();
@@ -389,7 +439,6 @@ async function buildNativeSessionPosterCanvas(st) {
     ctx.fillText(st.sweetSpotText.toUpperCase(), W - 54, 334);
   }
 
-  // Draw Momentum Step-Chain Nodes
   const matches = st.matchLogChrono || [];
   if (matches.length) {
     const plotL = 75, plotR = W - 75, plotT = 376, plotB = 456;
@@ -409,7 +458,6 @@ async function buildNativeSessionPosterCanvas(st) {
       return { x, y, ...m, idx: i + 1 };
     });
 
-    // Midline
     ctx.beginPath();
     ctx.setLineDash([6, 6]);
     ctx.moveTo(54, (plotT + plotB) / 2);
@@ -419,7 +467,6 @@ async function buildNativeSessionPosterCanvas(st) {
     ctx.stroke();
     ctx.setLineDash([]);
 
-    // Area & Connecting Line
     if (pts.length > 1) {
       ctx.beginPath();
       pts.forEach((p, i) => { if (i === 0) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); });
@@ -428,41 +475,28 @@ async function buildNativeSessionPosterCanvas(st) {
       ctx.stroke();
     }
 
-    // Match Nodes & Score Badges (Zero Opponent Names)
     pts.forEach(p => {
       const col = p.resChar === 'W' ? '#10b981' : (p.resChar === 'L' ? '#f43f5e' : '#f59e0b');
       const bgCol = p.resChar === 'W' ? '#064e3b' : (p.resChar === 'L' ? '#4c0519' : '#451a03');
 
-      // Score Pill Above Node
       const scoreTxt = `${p.score}${p.isRageQuit ? ' 💨' : ''}`;
       ctx.font = '900 16px monospace';
       const sw = Math.max(54, Math.ceil(ctx.measureText(scoreTxt).width) + 18);
       drawCanvasRoundRect(ctx, p.x - sw / 2, p.y - 46, sw, 24, 7);
-      ctx.fillStyle = bgCol;
-      ctx.fill();
-      ctx.lineWidth = 1.8;
-      ctx.strokeStyle = col;
-      ctx.stroke();
-      ctx.fillStyle = '#ffffff';
-      ctx.textAlign = 'center';
+      ctx.fillStyle = bgCol; ctx.fill();
+      ctx.lineWidth = 1.8; ctx.strokeStyle = col; ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.textAlign = 'center';
       ctx.fillText(scoreTxt, p.x, p.y - 34);
 
-      // Circle Node with W/D/L
       ctx.beginPath();
       ctx.arc(p.x, p.y, 17, 0, Math.PI * 2);
-      ctx.fillStyle = col;
-      ctx.fill();
-      ctx.lineWidth = 3;
-      ctx.strokeStyle = '#0b111e';
-      ctx.stroke();
-      ctx.fillStyle = '#0b111e';
-      ctx.font = '900 17px Inter, sans-serif';
+      ctx.fillStyle = col; ctx.fill();
+      ctx.lineWidth = 3; ctx.strokeStyle = '#0b111e'; ctx.stroke();
+      ctx.fillStyle = '#0b111e'; ctx.font = '900 17px Inter, sans-serif';
       ctx.fillText(p.resChar, p.x, p.y + 1);
 
-      // Match Number & SR Delta Below Node
       const dTxt = p.delta > 0 ? `+${p.delta}` : `${p.delta}`;
-      ctx.fillStyle = '#94a3b8';
-      ctx.font = '800 14px monospace';
+      ctx.fillStyle = '#94a3b8'; ctx.font = '800 14px monospace';
       ctx.fillText(`M${p.idx} (${dTxt})`, p.x, p.y + 32);
     });
   }
@@ -472,60 +506,42 @@ async function buildNativeSessionPosterCanvas(st) {
 
   const drawSpotlightCard = (x, title, titleCol, borderCol, bgCol, badgeTxt, badgeBg, badgeCol, player, avImg, flImg) => {
     drawCanvasRoundRect(ctx, x, cardY, cardW, cardH, 22);
-    ctx.fillStyle = bgCol;
-    ctx.fill();
-    ctx.lineWidth = 2.5;
-    ctx.strokeStyle = borderCol;
-    ctx.stroke();
+    ctx.fillStyle = bgCol; ctx.fill();
+    ctx.lineWidth = 2.5; ctx.strokeStyle = borderCol; ctx.stroke();
 
-    ctx.textAlign = 'left';
-    ctx.fillStyle = titleCol;
-    ctx.font = '900 18px Inter, sans-serif';
+    ctx.textAlign = 'left'; ctx.fillStyle = titleCol; ctx.font = '900 18px Inter, sans-serif';
     ctx.fillText(title, x + 22, cardY + 32);
 
     if (badgeTxt) {
       ctx.font = '900 15px Inter, sans-serif';
       const bw = Math.ceil(ctx.measureText(badgeTxt).width) + 22;
       drawCanvasRoundRect(ctx, x + cardW - bw - 18, cardY + 17, bw, 28, 8);
-      ctx.fillStyle = badgeBg;
-      ctx.fill();
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = borderCol;
-      ctx.stroke();
-      ctx.textAlign = 'center';
-      ctx.fillStyle = badgeCol;
+      ctx.fillStyle = badgeBg; ctx.fill();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = borderCol; ctx.stroke();
+      ctx.textAlign = 'center'; ctx.fillStyle = badgeCol;
       ctx.fillText(badgeTxt, x + cardW - bw / 2 - 18, cardY + 31);
     }
 
     const cx = x + cardW / 2, cy = cardY + 104, rad = 46;
     ctx.save();
-    ctx.beginPath();
-    ctx.arc(cx, cy, rad, 0, Math.PI * 2);
-    ctx.clip();
+    ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2); ctx.clip();
     if (avImg) ctx.drawImage(avImg, cx - rad, cy - rad, rad * 2, rad * 2);
     ctx.restore();
 
-    ctx.beginPath();
-    ctx.arc(cx, cy, rad, 0, Math.PI * 2);
-    ctx.lineWidth = 4;
-    ctx.strokeStyle = titleCol;
-    ctx.stroke();
+    ctx.beginPath(); ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+    ctx.lineWidth = 4; ctx.strokeStyle = titleCol; ctx.stroke();
 
     if (flImg) {
       ctx.drawImage(flImg, cx + 18, cy + 22, 30, 21);
-      ctx.strokeStyle = '#0b111e';
-      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#0b111e'; ctx.lineWidth = 2;
       ctx.strokeRect(cx + 18, cy + 22, 30, 21);
     }
 
     const pName = player?.name || '--';
-    ctx.textAlign = 'center';
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 26px Inter, sans-serif';
+    ctx.textAlign = 'center'; ctx.fillStyle = '#ffffff'; ctx.font = '900 26px Inter, sans-serif';
     ctx.fillText(pName.length > 16 ? pName.substring(0, 15) + '…' : pName, cx, cardY + 184);
 
-    ctx.fillStyle = '#e2e8f0';
-    ctx.font = '700 17px Inter, sans-serif';
+    ctx.fillStyle = '#e2e8f0'; ctx.font = '700 17px Inter, sans-serif';
     const statLine = player?.summary || '--';
     ctx.fillText(statLine.length > 34 ? statLine.substring(0, 33) + '…' : statLine, cx, cardY + 218);
   };
@@ -540,17 +556,85 @@ async function buildNativeSessionPosterCanvas(st) {
     st.liabBadge, 'rgba(120, 53, 15, 0.45)', '#fcd34d', st.liab, liabAvImg, liabFlImg
   );
 
-  // 6. Highlights & Crimes Box
-  const hlY = 790, hlH = 172;
-  drawCanvasRoundRect(ctx, 34, hlY, W - 68, hlH, 22);
-  ctx.fillStyle = 'rgba(17, 24, 39, 0.85)';
-  ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = '#1f2937';
-  ctx.stroke();
+  // 6. Individual Squad Session Report Cards Section
+  let nextY = 790;
+  if (reports.length) {
+    drawCanvasRoundRect(ctx, 34, nextY, W - 68, repBoxH, 22);
+    ctx.fillStyle = 'rgba(17, 24, 39, 0.85)'; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = '#1f2937'; ctx.stroke();
+
+    ctx.textAlign = 'left'; ctx.fillStyle = '#94a3b8'; ctx.font = '900 16px Inter, sans-serif';
+    ctx.fillText('📋 SQUAD SESSION REPORT CARDS', 54, nextY + 30);
+
+    ctx.textAlign = 'right'; ctx.fillStyle = '#64748b'; ctx.font = '800 14px monospace';
+    ctx.fillText('STATS & VERDICT', W - 54, nextY + 30);
+
+    reports.forEach((r, idx) => {
+      const ry = nextY + 56 + idx * repRowH;
+      const rAv = repAssets[idx * 2];
+      const rFl = repAssets[idx * 2 + 1];
+
+      ctx.beginPath();
+      ctx.moveTo(54, ry);
+      ctx.lineTo(W - 54, ry);
+      ctx.strokeStyle = '#1f2937';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Avatar circle
+      const acx = 76, acy = ry + 34, arad = 21;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(acx, acy, arad, 0, Math.PI * 2); ctx.clip();
+      if (rAv) ctx.drawImage(rAv, acx - arad, acy - arad, arad * 2, arad * 2);
+      ctx.restore();
+      ctx.beginPath(); ctx.arc(acx, acy, arad, 0, Math.PI * 2);
+      ctx.lineWidth = 2; ctx.strokeStyle = '#334155'; ctx.stroke();
+
+      if (rFl) {
+        ctx.drawImage(rFl, acx + 8, acy + 9, 16, 11);
+      }
+
+      // Name + Award Icons + GP
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#ffffff';
+      ctx.font = '900 20px Inter, sans-serif';
+      const awards = `${r.mvpCrowns > 0 ? ` ${r.mvpCrowns}x👑` : ''}${r.poopCount > 0 ? ` ${r.poopCount}x💩` : ''}`;
+      const dispName = (r.name.length > 15 ? r.name.substring(0, 14) + '…' : r.name) + awards;
+      ctx.fillText(dispName, 110, ry + 22);
+
+      // Verdict subline
+      ctx.fillStyle = r.hexCol || '#38bdf8';
+      ctx.font = '700 15px Inter, sans-serif';
+      ctx.fillText(r.verdict, 110, ry + 47);
+
+      // Right side: Rating Badge + Compact Stat Line
+      const ratNum = parseFloat(r.avgRat);
+      const ratBg = ratNum >= 8.0 ? 'rgba(16, 185, 129, 0.22)' : ratNum < 7.0 ? 'rgba(244, 63, 94, 0.22)' : 'rgba(234, 179, 8, 0.22)';
+      const ratCol = ratNum >= 8.0 ? '#34d399' : ratNum < 7.0 ? '#fb7185' : '#facc15';
+
+      drawCanvasRoundRect(ctx, W - 120, ry + 9, 66, 26, 8);
+      ctx.fillStyle = ratBg; ctx.fill();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = ratCol; ctx.stroke();
+      ctx.textAlign = 'center'; ctx.fillStyle = ratCol; ctx.font = '900 17px monospace';
+      ctx.fillText(`${r.avgRat}★`, W - 87, ry + 22);
+
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '700 14px monospace';
+      ctx.fillText(r.statLine, W - 54, ry + 48);
+    });
+
+    nextY += repBoxH + 18;
+  }
+
+  // 7. Highlights & Crimes Box
+  const hlH = 172;
+  drawCanvasRoundRect(ctx, 34, nextY, W - 68, hlH, 22);
+  ctx.fillStyle = 'rgba(17, 24, 39, 0.85)'; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#1f2937'; ctx.stroke();
 
   (st.highlights || []).slice(0, 3).forEach((h, i) => {
-    const rowY = hlY + 36 + i * 50;
+    const rowY = nextY + 36 + i * 50;
     if (i > 0) {
       ctx.beginPath();
       ctx.moveTo(54, rowY - 25);
@@ -559,38 +643,28 @@ async function buildNativeSessionPosterCanvas(st) {
       ctx.lineWidth = 1.5;
       ctx.stroke();
     }
-    ctx.textAlign = 'left';
-    ctx.fillStyle = '#cbd5e1';
-    ctx.font = '700 19px Inter, sans-serif';
+    ctx.textAlign = 'left'; ctx.fillStyle = '#cbd5e1'; ctx.font = '700 19px Inter, sans-serif';
     const leftTxt = `${h.icon} ${h.label}: `;
     ctx.fillText(leftTxt, 54, rowY);
     const lw = ctx.measureText(leftTxt).width;
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '900 20px Inter, sans-serif';
+    ctx.fillStyle = '#ffffff'; ctx.font = '900 20px Inter, sans-serif';
     ctx.fillText(h.player, 54 + lw, rowY);
 
-    ctx.textAlign = 'right';
-    ctx.fillStyle = h.hexCol || '#34d399';
-    ctx.font = '900 19px monospace';
+    ctx.textAlign = 'right'; ctx.fillStyle = h.hexCol || '#34d399'; ctx.font = '900 19px monospace';
     ctx.fillText(h.stat, W - 54, rowY);
   });
 
-  // 7. Footer Watermark
-  ctx.textAlign = 'left';
-  ctx.fillStyle = '#34d399';
-  ctx.font = '900 18px Inter, sans-serif';
+  // 8. Footer Watermark
+  ctx.textAlign = 'left'; ctx.fillStyle = '#34d399'; ctx.font = '900 18px Inter, sans-serif';
   ctx.fillText('🛡️ CLUBSTRACKER', 38, H - 34);
 
-  ctx.textAlign = 'right';
-  ctx.fillStyle = '#64748b';
-  ctx.font = '800 15px monospace';
+  ctx.textAlign = 'right'; ctx.fillStyle = '#64748b'; ctx.font = '800 15px monospace';
   ctx.fillText('EA SPORTS FC™ OFFICIAL TELEMETRY', W - 38, H - 34);
 
   ctx.restore();
   return canvas;
 }
 
-// Masks a canvas with true alpha rounded corners
 function applyRoundedCornerMask(sourceCanvas, radiusPx = 40) {
   if (!radiusPx || radiusPx <= 0) return sourceCanvas;
   const w = sourceCanvas.width, h = sourceCanvas.height;
@@ -603,7 +677,6 @@ function applyRoundedCornerMask(sourceCanvas, radiusPx = 40) {
   return out;
 }
 
-// High-DPI PNG Exporter (Uses Native Vector Canvas for Session Poster so text/pills are never clipped)
 async function shareElementAsPng(elementId, filenamePrefix = 'ClubsTracker', cornerRadiusCssPx = 20) {
   try {
     let finalCanvas = null;
@@ -778,7 +851,7 @@ function switchRecapMode(mode) {
   updateRecapMetricsDisplay(GLOBAL_CLUB_ID, mode === 'session' ? SESSION_MATCHES_CACHE : GLOBAL_MATCHES.slice(0, 10), mode);
 }
 
-// Broadcast Match Momentum & Scoreline Step-Chain SVG (No Opponent Names, Pure W/D/L Nodes + Scorelines + SR Deltas)
+// Broadcast Match Momentum & Scoreline Step-Chain SVG (No Opponent Names)
 function buildSessionResultsGraphSvg(matchLogChrono = [], isCompactPoster = false) {
   if (!matchLogChrono.length) return '';
   const n = matchLogChrono.length;
@@ -843,7 +916,7 @@ function buildSessionResultsGraphSvg(matchLogChrono = [], isCompactPoster = fals
   </svg>`;
 }
 
-// Upgraded Session Recap & Broadcast Poster Engine
+// Upgraded Session Recap & Broadcast Poster Engine (Includes Individual Player Mini-Reports)
 function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const sec = document.getElementById('sessionRecapSection');
   if (!sec) return;
@@ -993,6 +1066,40 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     }
   }
 
+  // Build Individual Player Mini-Reports for Every Squad Member in the Session
+  const playerReports = arr.map((u, idx) => buildPlayerSessionMiniReport(u, idx, arr.length));
+
+  const onPageRepGrid = document.getElementById('sessionPlayerReportsGrid');
+  if (onPageRepGrid) {
+    onPageRepGrid.innerHTML = playerReports.map(r => {
+      const ratNum = parseFloat(r.avgRat);
+      const ratCls = ratNum >= 8.0
+        ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+        : ratNum < 7.0
+        ? 'bg-rose-500/20 text-rose-300 border-rose-500/40'
+        : 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40';
+      const badges = `${r.mvpCrowns > 0 ? `<span class="px-1 py-0.2 rounded bg-yellow-500/20 text-yellow-300 text-[9px] font-black">${r.mvpCrowns}x👑</span>` : ''}${r.poopCount > 0 ? `<span class="px-1 py-0.2 rounded bg-amber-900/40 text-amber-300 text-[9px] font-black">${r.poopCount}x💩</span>` : ''}`;
+
+      return `<div onclick="openFutModal('${r.name.replace(/'/g, "\\'")}')" class="bg-gray-900/60 hover:bg-gray-800/60 border border-gray-800 rounded-lg px-3 py-2 flex items-center justify-between gap-2.5 cursor-pointer transition">
+        <div class="flex items-center gap-2.5 min-w-0">
+          ${renderAvatarWithFlagHtml(r.name, 'w-9 h-9', 'border-gray-700', 'w-3 h-2')}
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="text-xs font-extrabold text-white truncate">${r.name}</span>
+              <span class="text-[9px] text-gray-500 font-mono">(${r.games}G)</span>
+              ${badges}
+            </div>
+            <div class="text-[10px] font-bold ${r.vCol} truncate">${r.verdict}</div>
+          </div>
+        </div>
+        <div class="text-right flex-shrink-0">
+          <span class="inline-block px-1.5 py-0.5 rounded border text-[11px] font-mono font-black ${ratCls}">${r.avgRat}★</span>
+          <div class="text-[9px] font-mono text-gray-400 mt-0.5 whitespace-nowrap">${r.statLine}</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
   // Compute 3 Session Highlights & Crimes
   const highlights = [];
   if (arr.length) {
@@ -1076,6 +1183,7 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     liab,
     mvpBadge,
     liabBadge,
+    playerReports,
     highlights
   };
 
@@ -1123,6 +1231,29 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
     if (ppNm) ppNm.innerText = liab.name;
     if (ppSt) ppSt.innerText = liab.summary;
     if (ppCt) ppCt.innerText = liabBadge;
+  }
+
+  // Populate Modal Preview Squad Session Report Cards
+  const pRepList = document.getElementById('posterPlayerReportsList');
+  if (pRepList) {
+    pRepList.innerHTML = playerReports.slice(0, 8).map(r => {
+      const ratNum = parseFloat(r.avgRat);
+      const ratCls = ratNum >= 8.0 ? 'text-emerald-400 bg-emerald-500/15 border-emerald-500/40' : ratNum < 7.0 ? 'text-rose-400 bg-rose-500/15 border-rose-500/40' : 'text-yellow-300 bg-yellow-500/15 border-yellow-500/40';
+      const awards = `${r.mvpCrowns > 0 ? ` ${r.mvpCrowns}x👑` : ''}${r.poopCount > 0 ? ` ${r.poopCount}x💩` : ''}`;
+      return `<div class="flex items-center justify-between gap-2 border-t border-gray-800/80 pt-1.5 first:border-t-0 first:pt-0">
+        <div class="flex items-center gap-2 min-w-0">
+          ${renderAvatarWithFlagHtml(r.name, 'w-7 h-7', 'border-gray-700', 'w-2.5 h-2')}
+          <div class="min-w-0">
+            <div class="text-[11px] font-black text-white poster-safe-text truncate">${r.name}<span class="text-[9px] text-amber-300">${awards}</span></div>
+            <div class="text-[9px] font-bold ${r.vCol} poster-safe-text truncate">${r.verdict}</div>
+          </div>
+        </div>
+        <div class="text-right flex-shrink-0">
+          <span class="inline-block px-1.5 py-0.2 rounded border text-[10px] font-mono font-black ${ratCls} poster-safe-text">${r.avgRat}★</span>
+          <div class="text-[8px] font-mono text-gray-400 poster-safe-text whitespace-nowrap">${r.statLine}</div>
+        </div>
+      </div>`;
+    }).join('');
   }
 
   const pHl = document.getElementById('posterHighlightsList');
