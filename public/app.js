@@ -192,6 +192,16 @@ async function shareElementAsPng(elementId, filenamePrefix = 'ClubsTracker') {
   } catch (e) { console.error(e); }
 }
 
+function openSessionPosterModal() {
+  const m = document.getElementById('sessionPosterModal');
+  if (m) { m.classList.remove('hidden'); m.classList.add('flex'); }
+}
+
+function closeSessionPosterModal() {
+  const m = document.getElementById('sessionPosterModal');
+  if (m) { m.classList.add('hidden'); m.classList.remove('flex'); }
+}
+
 function openDiscordModal() {
   document.getElementById('discordModalStatus')?.classList.add('hidden');
   const inp = document.getElementById('discordWebhookInput');
@@ -317,27 +327,49 @@ function switchRecapMode(mode) {
   updateRecapMetricsDisplay(GLOBAL_CLUB_ID, mode === 'session' ? SESSION_MATCHES_CACHE : GLOBAL_MATCHES.slice(0, 10), mode);
 }
 
-// Self-Explanatory Party Size Win % Card
+// Upgraded Session Recap & Broadcast Poster Engine (Match Ticker, Net SR Delta, Crown/Poop Tallies, Highlights & Poster Modal)
 function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const sec = document.getElementById('sessionRecapSection');
   if (!sec) return;
   if (!fixtures.length) return sec.classList.add('hidden');
   sec.classList.remove('hidden');
 
-  let sW = 0, sD = 0, sL = 0, sGF = 0, sGA = 0;
+  let sW = 0, sD = 0, sL = 0, sGF = 0, sGA = 0, netSrDelta = 0;
+  let runningSr = Number(GLOBAL_COMBINED_DATA?.overall?.skillRating ?? GLOBAL_COMBINED_DATA?.overall?.rating ?? 1500) || 1500;
   const pMap = {};
   const ownBuckets = { 2:{label:'2 Pros',w:0,d:0,l:0,total:0}, 3:{label:'3 Pros',w:0,d:0,l:0,total:0}, 4:{label:'4 Pros',w:0,d:0,l:0,total:0}, 5:{label:'5+ Pros',w:0,d:0,l:0,total:0} };
   const oppBuckets = { 2:{label:'vs 2-Man',w:0,total:0}, 3:{label:'vs 3-Man',w:0,total:0}, 4:{label:'vs 4-Man',w:0,total:0}, 5:{label:'vs 5+ Man',w:0,total:0} };
+  const matchLogChrono = [];
 
   fixtures.forEach(m => {
     const clubs = m.clubs || m.aggregate || {}, cIds = Object.keys(clubs);
     const myId = cIds.find(id => String(id) === String(clubId)) || cIds[0], oppId = cIds.find(id => String(id) !== String(clubId)) || cIds[1];
-    const mG = Number(clubs[myId]?.goals ?? clubs[myId]?.score ?? 0), oG = Number(clubs[oppId]?.goals ?? clubs[oppId]?.score ?? 0);
+    const myClub = clubs[myId] || {}, oppClub = clubs[oppId] || {};
+    const mG = Number(myClub.goals ?? myClub.score ?? 0), oG = Number(oppClub.goals ?? oppClub.score ?? 0);
+    const oppName = oppClub.details?.name || oppClub.name || 'Opponent';
+    const oppSr = Number(oppClub.skillRating || oppClub.details?.skillRating || runningSr);
     const isWin = mG > oG, isLoss = mG < oG, isDraw = !isWin && !isLoss;
+    const resChar = isWin ? 'W' : (isLoss ? 'L' : 'D');
     sGF += mG; sGA += oG; if (isWin) sW++; else if (isLoss) sL++; else sD++;
+
+    // Calculate Elo SR Delta for this match
+    const gdAbs = Math.abs(mG - oG);
+    const srDiff = Math.max(-350, Math.min(350, oppSr - runningSr));
+    const expected = 1 / (1 + Math.pow(10, srDiff / 400));
+    const actual = isWin ? 1 : (isDraw ? 0.5 : 0);
+    const gdMult = gdAbs >= 3 ? 1.25 : (gdAbs === 2 ? 1.12 : 1.0);
+    let delta = Math.round(28 * gdMult * (actual - expected));
+    if (isWin && delta < 8) delta = 12;
+    if (isLoss && delta > -8) delta = -12;
+    netSrDelta += delta;
+    runningSr = Math.max(800, runningSr - delta);
 
     const myPlayers = Object.values(m.players?.[myId] || {});
     const oppCnt = Object.keys(m.players?.[oppId] || {}).length;
+    const maxSecs = myPlayers.reduce((mx, p) => Math.max(mx, Number(p.secondsPlayed || 0)), 0);
+    const isRageQuit = isWin && ((maxSecs > 0 && maxSecs < 4100) || (mG - oG >= 4 && maxSecs < 4800) || Number(oppClub.winnerByDnf || myClub.winnerByDnf || 0) === 1);
+
+    matchLogChrono.unshift({ resChar, score: `${mG}-${oG}`, oppName, isRageQuit, delta });
 
     if (myPlayers.length > 0) {
       const obk = myPlayers.length <= 2 ? 2 : myPlayers.length === 3 ? 3 : myPlayers.length === 4 ? 4 : 5;
@@ -350,49 +382,134 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
       if (isWin) oppBuckets[bk].w++;
     }
 
+    let matchBestName = null, matchHi = -Infinity, matchWorstName = null, matchLo = Infinity;
+
     myPlayers.forEach(p => {
       const n = p.playername || p.name || 'Pro', memberMeta = findMemberMeta(n);
       const exactPos = EA_PRO_POS_MAP[String(memberMeta?.proPos ?? '')] || '';
       const normPos = p.pos ? normalizePosition(p.pos) : normalizePosition(memberMeta?.favoritePosition || 'MID');
       const ev = parsePlayerMatchEvents(p, exactPos);
+      const pm = Number(p.passesmade || 0), pa = Number(p.passattempts || pm), tm = Number(p.tacklesmade || p.tackles || 0), ta = Number(p.tackleattempts || tm);
 
-      if (!pMap[n]) pMap[n] = { name:n, normPos, exactPos, games:0, goals:0, assists:0, shots:0, passesMade:0, passAttempts:0, tackles:0, tackleAttempts:0, blocks:0, interceptions:0, skillMoves:0, saves:0, goalsConceded:0, offsides:0, yellows:0, reds:0, cleanSheets:0, ratingSum:0 };
+      if (!pMap[n]) pMap[n] = { name:n, normPos, exactPos, games:0, goals:0, assists:0, shots:0, passesMade:0, passAttempts:0, missedPasses:0, tackles:0, tackleAttempts:0, blocks:0, interceptions:0, skillMoves:0, saves:0, goalsConceded:0, offsides:0, yellows:0, reds:0, cleanSheets:0, ratingSum:0, mvpCrowns:0, poopCount:0 };
       const u = pMap[n];
       u.games++; u.goals += Number(p.goals || 0); u.assists += Number(p.assists || 0); u.shots += Number(p.shots || 0);
-      const pm = Number(p.passesmade || 0), pa = Number(p.passattempts || pm), tm = Number(p.tacklesmade || p.tackles || 0), ta = Number(p.tackleattempts || tm);
-      u.passesMade += pm; u.passAttempts += pa; u.tackles += tm; u.tackleAttempts += ta;
+      u.passesMade += pm; u.passAttempts += pa; u.missedPasses += Math.max(0, pa - pm);
+      u.tackles += tm; u.tackleAttempts += ta;
       u.blocks += ev.blocks; u.interceptions += ev.interceptions; u.skillMoves += ev.skillMoves; u.saves += ev.saves; u.goalsConceded += ev.goalsConceded || oG;
       u.offsides += ev.offsides; u.yellows += ev.yellowCards; u.reds += ev.redCards; if (oG === 0) u.cleanSheets++; u.ratingSum += parseFloat(p.rating || 7.0);
+
+      const mImp = computePlayerImpactScore({
+        games: 1, normPos, exactPos, ratingSum: parseFloat(p.rating || 7.0),
+        goals: Number(p.goals || 0), assists: Number(p.assists || 0), shots: Number(p.shots || 0),
+        passesMade: pm, passAttempts: pa, tackles: tm, tackleAttempts: ta,
+        blocks: ev.blocks, interceptions: ev.interceptions, skillMoves: ev.skillMoves,
+        saves: ev.saves, goalsConceded: ev.goalsConceded || oG,
+        offsides: ev.offsides, yellows: ev.yellowCards, reds: ev.redCards, cleanSheets: oG === 0 ? 1 : 0
+      });
+      if (mImp > matchHi) { matchHi = mImp; matchBestName = n; }
+      if (mImp < matchLo) { matchLo = mImp; matchWorstName = n; }
     });
+
+    if (matchBestName && pMap[matchBestName]) pMap[matchBestName].mvpCrowns++;
+    if (myPlayers.length > 1 && matchWorstName && matchWorstName !== matchBestName && pMap[matchWorstName]) {
+      pMap[matchWorstName].poopCount++;
+    }
   });
 
+  const totGames = Math.max(1, sW + sD + sL);
+  const winPct = Math.round((sW / totGames) * 100);
   const gd = sGF - sGA, pfx = mode === 'session' ? 'Session' : 'Last 10';
+
   const rTitle = document.getElementById('recapRecordTitle'), mTitle = document.getElementById('recapMvpTitle'), lTitle = document.getElementById('recapLiabilityTitle');
   const sWin = document.getElementById('sessionTimeWindow'), sRec = document.getElementById('sessionRecordText'), sGd = document.getElementById('sessionGoalDiffText');
+  const sWp = document.getElementById('sessionWinPctPill'), srDeltaEl = document.getElementById('sessionSrDeltaBadge');
   if (rTitle) rTitle.innerText = `${pfx} Record`;
   if (mTitle) mTitle.innerText = `👑 ${pfx} MVP`;
-  if (lTitle) lTitle.innerText = `⚓ ${pfx} Passenger`;
+  if (lTitle) lTitle.innerText = `💩 ${pfx} Passenger`;
   if (sWin) sWin.innerText = mode === 'session' ? `${fixtures.length} Match Stint` : `Last ${fixtures.length} Matches`;
   if (sRec) sRec.innerText = `${sW}W - ${sD}D - ${sL}L`;
   if (sGd) sGd.innerText = `${sGF} GF / ${sGA} GA (${gd>=0?`+${gd}`:gd} GD)`;
+  if (sWp) sWp.innerText = `${winPct}% Win`;
 
-  const tb = document.getElementById('sessionTiltBadge');
-  if (tb) {
-    tb.className = sL > sW && sL >= 2 ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40' : sW > sL ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40';
-    tb.innerText = sL > sW && sL >= 2 ? '🚨 HIGH TILT' : sW > sL ? '🔥 VIBES IMMACULATE' : '⚖️ MIXED BAG';
+  if (srDeltaEl) {
+    srDeltaEl.className = netSrDelta > 0
+      ? 'px-2 py-0.5 rounded-full text-[10px] font-black font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+      : netSrDelta < 0
+      ? 'px-2 py-0.5 rounded-full text-[10px] font-black font-mono bg-rose-500/20 text-rose-400 border border-rose-500/40'
+      : 'px-2 py-0.5 rounded-full text-[10px] font-black font-mono bg-gray-800 text-gray-300 border border-gray-700';
+    srDeltaEl.innerText = netSrDelta > 0 ? `▲ +${netSrDelta} SR` : (netSrDelta < 0 ? `▼ ${netSrDelta} SR` : `⚖️ 0 SR`);
   }
 
+  // Render Match-by-Match Results Ticker Strip
+  const tickerHtml = matchLogChrono.map(item => {
+    const cls = item.resChar === 'W'
+      ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300'
+      : item.resChar === 'L'
+      ? 'bg-rose-500/15 border-rose-500/40 text-rose-300'
+      : 'bg-yellow-500/15 border-yellow-500/40 text-yellow-300';
+    const shortOpp = item.oppName.length > 13 ? item.oppName.substring(0, 12) + '…' : item.oppName;
+    return `<div class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md border ${cls} text-[10px] font-bold whitespace-nowrap flex-shrink-0"><span class="font-black">${item.resChar} ${item.score}</span><span class="text-gray-300 font-normal">vs ${shortOpp}</span>${item.isRageQuit ? '<span title="Opponent Rage Quit">💨</span>' : ''}</div>`;
+  }).join('');
+  const tickerBox = document.getElementById('sessionMatchTicker');
+  if (tickerBox) tickerBox.innerHTML = tickerHtml;
+
+  const tb = document.getElementById('sessionTiltBadge');
+  const tiltText = sL > sW && sL >= 2 ? '🚨 HIGH TILT' : sW > sL ? '🔥 VIBES IMMACULATE' : '⚖️ MIXED BAG';
+  const tiltCls = sL > sW && sL >= 2 ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-500/20 text-rose-400 border border-rose-500/40' : sW > sL ? 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500/20 text-amber-300 border border-amber-500/40';
+  if (tb) { tb.className = tiltCls; tb.innerText = tiltText; }
+
   const arr = Object.values(pMap).map(u => ({ ...u, imp: computePlayerImpactScore(u) })).sort((a, b) => b.imp - a.imp);
+  let mvp = null, liab = null;
   if (arr.length) {
-    const mvp = arr[0], liab = arr[arr.length - 1];
-    const mN = document.getElementById('sessionMvpName'), mS = document.getElementById('sessionMvpStats'), mA = document.getElementById('sessionMvpAvatarBox');
-    const lN = document.getElementById('sessionLiabilityName'), lS = document.getElementById('sessionLiabilityStats'), lA = document.getElementById('sessionLiabilityAvatarBox');
+    mvp = arr[0]; liab = arr[arr.length - 1];
+    const mN = document.getElementById('sessionMvpName'), mS = document.getElementById('sessionMvpStats'), mA = document.getElementById('sessionMvpAvatarBox'), mCr = document.getElementById('sessionMvpCrownsBadge');
+    const lN = document.getElementById('sessionLiabilityName'), lS = document.getElementById('sessionLiabilityStats'), lA = document.getElementById('sessionLiabilityAvatarBox'), lPp = document.getElementById('sessionPoopCountBadge');
     if (mN) mN.innerText = mvp.name;
     if (mS) mS.innerText = formatHolisticPlayerSummary(mvp, false);
     if (mA) mA.innerHTML = renderAvatarWithFlagHtml(mvp.name, 'w-11 h-11', 'border-emerald-400', 'w-4 h-3');
+    if (mCr) {
+      if (mvp.mvpCrowns > 0) { mCr.innerText = `${mvp.mvpCrowns}x 👑`; mCr.classList.remove('hidden'); }
+      else { mCr.classList.add('hidden'); }
+    }
+
     if (lN) lN.innerText = liab.name;
     if (lS) lS.innerText = formatHolisticPlayerSummary(liab, arr.length > 1);
     if (lA) lA.innerHTML = renderAvatarWithFlagHtml(liab.name, 'w-11 h-11', 'border-rose-400', 'w-4 h-3');
+    if (lPp) {
+      if (liab.poopCount > 0) { lPp.innerText = `${liab.poopCount}x 💩`; lPp.classList.remove('hidden'); }
+      else { lPp.classList.add('hidden'); }
+    }
+  }
+
+  // Compute 3 Session Highlights & Crimes (Top Threat, Defensive Rock, Crime of the Stint)
+  const highlights = [];
+  if (arr.length) {
+    const topThreat = [...arr].sort((a, b) => (b.goals * 3 + b.assists * 2) - (a.goals * 3 + a.assists * 2))[0];
+    const topRock = [...arr].sort((a, b) => (b.tackles + b.interceptions + b.blocks) - (a.tackles + a.interceptions + a.blocks))[0];
+    const topCrime = [...arr].sort((a, b) => (b.reds * 15 + b.missedPasses + Math.max(0, b.shots - b.goals) * 2) - (a.reds * 15 + a.missedPasses + Math.max(0, a.shots - a.goals) * 2))[0];
+
+    if (topThreat) {
+      const conv = topThreat.shots > 0 ? `${Math.round((topThreat.goals / topThreat.shots) * 100)}% Conv` : `${topThreat.games} GP`;
+      highlights.push({ icon: '🎯', label: 'Attacking Threat', player: topThreat.name, stat: `${topThreat.goals}G & ${topThreat.assists}A (${conv})`, col: 'text-emerald-400', border: 'border-emerald-500/30' });
+    }
+    if (topRock) {
+      highlights.push({ icon: '🧱', label: 'Defensive Rock', player: topRock.name, stat: `${topRock.tackles} Tkl • ${topRock.interceptions + topRock.blocks} Int/Blk`, col: 'text-sky-400', border: 'border-sky-500/30' });
+    }
+    if (topCrime) {
+      const missedS = Math.max(0, topCrime.shots - topCrime.goals);
+      const crimeStat = topCrime.reds > 0
+        ? `${topCrime.reds}🟥 Red(s) & ${topCrime.missedPasses} Turnovers`
+        : topCrime.missedPasses >= missedS * 2
+        ? `${topCrime.missedPasses} Missed Passes`
+        : `${missedS} Missed Shots & ${topCrime.missedPasses} Turnovers`;
+      highlights.push({ icon: '🚨', label: 'Crime of the Stint', player: topCrime.name, stat: crimeStat, col: 'text-rose-400', border: 'border-rose-500/30' });
+    }
+  }
+
+  const hlStrip = document.getElementById('sessionHighlightsStrip');
+  if (hlStrip) {
+    hlStrip.innerHTML = highlights.map(h => `<div class="bg-gray-900/50 border ${h.border} rounded-lg px-3 py-2 flex items-center justify-between gap-2"><div class="min-w-0"><div class="text-[9px] font-black uppercase text-gray-400">${h.icon} ${h.label}</div><div class="text-xs font-extrabold text-white truncate">${h.player}</div></div><span class="text-[11px] font-bold font-mono ${h.col} whitespace-nowrap">${h.stat}</span></div>`).join('');
   }
 
   const bestOwn = [2, 3, 4, 5].map(k => ownBuckets[k]).filter(b => b.total > 0).sort((a, b) => (b.w / b.total) - (a.w / a.total));
@@ -412,6 +529,63 @@ function updateRecapMetricsDisplay(clubId, fixtures = [], mode = 'session') {
   const ownTxt = bestOwn.length ? `Sweet spot: ${bestOwn[0].label} (${Math.round((bestOwn[0].w / bestOwn[0].total) * 100)}% Win)` : '';
   const oppTxt = worstOpp.length ? `Toughest: ${worstOpp[0].label} (${Math.round((worstOpp[0].w / worstOpp[0].total) * 100)}% Win)` : '';
   if (pVerd) pVerd.innerText = [ownTxt, oppTxt].filter(Boolean).join(' • ') || 'Balanced squad size record';
+
+  // Populate Broadcast Session Poster Modal
+  const cName = GLOBAL_COMBINED_DATA?.info?.name || document.getElementById('clubName')?.innerText || 'Pro Clubs';
+  const curSr = GLOBAL_COMBINED_DATA?.overall?.skillRating ?? GLOBAL_COMBINED_DATA?.overall?.rating ?? '--';
+  const divNum = GLOBAL_COMBINED_DATA?.divisionNum ?? GLOBAL_COMBINED_DATA?.division ?? 'Div 5';
+  const latestTs = Number(fixtures[0]?.timestamp || 0);
+  const dateStr = latestTs > 0 ? new Date(latestTs * 1000).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }) : 'Latest Stint';
+
+  const pCrest = document.getElementById('posterCrestBox');
+  if (pCrest) pCrest.innerHTML = `<img src="${CURRENT_CLUB_CREST_URL || `${API_BASE}/crest/0?name=FC`}" crossorigin="anonymous" class="w-full h-full object-contain" alt="${cName}">`;
+  const pMode = document.getElementById('posterModeTag');
+  if (pMode) pMode.innerText = mode === 'session' ? `${fixtures.length}-MATCH SESSION` : `LAST ${fixtures.length} MATCHES`;
+  const pTilt = document.getElementById('posterTiltTag');
+  if (pTilt) { pTilt.className = tiltCls; pTilt.innerText = tiltText; }
+  const pClub = document.getElementById('posterClubName');
+  if (pClub) pClub.innerText = cName;
+  const pDate = document.getElementById('posterDateSub');
+  if (pDate) pDate.innerText = `${dateStr} • Official EA Match Telemetry`;
+  const pDiv = document.getElementById('posterDivShield');
+  if (pDiv && typeof renderDivisionShieldHtml === 'function') pDiv.innerHTML = renderDivisionShieldHtml(divNum, 'sm');
+
+  const pRec = document.getElementById('posterRecord'), pWp = document.getElementById('posterWinPct');
+  const pSr = document.getElementById('posterCurrentSr'), pSrD = document.getElementById('posterSrDelta');
+  const pGls = document.getElementById('posterGoals'), pGpg = document.getElementById('posterGpg');
+  if (pRec) pRec.innerText = `${sW}W-${sD}D-${sL}L`;
+  if (pWp) pWp.innerText = `${winPct}% Win Rate`;
+  if (pSr) pSr.innerText = `${curSr} SR`;
+  if (pSrD) {
+    pSrD.className = netSrDelta >= 0 ? 'text-[10px] font-black font-mono text-emerald-400' : 'text-[10px] font-black font-mono text-rose-400';
+    pSrD.innerText = netSrDelta > 0 ? `▲ +${netSrDelta} SR` : (netSrDelta < 0 ? `▼ ${netSrDelta} SR` : `0 SR Net`);
+  }
+  if (pGls) pGls.innerText = `${sGF}-${sGA} (${gd>=0?`+${gd}`:gd})`;
+  if (pGpg) pGpg.innerText = `${(sGF / totGames).toFixed(1)} GF / ${(sGA / totGames).toFixed(1)} GA`;
+
+  const pSweet = document.getElementById('posterLobbySweetSpot');
+  if (pSweet) pSweet.innerText = ownTxt;
+  const pTicker = document.getElementById('posterMatchTicker');
+  if (pTicker) pTicker.innerHTML = tickerHtml;
+
+  if (mvp && liab) {
+    const pmAv = document.getElementById('posterMvpAvatar'), pmNm = document.getElementById('posterMvpName'), pmSt = document.getElementById('posterMvpStats'), pmCr = document.getElementById('posterMvpCrowns');
+    const ppAv = document.getElementById('posterPoopAvatar'), ppNm = document.getElementById('posterPoopName'), ppSt = document.getElementById('posterPoopStats'), ppCt = document.getElementById('posterPoopCount');
+    if (pmAv) pmAv.innerHTML = renderAvatarWithFlagHtml(mvp.name, 'w-12 h-12', 'border-emerald-400', 'w-4 h-3');
+    if (pmNm) pmNm.innerText = mvp.name;
+    if (pmSt) pmSt.innerText = formatHolisticPlayerSummary(mvp, false);
+    if (pmCr) pmCr.innerText = mvp.mvpCrowns > 0 ? `${mvp.mvpCrowns}x 👑` : `${(mvp.ratingSum / mvp.games).toFixed(1)}★`;
+
+    if (ppAv) ppAv.innerHTML = renderAvatarWithFlagHtml(liab.name, 'w-12 h-12', 'border-rose-400', 'w-4 h-3');
+    if (ppNm) ppNm.innerText = liab.name;
+    if (ppSt) ppSt.innerText = formatHolisticPlayerSummary(liab, arr.length > 1);
+    if (ppCt) ppCt.innerText = liab.poopCount > 0 ? `${liab.poopCount}x 💩` : `${(liab.ratingSum / liab.games).toFixed(1)}★`;
+  }
+
+  const pHl = document.getElementById('posterHighlightsList');
+  if (pHl) {
+    pHl.innerHTML = highlights.map(h => `<div class="flex items-center justify-between text-[11px] border-b border-gray-800/70 last:border-0 pb-1 last:pb-0"><span class="text-gray-300 font-bold truncate pr-2">${h.icon} ${h.label}: <b class="text-white">${h.player}</b></span><span class="font-mono font-black ${h.col} whitespace-nowrap">${h.stat}</span></div>`).join('');
+  }
 }
 
 async function loadClub(clubId, platform = 'common-gen5', updateHistory = true) {
@@ -523,6 +697,11 @@ function renderClub(clubId, data, platform, membersList = [], matchesPayload = [
   if (sRat) sRat.innerText = rating;
   if (gSt) gSt.innerHTML = `${goals}/${conceded} <span class="text-xs text-gray-400 font-normal">(${gDiff>=0?`+${gDiff}`:gDiff})</span>`;
   if (gpgSub) gpgSub.innerText = `${totalGames > 0 ? (goals / totalGames).toFixed(1) : '0.0'} GF/g • ${totalGames > 0 ? (conceded / totalGames).toFixed(1) : '0.0'} GA/g`;
+
+  // Refresh Session Poster Header after club metadata is populated
+  if (typeof updateRecapMetricsDisplay === 'function') {
+    updateRecapMetricsDisplay(clubId, CURRENT_RECAP_MODE === 'session' ? SESSION_MATCHES_CACHE : matchesPayload.slice(0, 10), CURRENT_RECAP_MODE);
+  }
 }
 
 function filterRecentMatches(category) {
